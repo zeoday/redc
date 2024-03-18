@@ -1,5 +1,9 @@
 # redc
 
+---
+
+> 编译前 按需从 tf-template 仓库中把你需要的场景 复制到 redc/utils/redc-templates/ 路径下 !!!
+
 ## 编译
 
 ```
