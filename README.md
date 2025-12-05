@@ -11,30 +11,29 @@
 goreleaser --snapshot --skip-publish --rm-dist
 ```
 
-## 本地依赖工具
+## 本地依赖工具安装
 
 **mac**
 
-aliyun-cli
+aliyun-cli 安装
 ```bash
 brew install aliyun-cli
 ```
 
-terraform
+terraform 安装
 ```bash
 brew tap hashicorp/tap
 brew install hashicorp/tap/terraform
 brew upgrade hashicorp/tap/terraform
 ```
 
-jq
+jq 安装
 ```bash
 brew install jq
 ```
 
-aws-cli
+aws-cli 安装
 - https://docs.aws.amazon.com/zh_cn/cli/latest/userguide/getting-started-install.html
-
 
 **linux**
 ```bash
@@ -66,7 +65,7 @@ https://docs.aws.amazon.com/zh_cn/cli/latest/userguide/getting-started-install.h
 aws configure
 ```
 
-## 依赖配置
+## cli 依赖配置
 
 **aliyun cli 配置**
 ```bash
@@ -164,3 +163,7 @@ bbbbbbbbb   file    2022.02.22      system
     - 项目状态文件 (project.ini)
 - 项目3 (./project3)
     - ...
+
+## 文章介绍
+
+- https://mp.weixin.qq.com/s/JH-IlL_GFgZp3xXeOFzZeQ
