@@ -6,9 +6,13 @@
 
 > 编译前 按需从 https://github.com/wgpsec/redc-template 仓库中把你需要的场景 复制到 redc/utils/redc-templates/ 路径下 !!!
 
-复制后，进行编译
+复制后，通过 goreleaser 进行编译
+
+**goreleaser**
 ```
-goreleaser --snapshot --skip-publish --rm-dist
+brew install goreleaser
+
+goreleaser --snapshot --clean
 ```
 
 ## 本地依赖工具安装
