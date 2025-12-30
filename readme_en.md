@@ -1,14 +1,14 @@
 # redc
 
-中文 | [English](readme_en.md)
+[中文](README.md) | English
 
 ---
 
-## 编译
+## Build
 
-> 编译前 按需从 https://github.com/wgpsec/redc-template 仓库中把你需要的场景 复制到 redc/utils/redc-templates/ 路径下 !!!
+> Before building, copy the scenarios you need from the https://github.com/wgpsec/redc-template repository to the redc/utils/redc-templates/ path as needed !!!
 
-复制后，通过 goreleaser 进行编译
+After copying, compile using goreleaser
 
 **goreleaser**
 ```
@@ -17,29 +17,29 @@ brew install goreleaser
 goreleaser --snapshot --clean
 ```
 
-## 本地依赖工具安装
+## Local Dependency Tool Installation
 
 **mac**
 
-aliyun-cli 安装
+aliyun-cli installation
 ```bash
 brew install aliyun-cli
 ```
 
-terraform 安装
+terraform installation
 ```bash
 brew tap hashicorp/tap
 brew install hashicorp/tap/terraform
 brew upgrade hashicorp/tap/terraform
 ```
 
-jq 安装
+jq installation
 ```bash
 brew install jq
 ```
 
-aws-cli 安装
-- https://docs.aws.amazon.com/zh_cn/cli/latest/userguide/getting-started-install.html
+aws-cli installation
+- https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
 
 **linux**
 ```bash
@@ -49,7 +49,7 @@ unzip terraform_1.6.6_linux_amd64.zip
 mv --force terraform /usr/local/bin/terraform > /dev/null 2>&1 && chmod +x /usr/local/bin/terraform
 rm -rf /tmp/terraform
 
-# 如果是 arm64 机器
+# For arm64 machines
 # mkdir -p /tmp/terraform && cd /tmp/terraform && wget -O terraform_1.6.6_linux_arm64.zip 'https://releases.hashicorp.com/terraform/1.6.6/terraform_1.6.6_linux_arm64.zip'
 # unzip terraform_1.6.6_linux_arm64.zip
 # mv --force terraform /usr/local/bin/terraform > /dev/null 2>&1 && chmod +x /usr/local/bin/terraform
@@ -67,18 +67,18 @@ rm -rf /tmp/aliyuncli
 apt install jq || yum install jq
 
 # aws
-https://docs.aws.amazon.com/zh_cn/cli/latest/userguide/getting-started-install.html
+https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
 aws configure
 ```
 
-## cli 依赖配置
+## CLI Dependency Configuration
 
-**aliyun cli 配置**
+**aliyun cli configuration**
 ```bash
 aliyun configure set --profile cloud-tool --mode AK --region cn-beijing --access-key-id xxxxxxxxxxxxxx --access-key-secret xxxxxxxxxxxxxx
 ```
 
-**aws-cli 配置**
+**aws-cli configuration**
 ```
 aws configure
 AKIAXXXXXXXXXXXXX
@@ -87,7 +87,7 @@ ap-east-1
 text
 ```
 
-**配置rclone** (如果用代理池传r2 就配置,如果不用可以不用配置)
+**Configure rclone** (Configure this if you use proxy pool to transfer to r2, otherwise it's optional)
 ```
 rclone config
 s3
@@ -100,76 +100,76 @@ auto
 rclone lsf r2:test
 ```
 
-配置tf插件缓存路径
+Configure tf plugin cache path
 ```bash
 echo 'plugin_cache_dir = "$HOME/.terraform.d/plugin-cache"' > ~/.terraformrc
 ```
 
-使用前需初始化redc，将自动下载tf模块依赖 (如果重新对模板打包,则再次编译后还需要进行初始化)
+Initialize redc before use, it will automatically download tf module dependencies (If you repackage the template, you need to initialize again after recompilation)
 ```
 ./redc -init
 ```
 
-## 交互使用
+## Interactive Usage
 
 ```bash
-# 开启 awvs 场景
+# Start awvs scenario
 redc -start awvs -u zhangsan
 .........
 .........
-场景uuid:xxxxxxxxx
+Scenario uuid:xxxxxxxxx
 
-# 查看指定场景的状态
+# Check the status of a specified scenario
 redc -status [uuid]
 
-# 关闭指定场景
+# Stop a specified scenario
 redc -stop [uuid]
 
-# 查看所有场景
+# View all scenarios
 redc -list
 uuid        type    createtime      operator
 xxxxxxxxx   awvs    2022.02.22      system
 bbbbbbbbb   file    2022.02.22      system
 ```
 
-场景名称 - 对应模板仓库 https://github.com/wgpsec/redc-template
+Scenario name - corresponds to the template repository https://github.com/wgpsec/redc-template
 
-按你放到redc/utils/redc-templates/ 路径下的"文件夹名称"来
+Use the "folder name" you placed in the redc/utils/redc-templates/ path
 
-每个场景的具体使用和命令请查看模板仓库 https://github.com/wgpsec/redc-template 里具体场景的 readme
+For specific usage and commands for each scenario, please check the readme of the specific scenario in the template repository https://github.com/wgpsec/redc-template
 
 ---
 
-## 设计规划
+## Design Plan
 
-1. 先创建新项目
-2. 指定项目下要创建场景会从场景库复制一份场景文件夹到项目文件夹下
-3. 不同项目下创建同一场景互不干扰
-4. 同一项目下创建同一场景互不干扰
-5. 多用户操作互不干扰(本地有做鉴权,但这个实际上要在平台上去做)
+1. Create a new project first
+2. Creating a scenario under a specified project will copy a scenario folder from the scenario library to the project folder
+3. Creating the same scenario under different projects will not interfere with each other
+4. Creating the same scenario under the same project will not interfere with each other
+5. Multiple user operations will not interfere with each other (local authentication is done, but this should actually be done on the platform)
 
-- redc 配置文件 (.redc.ini)
-- 项目1 (./project1)
-    - 场景1 (./project1/[uuid1])
+- redc configuration file (.redc.ini)
+- Project1 (./project1)
+    - Scenario1 (./project1/[uuid1])
         - main.tf
         - version.tf
         - output.tf
-    - 场景2 (./project1/[uuid2])
+    - Scenario2 (./project1/[uuid2])
         - main.tf
         - version.tf
         - output.tf
-    - 项目状态文件 (project.ini)
-- 项目2 (./project2)
-    - 场景1 (./project2/[uuid1])
+    - Project status file (project.ini)
+- Project2 (./project2)
+    - Scenario1 (./project2/[uuid1])
         - main.tf
         - version.tf
         - output.tf
-    - 场景2 (./project2/[uuid2])
+    - Scenario2 (./project2/[uuid2])
         - ...
-    - 项目状态文件 (project.ini)
-- 项目3 (./project3)
+    - Project status file (project.ini)
+- Project3 (./project3)
     - ...
 
-## 文章介绍
+## Article Introduction
 
 - https://mp.weixin.qq.com/s/JH-IlL_GFgZp3xXeOFzZeQ
