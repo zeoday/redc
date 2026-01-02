@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/terraform-exec/tfexec"
 )
 
 // readFileContent reads a file and returns its content with newlines trimmed
@@ -40,21 +42,26 @@ func TfInit(Path string) error {
 	return nil
 }
 
-// TfInit2 复制后的初始化 遗留函数
-func TfInit2(Path string) {
-
+// TfInit2 复制模版后再尝试初始化
+func TfInit2(Path string) error {
 	if err := TfInit(Path); err != nil {
+		gologger.Debug().Msgf("初始化失败！: %v", err)
 		// 无法初始化,删除 case 文件夹
 		err = os.RemoveAll(Path)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(3)
+			return fmt.Errorf("删除文件夹失败！")
 		}
-		os.Exit(3)
+		return err
 	}
+	return nil
 }
 
-func TfApply(Path string) error {
+// RVar 统一转换接口，方便后续替换类型
+func RVar(s ...string) []string {
+	return s
+}
+
+func TfApply(Path string, opts ...string) error {
 	ctx, cancel := createContextWithTimeout()
 	defer cancel()
 	fmt.Printf("Applying terraform in %s\n", Path)
@@ -63,7 +70,7 @@ func TfApply(Path string) error {
 		return fmt.Errorf("场景创建失败,terraform未找到或配置错误: %w", err)
 	}
 
-	err = te.Apply(ctx)
+	err = te.Apply(ctx, ToApply(opts)...)
 	if err != nil {
 		gologger.Error().Msgf("场景创建失败，正在尝试第二次创建: %v", err)
 		err = te.Destroy(ctx)
@@ -72,7 +79,7 @@ func TfApply(Path string) error {
 			return err
 		}
 		// Retry apply
-		err2 := te.Apply(ctx)
+		err2 := te.Apply(ctx, ToApply(opts)...)
 		if err2 != nil {
 			return fmt.Errorf("场景创建第二次失败!请手动排查问题,path路径: %s : %w", Path, err2)
 		}
@@ -97,7 +104,7 @@ func TfStatus(Path string) {
 	}
 }
 
-func TfDestroy(Path string) {
+func TfDestroy(Path string, opts []string) error {
 	ctx, cancel := createContextWithTimeout()
 	defer cancel()
 	fmt.Printf("Destroying terraform resources in %s\n", Path)
@@ -105,12 +112,40 @@ func TfDestroy(Path string) {
 	if err != nil {
 		gologger.Error().Msgf("场景销毁失败,terraform未找到或配置错误: %v", err)
 	}
-	// Use retry logic with MaxRetries
-	err = retryOperation(ctx, te.Destroy, MaxRetries)
+	err = te.Destroy(ctx, ToDestroy(opts)...)
 	if err != nil {
 		gologger.Error().Msgf("场景销毁失败!请手动排查问题,path路径: %s,%v", Path, err)
 	}
+	// Use retry logic with MaxRetries
+	//err = retryOperation(ctx, te.Destroy, MaxRetries)
+	//if err != nil {
+	//	gologger.Error().Msgf("场景销毁失败!请手动排查问题,path路径: %s,%v", Path, err)
+	//}
+	return nil
+}
 
+func ToApply(v []string) []tfexec.ApplyOption {
+	var opts []tfexec.ApplyOption
+	for _, s := range v {
+		opts = append(opts, tfexec.Var(s))
+	}
+	return opts
+}
+
+func ToPlan(v []string) []tfexec.PlanOption {
+	var opts []tfexec.PlanOption
+	for _, s := range v {
+		opts = append(opts, tfexec.Var(s))
+	}
+	return opts
+}
+
+func ToDestroy(v []string) []tfexec.DestroyOption {
+	var opts []tfexec.DestroyOption
+	for _, s := range v {
+		opts = append(opts, tfexec.Var(s))
+	}
+	return opts
 }
 
 func C2Apply(Path string) {
@@ -258,78 +293,6 @@ func C2Destroy(Path string, Command1 string, Domain string) {
 
 }
 
-func AwsProxyApply(Path string) {
-
-	fmt.Println("cd " + Path + " && bash deploy.sh -start " + strconv.Itoa(Node))
-	err := utils.Command("cd " + Path + " && bash deploy.sh -start " + strconv.Itoa(Node))
-	if err != nil {
-		fmt.Println("场景创建失败!")
-		RedcLog("场景创建失败!")
-		os.Exit(3)
-	}
-
-}
-
-func AwsProxyDestroy(Path string, Command1 string) {
-
-	fmt.Println("cd " + Path + " && bash deploy.sh -stop " + Command1)
-	err := utils.Command("cd " + Path + " && bash deploy.sh -stop " + Command1)
-	if err != nil {
-		fmt.Println("场景销毁失败,第一次尝试!", err)
-
-		// 如果初始化失败就再次尝试一次
-		err2 := utils.Command("cd " + Path + " && bash deploy.sh -stop " + Command1)
-		if err2 != nil {
-			fmt.Println("场景销毁失败,第二次尝试!", err)
-
-			// 第三次
-			err3 := utils.Command("cd " + Path + " && bash deploy.sh -stop " + Command1)
-			if err3 != nil {
-				fmt.Println("场景销毁失败!")
-				RedcLog("场景销毁失败!")
-				os.Exit(3)
-			}
-		}
-	}
-
-}
-
-func AliyunProxyApply(Path string) {
-
-	fmt.Println("cd " + Path + " && bash deploy.sh -start " + strconv.Itoa(Node))
-	err := utils.Command("cd " + Path + " && bash deploy.sh -start " + strconv.Itoa(Node))
-	if err != nil {
-		fmt.Println("场景创建失败!")
-		RedcLog("场景创建失败!")
-		os.Exit(3)
-	}
-
-}
-
-func AsmApply(Path string) {
-
-	fmt.Println("cd " + Path + " && bash deploy.sh -start " + strconv.Itoa(Node))
-	err := utils.Command("cd " + Path + " && bash deploy.sh -start " + strconv.Itoa(Node))
-	if err != nil {
-		fmt.Println("场景创建失败!")
-		RedcLog("场景创建失败!")
-		os.Exit(3)
-	}
-
-}
-
-func AsmNodeApply(Path string) {
-
-	fmt.Println("cd " + Path + " && bash deploy.sh -start " + strconv.Itoa(Node) + " " + Domain + " " + Domain2)
-	err := utils.Command("cd " + Path + " && bash deploy.sh -start " + strconv.Itoa(Node) + " " + Domain + " " + Domain2)
-	if err != nil {
-		fmt.Println("场景创建失败!")
-		RedcLog("场景创建失败!")
-		os.Exit(3)
-	}
-
-}
-
 func AliyunProxyChange(Path string) {
 
 	// 重开proxy
@@ -460,18 +423,6 @@ func DnslogDestroy(Path string, Domain string) {
 				os.Exit(3)
 			}
 		}
-	}
-
-}
-
-func Base64Apply(Path string) {
-
-	fmt.Println("cd " + Path + " && bash deploy.sh -start " + Base64Command)
-	err := utils.Command("cd " + Path + " && bash deploy.sh -start " + Base64Command)
-	if err != nil {
-		fmt.Println("场景创建失败!")
-		RedcLog("场景创建失败!")
-		os.Exit(3)
 	}
 
 }

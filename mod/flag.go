@@ -7,7 +7,7 @@ var (
 	Init          bool
 	List          bool
 	Debug         bool
-	U             string
+	U             string // 用户名
 	Name          string
 	Project       string
 	Start         string

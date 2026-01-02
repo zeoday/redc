@@ -9,6 +9,8 @@ import (
 )
 
 var commonCachePath = "./tf-plugin-cache" // Provider 插件缓存目录
+var ProjectPath = "./redc-taskresult"
+var ProjectFile = "prject.json"
 
 // Config 结构体用于解析 YAML
 type Config struct {

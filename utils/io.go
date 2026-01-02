@@ -41,8 +41,7 @@ func File(src, dst string) error {
 }
 
 // Dir copies a whole directory recursively
-func Dir(src string, dst string) error {
-	var err error
+func Dir(src string, dst string) (err error) {
 	var fds []os.FileInfo
 	var srcinfo os.FileInfo
 
@@ -63,11 +62,11 @@ func Dir(src string, dst string) error {
 
 		if fd.IsDir() {
 			if err = Dir(srcfp, dstfp); err != nil {
-				//fmt.Println(err)
+				return err
 			}
 		} else {
 			if err = File(srcfp, dstfp); err != nil {
-				//fmt.Println(err)
+				return err
 			}
 		}
 	}

@@ -12,8 +12,6 @@ import (
 	"github.com/gen2brain/beeep"
 )
 
-var ProjectPath = "./redc-taskresult"
-
 const banner = `
 
 ██████╗  ███████╗ ██████╗   ██████╗ 
@@ -60,7 +58,9 @@ func main() {
 		gologger.Info().Msgf("初始化中")
 		// 先删除文件夹
 		err := os.RemoveAll("redc-templates")
-		gologger.Error().Msgf("初始化过程中删除模板文件夹失败: %s", err)
+		if err != nil {
+			gologger.Print().Msgf("初始化过程中删除模板文件夹失败: %s", err)
+		}
 		// 释放 templates 资源
 		utils.ReleaseDir("redc-templates")
 
@@ -77,11 +77,14 @@ func main() {
 	}
 
 	// 解析项目名称
-	redc.ProjectParse(ProjectPath+"/"+redc.Project, redc.Project, redc.U)
+	err := redc.ProjectParse(redc.Project, redc.U)
+	if err != nil {
+		gologger.Fatal().Msgf("项目解析失败: %s", err)
+	}
 
 	// list 操作查看项目里所有 case
 	if redc.List {
-		redc.CaseList(ProjectPath + "/" + redc.Project)
+		redc.CaseList(redc.Project)
 	}
 
 	// start 操作,去调用 case 创建方法
@@ -91,32 +94,48 @@ func main() {
 			redc.Start = "pte_arm"
 		}
 		//fmt.Println("step1")
-		redc.CaseCreate(ProjectPath+"/"+redc.Project, redc.Start, redc.U, redc.Name)
+		redc.CaseCreate(redc.Project, redc.Start, redc.U, redc.Name)
 	}
 
 	// stop 操作,去调用 case 删除方法
 	if redc.Stop != "" {
 		redc.RedcLog("stop " + redc.Stop)
-		redc.CheckUser(ProjectPath+"/"+redc.Project, redc.Stop)
-		redc.CaseStop(ProjectPath+"/"+redc.Project, redc.Stop)
+		err = redc.CheckUser(redc.Project, redc.Stop)
+		if err != nil {
+			gologger.Fatal().Msgf("用户验证失败: %s", err)
+			return
+		}
+		redc.CaseStop(redc.Project, redc.Stop)
 	}
 	if redc.Kill != "" {
-		redc.CheckUser(ProjectPath+"/"+redc.Project, redc.Kill)
-		redc.CaseKill(ProjectPath+"/"+redc.Project, redc.Kill)
+		err = redc.CheckUser(redc.Project, redc.Stop)
+		if err != nil {
+			gologger.Fatal().Msgf("用户验证失败: %s", err)
+			return
+		}
+		redc.CaseKill(redc.Project, redc.Kill)
 	}
 
 	// change 操作,去调用 case 更改方法
 	if redc.Change != "" {
 		redc.RedcLog("change " + redc.Change)
-		redc.CheckUser(ProjectPath+"/"+redc.Project, redc.Change)
-		redc.CaseChange(ProjectPath+"/"+redc.Project, redc.Change)
+		err = redc.CheckUser(redc.Project, redc.Stop)
+		if err != nil {
+			gologger.Fatal().Msgf("用户验证失败: %s", err)
+			return
+		}
+		redc.CaseChange(redc.Project, redc.Change)
 	}
 
 	// status 操作,去调用 case 状态方法
 	if redc.Status != "" {
 		redc.RedcLog("status" + redc.Status)
-		redc.CheckUser(ProjectPath+"/"+redc.Project, redc.Status)
-		redc.CaseStatus(ProjectPath+"/"+redc.Project, redc.Status)
+		err = redc.CheckUser(redc.Project, redc.Stop)
+		if err != nil {
+			gologger.Fatal().Msgf("用户验证失败: %s", err)
+			return
+		}
+		redc.CaseStatus(redc.Project, redc.Status)
 	}
 
 }

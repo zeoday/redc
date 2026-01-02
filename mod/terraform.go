@@ -61,13 +61,13 @@ func (te *TerraformExecutor) Init(ctx context.Context) error {
 }
 
 // Apply runs terraform apply (auto-approve is the default behavior in terraform-exec)
-func (te *TerraformExecutor) Apply(ctx context.Context) error {
-	return te.tf.Apply(ctx)
+func (te *TerraformExecutor) Apply(ctx context.Context, opts ...tfexec.ApplyOption) error {
+	return te.tf.Apply(ctx, opts...)
 }
 
 // Destroy runs terraform destroy (auto-approve is the default behavior in terraform-exec)
-func (te *TerraformExecutor) Destroy(ctx context.Context) error {
-	return te.tf.Destroy(ctx)
+func (te *TerraformExecutor) Destroy(ctx context.Context, opts ...tfexec.DestroyOption) error {
+	return te.tf.Destroy(ctx, opts...)
 }
 
 // Output retrieves a terraform output value as a string
