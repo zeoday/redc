@@ -57,12 +57,16 @@ func NewTerraformExecutor(workingDir string) (*TerraformExecutor, error) {
 
 // Init runs terraform init with upgrade option
 func (te *TerraformExecutor) Init(ctx context.Context) error {
-	return te.tf.Init(ctx, tfexec.Upgrade(true))
+	return te.tf.Init(ctx, tfexec.Upgrade(false))
 }
 
 // Apply runs terraform apply (auto-approve is the default behavior in terraform-exec)
 func (te *TerraformExecutor) Apply(ctx context.Context, opts ...tfexec.ApplyOption) error {
 	return te.tf.Apply(ctx, opts...)
+}
+func (te *TerraformExecutor) Plan(ctx context.Context, opts ...tfexec.PlanOption) error {
+	_, err := te.tf.Plan(ctx, opts...)
+	return err
 }
 
 // Destroy runs terraform destroy (auto-approve is the default behavior in terraform-exec)

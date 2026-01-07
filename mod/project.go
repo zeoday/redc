@@ -6,9 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"red-cloud/mod/gologger"
+	"text/tabwriter"
 	"time"
-
-	"gopkg.in/ini.v1"
 )
 
 // RedcProject 项目结构体
@@ -23,104 +22,104 @@ type RedcProject struct {
 // Case 项目信息
 type Case struct {
 	// Id uuid
-	Id       string `json:"id"`
-	Name     string `json:"name"`
-	Type     string `json:"type"`
-	Operator string `json:"operator"`
-	Path     string `json:"path"`
-	// Node 节点数量
-	Node          int      `json:"node"`
-	Domain        string   `json:"domain"`
-	Domain2       string   `json:"domain2"`
-	CreateTime    string   `json:"create_time"`
-	Base64Command string   `json:"base64_command"`
-	Parameter     []string `json:"parameter"`
-	Plan          string   `json:"plan"`
+	Id         string   `json:"id"`
+	Name       string   `json:"name"`
+	Type       string   `json:"type"`
+	Operator   string   `json:"operator"`
+	Path       string   `json:"path"`
+	Node       int      `json:"node"`
+	CreateTime string   `json:"create_time"`
+	Parameter  []string `json:"parameter"`
 }
 
-func (c *Case) Apply() error {
-	// 部分场景单独处理
-	if c.Type == "cs-49" || c.Type == "c2-new" || c.Type == "snowc2" {
-		c.Parameter = RVar(
+// CaseScene 场景参数判断
+func CaseScene(t string) ([]string, error) {
+	var par []string
+	switch t {
+	case "cs-49", "c2-new", "snowc2":
+		par = RVar(
 			fmt.Sprintf("node_count=%d", Node),
 			fmt.Sprintf("domain=%s", Domain),
 		)
-
-		C2Apply(c.Path)
-	} else if c.Type == "aws-proxy" || c.Type == "aliyun-proxy" || c.Type == "asm" || c.Type == "asm-node" {
-		c.Parameter = RVar(fmt.Sprintf("node_count=%d", Node))
-	} else if c.Type == "dnslog" || c.Type == "xraydnslog" || c.Type == "interactsh" {
+	case "aws-proxy", "aliyun-proxy", "asm":
+		par = RVar(fmt.Sprintf("node_count=%d", Node))
+	case "dnslog", "xraydnslog", "interactsh":
 		if Domain == "360.com" {
-			return fmt.Errorf("创建 dnslog 时,域名不可为默认值")
+			return par, fmt.Errorf("创建 dnslog 时,域名不可为默认值")
 		}
-		c.Parameter = RVar(fmt.Sprintf("domain=%s", Domain))
-	} else if c.Type == "pss5" || c.Type == "frp" || c.Type == "frp-loki" || c.Type == "nps" {
-		c.Parameter = []string{fmt.Sprintf("base64_command=%s", Base64Command)}
-	} else if c.Type == "asm" {
-		c.Parameter = RVar(
-			fmt.Sprintf("node_count=%d", Node),
-		)
-	} else if c.Type == "asm-node" {
-		c.Parameter = RVar(
+		par = RVar(fmt.Sprintf("domain=%s", Domain))
+	case "pss5", "frp", "frp-loki", "nps":
+		par = []string{fmt.Sprintf("base64_command=%s", Base64Command)}
+	case "asm-node":
+		par = RVar(
 			fmt.Sprintf("node_count=%d", Node),
 			fmt.Sprintf("domain2=%s", Domain2),
 			fmt.Sprintf("doamin=%s", Domain),
 		)
 	}
-	err := TfApply(c.Path, c.Parameter...)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return par, nil
 }
 
-func ProjectParse(name string, user string) error {
-	// 确认项目文件夹是否存在,不存在就创建
+// NewProjectConfig 创建项目配置文件
+func NewProjectConfig(name string, user string) (*RedcProject, error) {
 	path := filepath.Join(ProjectPath, name)
-	_, err := os.Stat(path)
-	if err != nil {
-		// 创建项目目录
-		err = os.MkdirAll(path, os.ModePerm)
-		if err != nil {
-			return fmt.Errorf("项目目录创建失败！\n%s", err.Error())
-		}
-		gologger.Info().Msgf("项目目录「%s」创建成功！", name)
-		// 创建项目状态文件
-		currentTime := time.Now().Format("2006-01-02 15:04:05")
-		project := &RedcProject{
-			ProjectName: name,
-			ProjectPath: path,
-			CreateTime:  currentTime,
-			User:        user,
-		}
-
-		err := project.SaveProject()
-		if err != nil {
-			return err
-		}
-
-		gologger.Info().Msgf("项目状态文件「%s」创建成功！", ProjectFile)
-
+	// 创建项目目录
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return nil, fmt.Errorf("创建项目目录失败: %w", err)
 	}
-	return nil
+	gologger.Info().Msgf("项目目录「%s」创建成功！", name)
+	// 创建项目状态文件
+	currentTime := time.Now().Format("2006-01-02 15:04:05")
+	project := &RedcProject{
+		ProjectName: name,
+		ProjectPath: path,
+		CreateTime:  currentTime,
+		User:        user,
+	}
+
+	if err := project.SaveProject(); err != nil {
+		// 如果保存失败，应该清理目录吗？视业务逻辑而定，这里暂时只返回错误
+		return nil, fmt.Errorf("保存项目状态文件失败: %w", err)
+	}
+	gologger.Info().Msgf("项目状态文件「%s」创建成功！", ProjectFile)
+	return project, nil
+
+}
+
+func ProjectParse(name string, user string) (*RedcProject, error) {
+	// 尝试直接读取项目
+	if p, err := ProjectByName(name); err == nil {
+		// 项目鉴权
+		if p.User != user && user != "system" {
+			return nil, fmt.Errorf("当前用户「%s」无权限访问项目「%s」", user, name)
+		}
+		// 读取成功，直接返回
+		return p, nil
+	}
+	path := filepath.Join(ProjectPath, name)
+	// 检查目录是否存在，或者直接尝试创建
+	if _, statErr := os.Stat(path); os.IsNotExist(statErr) {
+		gologger.Info().Msgf("项目不存在，正在创建新项目: %s", name)
+		return NewProjectConfig(name, user)
+	} else if statErr != nil {
+		// 目录存在但有其他错误（如权限不足）
+		return nil, statErr
+	}
+	return NewProjectConfig(name, user)
 }
 
 // ProjectByName 读取项目配置
 func ProjectByName(name string) (*RedcProject, error) {
 	path := filepath.Join(ProjectPath, name, ProjectFile)
-	// 读取 JSON 文件
 	data, err := os.ReadFile(path)
 	if err != nil {
-		gologger.Debug().Msgf("项目文件读取失败 %s", err.Error())
-		return nil, fmt.Errorf("项目文件读取失败: %v", err)
+		gologger.Debug().Msgf("读取项目文件失败 [%s]: %v", name, err)
+		return nil, err
 	}
 
-	// 解析 JSON 数据
 	var project RedcProject
-	err = json.Unmarshal(data, &project)
-	if err != nil {
-		return nil, fmt.Errorf("解析数据失败: %v", err)
+	if err := json.Unmarshal(data, &project); err != nil {
+		return nil, fmt.Errorf("解析项目配置失败: %w", err)
 	}
 
 	return &project, nil
@@ -137,7 +136,8 @@ func (p *RedcProject) GetCaseByUid(uid string) (*Case, error) {
 }
 
 // HandleCase 删除指定uid的case
-func (p *RedcProject) HandleCase(uid string) error {
+func (p *RedcProject) HandleCase(c *Case) error {
+	uid := c.Id
 	found := false
 	for i, caseInfo := range p.Case {
 		if caseInfo.Id == uid {
@@ -166,12 +166,36 @@ func (p *RedcProject) AddCase(c *Case) error {
 	return nil
 }
 
+func (p *RedcProject) CaseList() {
+	// 使用 tabwriter 创建表格输出
+	w := tabwriter.NewWriter(os.Stdout, 15, 0, 1, ' ', tabwriter.AlignRight)
+	fmt.Fprintln(w, "UUID\tType\tName\tOperator\tCreateTime\t")
+
+	// 遍历项目中的所有 Case
+	for _, c := range p.Case {
+		// 鉴权：只显示当前用户或 system 用户的 Case
+		if c.Operator == U || U == "system" {
+			// 从 Case 结构中获取 Type（从 Name 字段获取类型信息，或者需要额外的 Type 字段）
+			caseType := c.Name // 假设 Name 包含类型信息，或者需要在 Case 结构中添加 Type 字段
+			fmt.Fprintln(w, c.Id, "\t", caseType, "\t", c.Name, "\t", c.Operator, "\t", c.CreateTime)
+		}
+	}
+
+	if err := w.Flush(); err != nil {
+		gologger.Fatal().Msgf("表格输出失败:/%s", err.Error())
+	}
+
+}
+
 // SaveProject 将修改后的项目配置写回 JSON 文件
 func (p *RedcProject) SaveProject() error {
-	// 1. 确定文件路径（建议与 ProjectByName 逻辑保持一致）
-	// 注意：ProjectPath, ProjectFile 应该是你全局定义的变量
+	dirPath := p.ProjectPath
 	path := filepath.Join(ProjectPath, p.ProjectName, ProjectFile)
-
+	// 2. 防御性编程：确保目录存在
+	// 防止用户手动删除了目录，导致保存文件失败
+	if err := os.MkdirAll(dirPath, 0755); err != nil {
+		return fmt.Errorf("无法恢复项目目录: %w", err)
+	}
 	// 2. 序列化数据
 	// MarshalIndent 会生成带缩进的 JSON，方便人类阅读；如果追求体积小，可用 json.Marshal
 	data, err := json.MarshalIndent(p, "", "    ")
@@ -187,16 +211,4 @@ func (p *RedcProject) SaveProject() error {
 	}
 
 	return nil
-}
-
-func ProjectConfigParse(path string) {
-	cfg, err := ini.Load(path)
-	if err != nil {
-		fmt.Printf("Fail to read file: %v", err)
-		os.Exit(3)
-	}
-	fmt.Println("项目名称:", cfg.Section("Global").Key("ProjectName").String())
-	fmt.Println("项目路径:", cfg.Section("Global").Key("ProjectPath").String())
-	fmt.Println("创建时间:", cfg.Section("Global").Key("CreateTime").String())
-	fmt.Println("创建人员:", cfg.Section("Global").Key("Operator").String())
 }

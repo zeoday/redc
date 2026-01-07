@@ -6,7 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -42,35 +42,44 @@ func File(src, dst string) error {
 
 // Dir copies a whole directory recursively
 func Dir(src string, dst string) (err error) {
-	var fds []os.FileInfo
-	var srcinfo os.FileInfo
-
-	if srcinfo, err = os.Stat(src); err != nil {
-		return err
-	}
-
-	if err = os.MkdirAll(dst, srcinfo.Mode()); err != nil {
-		return err
-	}
-
-	if fds, err = ioutil.ReadDir(src); err != nil {
-		return err
-	}
-	for _, fd := range fds {
-		srcfp := path.Join(src, fd.Name())
-		dstfp := path.Join(dst, fd.Name())
-
-		if fd.IsDir() {
-			if err = Dir(srcfp, dstfp); err != nil {
-				return err
-			}
-		} else {
-			if err = File(srcfp, dstfp); err != nil {
-				return err
-			}
+	return filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
 		}
-	}
-	return nil
+
+		// 计算目标路径 (例如 src/a -> dst/a)
+		target := filepath.Join(dst, strings.TrimPrefix(path, src))
+		info, _ := d.Info() // 忽略 info 获取错误，极大简化代码
+
+		// 1. 目录处理 (包含根目录自身)
+		if d.IsDir() {
+			return os.MkdirAll(target, info.Mode())
+		}
+
+		// 2. 软链接处理
+		if info.Mode()&os.ModeSymlink != 0 {
+			link, _ := os.Readlink(path)
+			return os.Symlink(link, target)
+		}
+
+		// 3. 文件处理 (流式复制 + 权限保留)
+		in, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer in.Close()
+
+		out, err := os.Create(target)
+		if err != nil {
+			return err
+		}
+		defer out.Close()
+
+		if _, err = io.Copy(out, in); err != nil {
+			return err
+		}
+		return os.Chmod(target, info.Mode()) // 关键：Terraform Provider 需要执行权限
+	})
 }
 
 func GetFilesAndDirs(dirPth string) (files []string, dirs []string) {
