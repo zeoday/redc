@@ -108,7 +108,7 @@ func GetFilesAndDirs(dirPth string) (files []string, dirs []string) {
 }
 
 // ReleaseDir 释放文件夹
-func ReleaseDir(path string) {
+func ReleaseDir(path string) error {
 	dirs, _ := local.ReadDir(path)
 	for _, entry := range dirs {
 		if entry.IsDir() {
@@ -116,7 +116,7 @@ func ReleaseDir(path string) {
 			err := os.MkdirAll(path+"/"+entry.Name(), os.ModePerm)
 			if err != nil {
 				fmt.Println(err)
-				return
+				return err
 			}
 			ReleaseDir(path + "/" + entry.Name())
 		} else {
@@ -126,11 +126,12 @@ func ReleaseDir(path string) {
 			_, err := io.Copy(out, in)
 			if err != nil {
 				fmt.Println(err)
-				return
+				return err
 			}
 			in.Close()
 		}
 	}
+	return nil
 }
 
 // ChechDirMain 递归

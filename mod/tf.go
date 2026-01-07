@@ -60,29 +60,35 @@ func TfInit2(Path string) error {
 func RVar(s ...string) []string {
 	return s
 }
+func TfPlan(Path string, opts ...string) error {
+	ctx, cancel := createContextWithTimeout()
+	defer cancel()
+	fmt.Printf("Planing terraform in %s\n", Path)
+	te, err := NewTerraformExecutor(Path)
+	if err != nil {
+		return fmt.Errorf("场景创建失败: %w", err)
+	}
 
+	err = te.Plan(ctx, ToPlan(opts)...)
+	if err != nil {
+		gologger.Error().Msgf("场景创建失败: %v", err)
+		return err
+	}
+	return nil
+}
 func TfApply(Path string, opts ...string) error {
 	ctx, cancel := createContextWithTimeout()
 	defer cancel()
 	fmt.Printf("Applying terraform in %s\n", Path)
 	te, err := NewTerraformExecutor(Path)
 	if err != nil {
-		return fmt.Errorf("场景创建失败,terraform未找到或配置错误: %w", err)
+		return fmt.Errorf("场景启动失败,terraform未找到或配置错误: %w", err)
 	}
 
 	err = te.Apply(ctx, ToApply(opts)...)
 	if err != nil {
-		gologger.Error().Msgf("场景创建失败，正在尝试第二次创建: %v", err)
-		err = te.Destroy(ctx)
-		if err != nil {
-			gologger.Error().Msgf("场景删除失败！: %v", err)
-			return err
-		}
-		// Retry apply
-		err2 := te.Apply(ctx, ToApply(opts)...)
-		if err2 != nil {
-			return fmt.Errorf("场景创建第二次失败!请手动排查问题,path路径: %s : %w", Path, err2)
-		}
+		gologger.Error().Msgf("场景启动失败: %v", err)
+		return err
 	}
 	return nil
 }
@@ -97,7 +103,6 @@ func TfStatus(Path string) {
 	if err != nil {
 		gologger.Error().Msgf("场景状态查询失败,terraform未找到或配置错误: %v", err)
 	}
-
 	err = te.Show(ctx)
 	if err != nil {
 		gologger.Error().Msgf("场景状态查询失败!请手动排查问题,path路径: %s,%v", Path, err)

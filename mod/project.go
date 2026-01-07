@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"red-cloud/mod/gologger"
+	"strings"
 	"text/tabwriter"
 	"time"
 )
@@ -22,42 +23,16 @@ type RedcProject struct {
 // Case 项目信息
 type Case struct {
 	// Id uuid
-	Id         string   `json:"id"`
-	Name       string   `json:"name"`
-	Type       string   `json:"type"`
-	Operator   string   `json:"operator"`
-	Path       string   `json:"path"`
-	Node       int      `json:"node"`
-	CreateTime string   `json:"create_time"`
-	Parameter  []string `json:"parameter"`
-}
-
-// CaseScene 场景参数判断
-func CaseScene(t string) ([]string, error) {
-	var par []string
-	switch t {
-	case "cs-49", "c2-new", "snowc2":
-		par = RVar(
-			fmt.Sprintf("node_count=%d", Node),
-			fmt.Sprintf("domain=%s", Domain),
-		)
-	case "aws-proxy", "aliyun-proxy", "asm":
-		par = RVar(fmt.Sprintf("node_count=%d", Node))
-	case "dnslog", "xraydnslog", "interactsh":
-		if Domain == "360.com" {
-			return par, fmt.Errorf("创建 dnslog 时,域名不可为默认值")
-		}
-		par = RVar(fmt.Sprintf("domain=%s", Domain))
-	case "pss5", "frp", "frp-loki", "nps":
-		par = []string{fmt.Sprintf("base64_command=%s", Base64Command)}
-	case "asm-node":
-		par = RVar(
-			fmt.Sprintf("node_count=%d", Node),
-			fmt.Sprintf("domain2=%s", Domain2),
-			fmt.Sprintf("doamin=%s", Domain),
-		)
-	}
-	return par, nil
+	Id         string    `json:"id"`
+	Name       string    `json:"name"`
+	Type       string    `json:"type"`
+	Operator   string    `json:"operator"`
+	Path       string    `json:"path"`
+	Node       int       `json:"node"`
+	CreateTime string    `json:"create_time"`
+	StateTime  string    `json:"state_time"`
+	Parameter  []string  `json:"parameter"`
+	State      CaseState `json:"state"`
 }
 
 // NewProjectConfig 创建项目配置文件
@@ -125,14 +100,42 @@ func ProjectByName(name string) (*RedcProject, error) {
 	return &project, nil
 }
 
-// GetCaseByUid 从项目中匹配 case
-func (p *RedcProject) GetCaseByUid(uid string) (*Case, error) {
-	for i, caseInfo := range p.Case {
-		if caseInfo.Id == uid {
-			return &p.Case[i], nil
+// GetCase 支持通过 ID(精确/模糊) 或 Name(精确) 查找 Case
+// 逻辑参考 Docker: 优先精确匹配，其次 ID 前缀匹配。如果 ID 前缀匹配到多个，则报错歧义。
+func (p *RedcProject) GetCase(identifier string) (*Case, error) {
+	var candidates []*Case
+
+	// 遍历所有 Case
+	for i := range p.Case {
+		// 使用指针引用，避免大结构体复制，且允许返回原始切片中的地址
+		c := &p.Case[i]
+
+		// 1. 第一优先级：精确匹配 (ID 或 Name)
+		// 如果输入的字符串完全等于 ID 或 Name，直接认定为目标
+		if c.Id == identifier || c.Name == identifier {
+			return c, nil
+		}
+
+		// 2. 第二优先级：ID 前缀模糊匹配 (Docker 风格)
+		// 只有当 identifier 是 ID 的前缀时才算 (例如输入 "abc" 匹配 "abcde")
+		// 注意：通常不对 Name 做前缀匹配，防止误操作，这里只针对 ID
+		if strings.HasPrefix(c.Id, identifier) {
+			candidates = append(candidates, c)
 		}
 	}
-	return nil, fmt.Errorf("项目 %s ,未找到uid为 %s 的case", p.ProjectName, uid)
+
+	// 3. 处理匹配结果
+	if len(candidates) == 0 {
+		return nil, fmt.Errorf("在项目 %s 中未找到 ID 或名称为 '%s' 的场景", p.ProjectName, identifier)
+	}
+
+	if len(candidates) == 1 {
+		return candidates[0], nil
+	}
+
+	// 4. 歧义处理 (匹配到多个 ID 前缀)
+	// 例如输入 "a1", 既匹配了 "a1b2..." 也匹配了 "a1c3..."
+	return nil, fmt.Errorf("输入 '%s' 存在歧义，匹配到 %d 个场景 (请提供更完整的 ID)", identifier, len(candidates))
 }
 
 // HandleCase 删除指定uid的case
@@ -166,25 +169,68 @@ func (p *RedcProject) AddCase(c *Case) error {
 	return nil
 }
 
+// CaseList 输出项目进程
 func (p *RedcProject) CaseList() {
-	// 使用 tabwriter 创建表格输出
-	w := tabwriter.NewWriter(os.Stdout, 15, 0, 1, ' ', tabwriter.AlignRight)
-	fmt.Fprintln(w, "UUID\tType\tName\tOperator\tCreateTime\t")
+	// minwidth=0: 最小单元格宽度
+	// tabwidth=8: tab 字符宽度
+	// padding=3:  列之间至少保留 3 个空格（比原来的 1 个更清晰）
+	// padchar=' ': 填充符
+	// flags=0:    默认左对齐 (Docker 风格)，去掉 AlignRight
+	w := tabwriter.NewWriter(os.Stdout, 0, 8, 3, ' ', 0)
 
-	// 遍历项目中的所有 Case
+	// 优化2: 表头全大写，符合 CLI 惯例
+	// 并在每一列后明确加上 \t 进行分割
+	fmt.Fprintln(w, "Case ID\tTYPE\tNAME\tOPERATOR\tCREATED\tSTATUS")
+
 	for _, c := range p.Case {
-		// 鉴权：只显示当前用户或 system 用户的 Case
-		if c.Operator == U || U == "system" {
-			// 从 Case 结构中获取 Type（从 Name 字段获取类型信息，或者需要额外的 Type 字段）
-			caseType := c.Name // 假设 Name 包含类型信息，或者需要在 Case 结构中添加 Type 字段
-			fmt.Fprintln(w, c.Id, "\t", caseType, "\t", c.Name, "\t", c.Operator, "\t", c.CreateTime)
+
+		// ID过长显示前12位
+		displayID := c.Id
+		if len(c.Id) > 12 {
+			displayID = c.Id[:12]
 		}
+		createTime := parseTime(c.StateTime) // 解析字符串时间
+		var displayStatus string
+		// 3. 这里使用 c.State 和新的常量
+		switch c.State {
+		case StateRunning:
+			displayStatus = fmt.Sprintf("Up %s", humanDuration(createTime))
+
+		case StateStopped:
+			displayStatus = fmt.Sprintf("Exited (0) %s ago", humanDurationShort(createTime))
+
+		case StateError:
+			displayStatus = "Error"
+
+		case StateCreated:
+			displayStatus = "Created"
+
+		// 如果之前的旧数据没有 State 字段，可能需要一个默认兜底
+		case "":
+			displayStatus = "Unknown"
+
+		default:
+			displayStatus = string(c.State)
+		}
+
+		// 使用 Fprintf 配合 \t 格式化输出
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+			displayID,
+			c.Type,
+			c.Name,
+			c.Operator,
+			c.CreateTime,
+			displayStatus,
+		)
+
 	}
 
+	// 刷新缓冲区，确保输出
 	if err := w.Flush(); err != nil {
-		gologger.Fatal().Msgf("表格输出失败:/%s", err.Error())
+		// 假设 gologger 是你的日志库
+		// gologger.Fatal().Msgf("表格输出失败: %s", err.Error())
+		fmt.Fprintf(os.Stderr, "表格输出失败: %s\n", err.Error())
 	}
-
 }
 
 // SaveProject 将修改后的项目配置写回 JSON 文件
@@ -211,4 +257,18 @@ func (p *RedcProject) SaveProject() error {
 	}
 
 	return nil
+}
+
+// 简单的时长计算，返回 "2 hours", "5 minutes" 等
+func humanDurationShort(t time.Time) string {
+	d := time.Since(t)
+	if d.Seconds() < 60 {
+		return fmt.Sprintf("%.0f seconds", d.Seconds())
+	} else if d.Minutes() < 60 {
+		return fmt.Sprintf("%.0f minutes", d.Minutes())
+	} else if d.Hours() < 24 {
+		return fmt.Sprintf("%.0f hours", d.Hours())
+	} else {
+		return fmt.Sprintf("%.0f days", d.Hours()/24)
+	}
 }

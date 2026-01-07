@@ -22,6 +22,7 @@ var (
 	Version       = "v1.0.0(2025/12/04)"
 	C2Port        string
 	C2Pass        string
+	ShowAll       bool
 )
 
 func init() {

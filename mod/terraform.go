@@ -46,7 +46,9 @@ func NewTerraformExecutor(workingDir string) (*TerraformExecutor, error) {
 		return nil, fmt.Errorf("failed to create terraform executor: %w", err)
 	}
 	// Set stdout and stderr to os defaults for visibility
-	tf.SetStdout(os.Stdout)
+	if Debug {
+		tf.SetStdout(os.Stdout)
+	}
 	tf.SetStderr(os.Stderr)
 
 	return &TerraformExecutor{
