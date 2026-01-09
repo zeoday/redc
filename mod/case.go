@@ -2,13 +2,17 @@ package mod
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"red-cloud/mod/gologger"
 	"red-cloud/utils"
+	"text/tabwriter"
 	"time"
+
+	"github.com/hashicorp/terraform-exec/tfexec"
 )
 
 type CaseState string
@@ -159,18 +163,54 @@ func (p *RedcProject) CaseCreate(CaseName string, User string, Name string, vars
 
 func (c *Case) TfApply() error {
 	var err error
-	err = TfApply(c.Path, c.Parameter...)
-	if err != nil {
+	if err = TfApply(c.Path, c.Parameter...); err != nil {
 		// 启动失败立即销毁
-		c.TfDestroy()
+		if err := c.TfDestroy(); err != nil {
+			return err
+		}
 		return err
 	}
 	c.StatusChange(StateRunning)
-	// 输出 output 信息
-	if err := TfOutput(c.Path); err != nil {
-		gologger.Error().Msgf("获取 Output 信息失败: %v", err)
+	output, err := c.TfOutput()
+	if err != nil {
+		return err
+	}
+	for s, meta := range output {
+		fmt.Println(s, string(meta.Value))
 	}
 	return nil
+}
+func (c *Case) GetInstanceInfo(id string) (string, error) {
+	// 1. 检查 Output 是否为 nil 防止空指针
+	if c.Output == nil {
+		return "", fmt.Errorf("output 数据未初始化")
+	}
+
+	// 2. 检查 key 是否存在
+	val, ok := c.Output[id]
+	if !ok {
+		return "", fmt.Errorf("未找到 ID 为 %s 的信息", id)
+	}
+	var str string
+	// 反序列化会将 JSON 字符串解析为 Go 的 string，自动去除引号和处理转义
+	if err := json.Unmarshal(val.Value, &str); err != nil {
+		return "", err
+	}
+
+	// 3. 安全地获取 Value 并转换为字符串
+	// 这里假设 val.Value 是 string 类型，或者可以使用 fmt.Sprint 确保兼容性
+	return str, nil
+}
+
+func (c *Case) TfOutput() (map[string]tfexec.OutputMeta, error) {
+	// 输出 output 信息
+	o, err := TfOutput(c.Path)
+	if err != nil {
+		gologger.Error().Msgf("获取 Output 信息失败: %v", err)
+		return nil, err
+	}
+	c.Output = o
+	return o, nil
 }
 
 // bindHandlers 绑定项目方法
@@ -282,7 +322,33 @@ func (c *Case) Change(cc ChangeCommand) error {
 
 func (c *Case) Status() error {
 	gologger.Info().Msgf("Case「%s」当前 %s 状态", c.Name, c.State)
-	TfStatus(c.Path)
+	state, err := TfStatus(c.Path)
+	if err != nil {
+		return err
+	}
+	// 1. 优先打印 Outputs (通常是用户最关心的，如 IP 地址)
+	if len(state.Values.Outputs) > 0 {
+		fmt.Println("\n--- Outputs ---")
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		for key, output := range state.Values.Outputs {
+			// output.Value 是 interface{}，可能是 string, map, list 等
+			fmt.Fprintf(w, "%s:\t%v\n", key, output.Value)
+		}
+		w.Flush()
+	} else {
+		fmt.Println("\n--- No Outputs detected ---")
+	}
+
+	// 2. 打印资源概览 (只打印 Root Module 的资源)
+	if state.Values.RootModule != nil && len(state.Values.RootModule.Resources) > 0 {
+		fmt.Println("\n--- Resources ---")
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(w, "TYPE\tADDRESS\tNAME")
+		for _, res := range state.Values.RootModule.Resources {
+			fmt.Fprintf(w, "%s\t%s\t%s\n", res.Type, res.Address, res.Name)
+		}
+		w.Flush()
+	}
 	return nil
 }
 

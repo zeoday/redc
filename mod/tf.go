@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-exec/tfexec"
+	tfjson "github.com/hashicorp/terraform-json"
 )
 
 // readFileContent reads a file and returns its content with newlines trimmed
@@ -100,7 +101,7 @@ func TfApply(Path string, opts ...string) error {
 	return nil
 }
 
-func TfStatus(Path string) {
+func TfStatus(Path string) (*tfjson.State, error) {
 	ctx, cancel := createContextWithTimeout()
 	defer cancel()
 
@@ -108,35 +109,29 @@ func TfStatus(Path string) {
 
 	te, err := NewTerraformExecutor(Path)
 	if err != nil {
-		gologger.Error().Msgf("场景状态查询失败,terraform未找到或配置错误: %v", err)
+		return nil, fmt.Errorf("场景状态查询失败,terraform未找到或配置错误: %v\n", err)
 	}
-	err = te.Show(ctx)
+	s, err := te.Show(ctx)
 	if err != nil {
-		gologger.Error().Msgf("场景状态查询失败!请手动排查问题,path路径: %s,%v", Path, err)
+		return nil, fmt.Errorf("场景状态查询失败!请手动排查问题,path路径: %s\n错误信息：%v\n", Path, err)
 	}
+	return s, nil
 }
 
-func TfOutput(Path string) error {
+func TfOutput(Path string) (map[string]tfexec.OutputMeta, error) {
 	ctx, cancel := createContextWithTimeout()
 	defer cancel()
 
 	te, err := NewTerraformExecutor(Path)
 	if err != nil {
-		return fmt.Errorf("TF可执行配置失败: %w", err)
+		return nil, fmt.Errorf("TF可执行配置失败: %w", err)
 	}
 
 	outputs, err := te.Output(ctx)
 	if err != nil {
-		return fmt.Errorf("获取 Output 失败: %w", err)
+		return nil, fmt.Errorf("获取 Output 失败: %w", err)
 	}
-
-	if len(outputs) > 0 {
-		gologger.Info().Msg("Terraform Outputs:")
-		for k, v := range outputs {
-			gologger.Info().Msgf("%s: %s", k, string(v.Value))
-		}
-	}
-	return nil
+	return outputs, nil
 }
 
 func TfDestroy(Path string, opts []string) error {

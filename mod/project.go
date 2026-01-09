@@ -9,6 +9,8 @@ import (
 	"strings"
 	"text/tabwriter"
 	"time"
+
+	"github.com/hashicorp/terraform-exec/tfexec"
 )
 
 // RedcProject 项目结构体
@@ -33,6 +35,7 @@ type Case struct {
 	StateTime    string    `json:"state_time"`
 	Parameter    []string  `json:"parameter"`
 	State        CaseState `json:"state"`
+	Output       map[string]tfexec.OutputMeta
 	saveHandler  func() error
 	removeHandle func() error
 }
@@ -40,6 +43,19 @@ type Case struct {
 type ChangeCommand struct {
 	IsRemove bool
 	Pars     map[string]string
+}
+
+func GetProjectCase(projectId string, caseID string, userName string) (*Case, error) {
+	pro, err := ProjectParse(projectId, userName) // 注意：这里可能需要处理 global U 或者从配置读取
+	if err != nil {
+		gologger.Fatal().Msgf("项目解析失败: %s", err)
+	}
+	c, err := pro.GetCase(caseID)
+	if err != nil {
+		return nil, fmt.Errorf("操作失败: 找不到 ID 为「%s」的场景\n错误: %s", caseID, err)
+
+	}
+	return c, nil
 }
 
 // NewProjectConfig 创建项目配置文件

@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/hc-install/product"
 	"github.com/hashicorp/hc-install/releases"
 	"github.com/hashicorp/terraform-exec/tfexec"
+	tfjson "github.com/hashicorp/terraform-json"
 )
 
 const (
@@ -85,17 +86,15 @@ func (te *TerraformExecutor) Output(ctx context.Context) (map[string]tfexec.Outp
 }
 
 // Show runs terraform show to display current state
-func (te *TerraformExecutor) Show(ctx context.Context) error {
+func (te *TerraformExecutor) Show(ctx context.Context) (*tfjson.State, error) {
 	state, err := te.tf.Show(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to show terraform state: %w", err)
+		return nil, fmt.Errorf("failed to show terraform state: %w", err)
 	}
 	if state != nil && state.Values != nil {
-		fmt.Printf("Terraform state: %+v\n", state.Values)
-	} else {
-		fmt.Println("No terraform state found")
+		return state, nil
 	}
-	return nil
+	return state, fmt.Errorf("state is empty")
 }
 
 // ShowPlan 解析 Plan 文件并打印人类可读的摘要

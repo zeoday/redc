@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 	redc "red-cloud/mod"
 	"red-cloud/mod/gologger"
@@ -58,7 +57,7 @@ var rootCmd = &cobra.Command{
 // Execute 是 main.go 调用的入口
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		gologger.Error().Msgf(err.Error())
 		os.Exit(1)
 	}
 }
@@ -68,7 +67,7 @@ func init() {
 	rootCmd.Flags().BoolVarP(&showVer, "version", "v", false, "显示版本信息")
 
 	// 定义全局 Flag
-	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "./config.yaml", "配置文件路径")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "./config.yaml", "配置文件路径")
 	// -u / --user
 	rootCmd.PersistentFlags().StringVarP(&redc.U, "user", "u", "system", "操作者")
 

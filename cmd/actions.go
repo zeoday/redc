@@ -45,13 +45,13 @@ func runAction(actionType string, caseID string) {
 	}
 
 	if actionErr != nil {
-		gologger.Error().Msgf("执行 %s 失败: %v", actionType, actionErr)
+		gologger.Error().Msgf("执行 %s 失败\n %v", actionType, actionErr)
 	} else {
 		if err := pro.SaveProject(); err != nil {
-			gologger.Error().Msgf("项目状态保存失败！%s", err.Error())
+			gologger.Error().Msgf("项目状态保存失败！%s\n", err.Error())
 			return
 		}
-		gologger.Info().Msgf("✅ %s 操作执行成功: 「%s」%s", actionType, c.Name, c.Id)
+		gologger.Info().Msgf("✅ %s 操作执行成功: 「%s」%s\n", actionType, c.Name, c.Id)
 	}
 }
 
