@@ -138,7 +138,7 @@ func (p *RedcProject) CaseCreate(CaseName string, User string, Name string, vars
 		Path:       casePath,
 		Type:       CaseName,
 		Parameter:  par,
-		State:      StateError,
+		State:      StatePending,
 	}
 	// 绑定 project 参数
 	c.bindHandlers(p)
@@ -163,6 +163,10 @@ func (p *RedcProject) CaseCreate(CaseName string, User string, Name string, vars
 
 func (c *Case) TfApply() error {
 	var err error
+	gologger.Info().Msgf("正在启动场景：%s(%s)", c.Name, c.GetId())
+	if c.State == StateRunning {
+		return fmt.Errorf("场景正在运行中！")
+	}
 	if err = TfApply(c.Path, c.Parameter...); err != nil {
 		c.StatusChange(StateError)
 		// 启动失败立即销毁
@@ -230,9 +234,8 @@ func (c *Case) bindHandlers(p *RedcProject) {
 }
 
 func (c *Case) TfPlan() error {
-	var err error
-	err = TfPlan(c.Path, c.Parameter...)
-	if err != nil {
+	gologger.Info().Msgf("正在构建场景「%s(%s)」...", c.Name, c.GetId())
+	if err := TfPlan(c.Path, c.Parameter...); err != nil {
 		return err
 	}
 	c.StatusChange(StateCreated)
@@ -250,6 +253,7 @@ func (c *Case) StatusChange(s CaseState) {
 }
 
 func (c *Case) TfDestroy() error {
+	gologger.Info().Msgf("正在销毁场景「%s(%s)」...", c.Name, c.GetId())
 	err := TfDestroy(c.Path, c.Parameter)
 	if err != nil {
 		gologger.Error().Msgf("场景销毁失败！%s", err.Error())
@@ -273,7 +277,9 @@ func (c *Case) Remove() error {
 
 // Stop 停止场景
 func (c *Case) Stop() error {
-
+	if c.State != StateRunning {
+		gologger.Warning().Msgf("该场景提示未运行中,不过还是为您销毁")
+	}
 	err := c.TfDestroy()
 	if err != nil {
 		return err
@@ -354,6 +360,12 @@ func (c *Case) Status() error {
 		w.Flush()
 	}
 	return nil
+}
+func (c *Case) GetId() string {
+	if len(c.Id) > 12 {
+		return c.Id[:12]
+	}
+	return c.Id
 }
 
 // humanDuration 计算时间差并返回 Docker 风格的字符串

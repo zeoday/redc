@@ -10,8 +10,8 @@ import (
 	"text/tabwriter"
 )
 
-const templateDir = "redc-templates"
-const tmplCaseFile = "case.json"
+const TemplateDir = "redc-templates"
+const TmplCaseFile = "case.json"
 
 type RedcTmpl struct {
 	Name        string `json:"name"`
@@ -21,7 +21,7 @@ type RedcTmpl struct {
 }
 
 func ShowRedcTmpl() {
-	l, err := ListRedcTmpl(templateDir)
+	l, err := ListRedcTmpl(TemplateDir)
 	if err != nil {
 		gologger.Error().Msgf("获取模版列表失败: %s", err)
 	}
@@ -64,7 +64,7 @@ func DeleteRedcTmpl(imageName string) error {
 	}
 
 	// 假设目录名就是镜像名
-	targetPath := filepath.Join(templateDir, imageName)
+	targetPath := filepath.Join(TemplateDir, imageName)
 
 	// 检查是否存在
 	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
@@ -83,7 +83,7 @@ func DeleteRedcTmpl(imageName string) error {
 
 // getImageInfoByFile 读取并解析 case.json
 func getImageInfoByFile(path string) (*RedcTmpl, error) {
-	configPath := filepath.Join(path, tmplCaseFile)
+	configPath := filepath.Join(path, TmplCaseFile)
 	image := &RedcTmpl{
 		path: path,
 	}

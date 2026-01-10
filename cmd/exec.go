@@ -2,11 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	redc "red-cloud/mod"
 	"red-cloud/mod/gologger"
 	"red-cloud/utils/sshutil"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -16,29 +14,14 @@ var (
 )
 
 // GetInstanceInfoFromTF 预留的 TF 信息获取函数 (Requirement #2)
-func GetInstanceInfoFromTF(id string) (*InstanceInfo, error) {
-	pro, err := redc.ProjectParse(redc.Project, redc.U) // 注意：这里可能需要处理 global U 或者从配置读取
-	if err != nil {
-		gologger.Fatal().Msgf("项目解析失败: %s", err)
-	}
-
-	// 2. 查找 Case
-	c, err := pro.GetCase(id)
+func GetInstanceInfoFromTF(id string) (*sshutil.SSHConfig, error) {
+	c, err := redcProject.GetCase(id)
 	if err != nil {
 		return nil, fmt.Errorf("操作失败: 找不到 ID 为「%s」的场景\n错误: %s", id, err)
 	}
-	ip, err := c.GetInstanceInfo("ecs_ip")
-	pwd, err := c.GetInstanceInfo("ecs_password")
-	if err != nil {
-		return nil, fmt.Errorf("操作失败: ID 为「%s」\n错误: %s", id, err)
-	}
-	return &InstanceInfo{
-		ID:       c.Id,
-		IP:       ip,
-		User:     "root",
-		Password: pwd,
-		Port:     22,
-	}, nil
+	s, err := c.GetSSHConfig()
+	return s, nil
+
 }
 
 var execCmd = &cobra.Command{
@@ -148,16 +131,6 @@ func init() {
 	rootCmd.AddCommand(cpCmd)
 }
 
-// InstanceInfo 结构体
-type InstanceInfo struct {
-	ID       string
-	IP       string
-	User     string
-	Password string
-	KeyPath  string
-	Port     int
-}
-
 // Helper: 获取 SSH Client
 func getSSHClient(id string) (*sshutil.Client, error) {
 	info, err := GetInstanceInfoFromTF(id)
@@ -165,15 +138,7 @@ func getSSHClient(id string) (*sshutil.Client, error) {
 		return nil, err
 	}
 
-	conf := &sshutil.SSHConfig{
-		User:     info.User,
-		Host:     info.IP,
-		Port:     info.Port,
-		Password: info.Password,
-		KeyPath:  info.KeyPath,
-		Timeout:  5 * time.Second,
-	}
-	return sshutil.NewClient(conf)
+	return sshutil.NewClient(info)
 }
 
 // parseCpArg 解析 cp 参数，判断是本地路径还是远程路径

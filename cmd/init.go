@@ -38,9 +38,7 @@ var initCmd = &cobra.Command{
 	},
 }
 
-// ---------------------------------------------------------
-// 5. Completion 命令 (自动生成补全脚本)
-// ---------------------------------------------------------
+// completionCmd 生成命令补全脚本
 var completionCmd = &cobra.Command{
 	Use:   "completion [bash|zsh|fish|powershell]",
 	Short: "生成命令补全脚本",

@@ -12,14 +12,8 @@ var changeConfig redc.ChangeCommand
 
 // helper: 通用的执行器
 func runAction(actionType string, caseID string) {
-	// 1. 解析项目
-	pro, err := redc.ProjectParse(redc.Project, redc.U) // 注意：这里可能需要处理 global U 或者从配置读取
-	if err != nil {
-		gologger.Fatal().Msgf("项目解析失败: %s", err)
-	}
-
 	// 2. 查找 Case
-	c, err := pro.GetCase(caseID)
+	c, err := redcProject.GetCase(caseID)
 	if err != nil {
 		gologger.Error().Msgf("操作失败: 找不到 ID 为「%s」的场景\n错误: %s", caseID, err)
 		return
@@ -45,13 +39,13 @@ func runAction(actionType string, caseID string) {
 	}
 
 	if actionErr != nil {
-		gologger.Error().Msgf("执行 %s 失败\n %v", actionType, actionErr)
+		gologger.Error().Msgf("执行「%s」失败，%v\n", actionType, actionErr)
 	} else {
-		if err := pro.SaveProject(); err != nil {
+		if err := redcProject.SaveProject(); err != nil {
 			gologger.Error().Msgf("项目状态保存失败！%s\n", err.Error())
 			return
 		}
-		gologger.Info().Msgf("✅ %s 操作执行成功: 「%s」%s\n", actionType, c.Name, c.Id)
+		gologger.Info().Msgf("✅ %s 操作执行成功: 「%s」%s\n", actionType, c.Name, c.GetId())
 	}
 }
 
@@ -113,11 +107,7 @@ var listCmd = &cobra.Command{
 	Use:   "ps",
 	Short: "列出当前所有场景",
 	Run: func(cmd *cobra.Command, args []string) {
-		pro, err := redc.ProjectParse(redc.Project, redc.U)
-		if err != nil {
-			gologger.Fatal().Msgf("项目解析失败: %s", err)
-		}
-		pro.CaseList()
+		redcProject.CaseList()
 	},
 }
 

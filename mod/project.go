@@ -157,7 +157,9 @@ func (p *RedcProject) GetCase(identifier string) (*Case, error) {
 	}
 
 	if len(candidates) == 1 {
-		return candidates[0], nil
+		l := candidates[0]
+		gologger.Debug().Msgf("关键词匹配「%s」%s %s", identifier, l.Name, l.Id)
+		return l, nil
 	}
 
 	// 4. 歧义处理 (匹配到多个 ID 前缀)

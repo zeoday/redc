@@ -51,14 +51,8 @@ func createLogic(templateName string) *redc.Case {
 	if templateName == "pte" {
 		templateName = "pte_arm"
 	}
-
-	pro, err := redc.ProjectParse(redc.Project, userName)
-	if err != nil {
-		gologger.Fatal().Msgf("项目解析失败: %s", err)
-	}
-
 	// 创建 Case
-	c, err := pro.CaseCreate(templateName, userName, projectName, envVars)
+	c, err := redcProject.CaseCreate(templateName, userName, projectName, envVars)
 	if err != nil {
 		gologger.Error().Msgf("❌「%s」场景创建失败: %v", templateName, err)
 		return nil

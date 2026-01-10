@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	cfgFile string
-	showVer bool
+	cfgFile     string
+	showVer     bool
+	redcProject *redc.RedcProject
 )
 
 const BannerArt = `
@@ -39,9 +40,14 @@ var rootCmd = &cobra.Command{
 			gologger.Fatal().Msgf("配置文件加载失败: %s", err.Error())
 		}
 		if redc.Debug {
-
 			gologger.DefaultLogger.SetMaxLevel(levels.LevelDebug)
 			gologger.Debug().Msgf("当前已开始 DEBUG 模式！")
+		}
+		// 加载项目
+		if p, err := redc.ProjectParse(redc.Project, redc.U); err == nil {
+			redcProject = p
+		} else {
+			gologger.Fatal().Msgf("项目加载失败: %v", err)
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
@@ -71,8 +77,7 @@ func init() {
 	// -u / --user
 	rootCmd.PersistentFlags().StringVarP(&redc.U, "user", "u", "system", "操作者")
 
-	// -p / --project
-	rootCmd.PersistentFlags().StringVarP(&redc.Project, "project", "p", "default", "项目名称")
+	rootCmd.PersistentFlags().StringVar(&redc.Project, "project", "default", "项目名称")
 
 	// --debug
 	rootCmd.PersistentFlags().BoolVar(&redc.Debug, "debug", false, "开启调试模式")

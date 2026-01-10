@@ -247,3 +247,17 @@ func (c *Client) Download(remotePath, localPath string) error {
 	_, err = io.Copy(dstFile, srcFile)
 	return err
 }
+
+// RunCommandWithLogger 支持自定义 Writer 的执行方法
+func (c *Client) RunCommandWithLogger(cmd string, writer io.Writer) error {
+	session, err := c.Client.NewSession()
+	if err != nil {
+		return err
+	}
+	defer session.Close()
+
+	session.Stdout = writer
+	session.Stderr = writer
+
+	return session.Run(cmd)
+}
