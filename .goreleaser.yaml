@@ -21,7 +21,6 @@ archives:
     id: homebrew
     files:
       - README.md
-      - CHANGELOG.md
       - LICENSE
       - static/*
     format_overrides:
