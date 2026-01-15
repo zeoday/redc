@@ -37,7 +37,7 @@ var rootCmd = &cobra.Command{
 		}
 		// 统一加载配置
 		if err := redc.LoadConfig(cfgFile); err != nil {
-			gologger.Fatal().Msgf("配置文件加载失败: %s", err.Error())
+			gologger.Error().Msgf("配置文件加载失败: %s", err.Error())
 		}
 		if redc.Debug {
 			gologger.DefaultLogger.SetMaxLevel(levels.LevelDebug)
@@ -73,7 +73,7 @@ func init() {
 	rootCmd.Flags().BoolVarP(&showVer, "version", "v", false, "显示版本信息")
 
 	// 定义全局 Flag
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "./config.yaml", "配置文件路径")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "config.yaml", "配置文件路径")
 	// -u / --user
 	rootCmd.PersistentFlags().StringVarP(&redc.U, "user", "u", "system", "操作者")
 

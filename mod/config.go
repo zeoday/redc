@@ -39,8 +39,12 @@ type Config struct {
 
 // LoadConfig 将配置写入环境变量，Terraform Provider 会自动读取
 func LoadConfig(path string) error {
+
 	data, err := os.ReadFile(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("文件不存在: %s (%v)", path, err)
+		}
 		return fmt.Errorf("未找到配置文件，将尝试读取系统环境变量: %v", err)
 	}
 
