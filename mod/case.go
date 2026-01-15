@@ -87,7 +87,7 @@ func CaseScene(t string, m map[string]string) ([]string, error) {
 		par = RVar(
 			fmt.Sprintf("node_count=%d", Node),
 			fmt.Sprintf("domain2=%s", Domain2),
-			fmt.Sprintf("doamin=%s", Domain),
+			fmt.Sprintf("domain=%s", Domain),
 		)
 	}
 	// 增加自定义参数
