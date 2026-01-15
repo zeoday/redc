@@ -21,8 +21,8 @@ archives:
     id: homebrew
     files:
       - README.md
-      - LICENSE
-      - static/*
+#      - LICENSE
+#      - static/*
     format_overrides:
       - goos: windows
         format: zip
