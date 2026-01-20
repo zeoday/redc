@@ -26,10 +26,16 @@ var tmplLsCmd = &cobra.Command{
 	},
 }
 var tmplRMCmd = &cobra.Command{
-	Use:   "rm",
+	Use:   "rm [case]",
 	Short: "删除模版文件",
 	Run: func(cmd *cobra.Command, args []string) {
-		redc.ShowRedcTmpl()
+		if len(args) < 2 {
+			cmd.Help()
+			return // 直接 return，返回 nil，这样 main 函数就不会打印 [ERR]
+		}
+		id := args[0]
+		// 将剩余参数组合成命令
+		redc.DeleteRedcTmpl(id)
 	},
 }
 
