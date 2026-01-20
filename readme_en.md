@@ -79,9 +79,13 @@ goreleaser --snapshot --clean
 
 ### Template Selection
 
-Scenario name - corresponds to template repository https://github.com/wgpsec/redc-template
+By default, redc reads the template folder at `~/.redc/redc-templates`; the folder name is the scenario name when deploying.
 
-Place them in your redc-templates path, the "folder name" is the scenario name when deploying
+You can download template scenarios yourself; scenario names correspond to the template repository https://github.com/wgpsec/redc-template
+
+```
+mkdir -p ~/.redc/redc-templates
+```
 
 For specific usage and commands for each scenario, please check the readme of the specific scenario in the template repository https://github.com/wgpsec/redc-template
 
@@ -89,7 +93,13 @@ For specific usage and commands for each scenario, please check the readme of th
 
 redc needs AK/SK credentials to start machines.
 
-By default, redc reads the config.yaml configuration file in the current path, format as follows:
+By default, redc reads the config.yaml configuration file from your home directory at `~/.redc/config.yaml`. Create it if missing:
+```
+mkdir -p ~/.redc/
+vim ~/.redc/config.yaml
+```
+
+Example content:
 ```yaml
 # Multi-cloud credentials and default regions
 providers:

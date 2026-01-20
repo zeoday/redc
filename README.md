@@ -79,9 +79,13 @@ goreleaser --snapshot --clean
 
 ### 模版选择 (第二步)
 
-场景名称 - 对应模板仓库 https://github.com/wgpsec/redc-template
+默认下 redc 会读取用户目录下的 ~/.redc/redc-templates 模板文件夹，对应的 "文件夹名称" 就是部署时的场景名称
 
-放到你 redc-templates 路径下，对应的 "文件夹名称" 就是部署时的场景名称
+可以自行下载模板场景，场景名称对应模板仓库 https://github.com/wgpsec/redc-template
+
+```
+mkdir -p ~/.redc/redc-templates
+```
 
 每个场景的具体使用和命令请查看模板仓库 https://github.com/wgpsec/redc-template 里具体场景的 readme
 
@@ -89,7 +93,12 @@ goreleaser --snapshot --clean
 
 redc 开启机器需要依靠 aksk
 
-默认下 redc 会读取当前路径的 config.yaml 配置文件，格式如下
+默认下 redc 会读取用户路径的 config.yaml 配置文件，格式如下
+```
+mkdir -p ~/.redc/
+vim ~/.redc/config.yaml
+```
+
 ```yaml
 # 多云身份凭证与默认区域
 providers:
