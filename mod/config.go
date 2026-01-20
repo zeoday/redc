@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"red-cloud/mod/gologger"
 
+	"github.com/spf13/viper"
 	"gopkg.in/ini.v1"
-	"gopkg.in/yaml.v3"
 )
 
 var commonCachePath = "./tf-plugin-cache" // Provider 插件缓存目录
@@ -39,17 +39,32 @@ type Config struct {
 
 // LoadConfig 将配置写入环境变量，Terraform Provider 会自动读取
 func LoadConfig(path string) error {
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("文件不存在: %s (%v)", path, err)
+	if path != "" {
+		viper.SetConfigFile(path)
+	} else {
+		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
+		viper.AddConfigPath(".") // 当前目录
+		home, _ := os.UserHomeDir()
+		viper.AddConfigPath(home + "/.config/redc")   // 用户目录
+		viper.AddConfigPath("/opt/homebrew/etc/redc") // Brew (M1/M2/M3)
+		viper.AddConfigPath("/usr/local/etc/redc")    // Brew (Intel)
+		viper.AddConfigPath("/etc/redc")              // Linux 系统级
+	}
+	// 读取配置
+	// 如果指定了 cfgFile 但文件不存在，这里会直接报错
+	if err := viper.ReadInConfig(); err != nil {
+		// 处理错误：如果是“未找到配置文件”，且并不是用户强制指定的，通常可以选择忽略或使用默认值
+		// 但如果是用户用 --config 指定的，文件不存在必须报错
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			gologger.Info().Msgf("未发现配置文件，将使用环境变量配置！")
+		} else {
+			gologger.Error().Msgf("配置文件加载失败: %s", err)
 		}
-		return fmt.Errorf("未找到配置文件，将尝试读取系统环境变量: %v", err)
 	}
 
 	var conf Config
-	if err := yaml.Unmarshal(data, &conf); err != nil {
+	if err := viper.Unmarshal(&conf); err != nil {
 		return err
 	}
 	// 设置标准 Terraform 环境变量

@@ -73,7 +73,7 @@ func init() {
 	rootCmd.Flags().BoolVarP(&showVer, "version", "v", false, "显示版本信息")
 
 	// 定义全局 Flag
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "config.yaml", "配置文件路径")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "配置文件路径")
 	// -u / --user
 	rootCmd.PersistentFlags().StringVarP(&redc.U, "user", "u", "system", "操作者")
 
