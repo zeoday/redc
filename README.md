@@ -14,7 +14,7 @@
 <a href="https://twitter.com/wgpsec"><img alt="Twitter" src="https://img.shields.io/twitter/follow/wgpsec?label=Followers&style=social" /></a>
 <br>
 <br>
-<a href="https://github.com/wgpsec/redc/discussions"><strong>探索更多Tricks »</strong></a>
+<a href="https://redc.wgpsec.org/"><strong>探索更多模板 »</strong></a>
     <br/>
     <br />
       <a href="https://github.com/wgpsec/redc?tab=readme-ov-file#%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97">🧐如何使用</a>
