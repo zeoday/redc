@@ -83,9 +83,16 @@ goreleaser --snapshot --clean
 
 可以自行下载模板场景，场景名称对应模板仓库 https://github.com/wgpsec/redc-template
 
+在线地址：https://redc.wgpsec.org/
+
+例如，一键拉取ecs场景
+```bash
+redc pull aliyun/ecs
+
+# 此时，模板会下载到 ~/.redc/redc-templates 目录下
 ```
-mkdir -p ~/.redc/redc-templates
-```
+
+![redc pull](./img/image9.png)
 
 每个场景的具体使用和命令请查看模板仓库 https://github.com/wgpsec/redc-template 里具体场景的 readme
 
@@ -178,7 +185,7 @@ redc设计为docker like命令设计
 
 **初始化模版**
 
-首次使用模版需要运行。为了加快模版部署速度，在修改 `redc-templates` 内容后建议运行 init 选项加快后续部署速度
+首次使用模版需要运行。为了加快模版部署速度，建议运行 init 选项加快后续部署速度
 
 ````bash
 redc init
@@ -186,13 +193,15 @@ redc init
 
 ![默认init效果](./img/image.png)
 
-> 默认只有 阿里云 ecs 单台机器场景，请自行添加模板至 redc-templates 路径下
+默认会 init 在 ~/.redc/redc-templates 路径下的所有场景，作用就是刷一遍 tf provider 的 cache
 
 **列出模版列表**
 
 ```bash
 redc image ls
 ```
+
+默认会列出在 ~/.redc/redc-templates 路径下的所有场景
 
 **创建实例并启动**
 
