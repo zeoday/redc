@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"red-cloud/mod/gologger"
-	"red-cloud/utils"
 
 	"github.com/schollz/progressbar/v3"
 )
@@ -273,7 +272,10 @@ func ListLocalTemplates() ([]*RedcTmpl, error) {
 		return nil, nil
 	}
 
-	_, dirs := utils.GetFilesAndDirs(TemplateDir)
+	dirs, err := ScanTemplateDirs(TemplateDir, MaxTfDepth)
+	if err != nil {
+		return nil, err
+	}
 	var templates []*RedcTmpl
 
 	for _, dirPath := range dirs {
@@ -298,9 +300,10 @@ func resolveSafePath(imageName string) (string, error) {
 	if imageName == "" {
 		return "", fmt.Errorf("image name cannot be empty")
 	}
-
+	// 防止出现路径异常情况
+	localImageName := filepath.FromSlash(imageName)
 	// 1. 拼接路径
-	targetPath := filepath.Join(TemplateDir, imageName)
+	targetPath := filepath.Join(TemplateDir, localImageName)
 
 	// 2. 安全检查：防止路径穿越 (Zip Slip / Path Traversal)
 	// 逻辑：目标路径必须以 TemplateDir 为前缀
@@ -478,4 +481,59 @@ func unzip(src, dest string) error {
 		rc.Close()
 	}
 	return nil
+}
+
+// ScanTemplateDirs 扫描指定目录寻找模版
+// rootDir: 根目录
+// maxDepth: 最大扫描深度 (例如 2 表示只扫 root/a 和 root/a/b)
+func ScanTemplateDirs(rootDir string, maxDepth int) ([]string, error) {
+	var validPaths []string
+
+	// 辅助函数：判断是否存在 case.json
+	hasConfigFile := func(dirPath string) bool {
+		configPath := filepath.Join(dirPath, TmplCaseFile)
+		_, err := os.Stat(configPath)
+		return err == nil
+	}
+
+	// 定义递归函数
+	// currentPath: 当前扫描的绝对/相对路径
+	// currentDepth: 当前层级 (相对于 rootDir，第一级子目录为 1)
+	var scan func(currentPath string, currentDepth int)
+	scan = func(currentPath string, currentDepth int) {
+		// 递归终止条件：超过最大深度
+		if currentDepth > maxDepth {
+			return
+		}
+
+		entries, err := os.ReadDir(currentPath)
+		if err != nil {
+			// 遇到权限不足等错误，跳过该目录，不中断整体流程
+			return
+		}
+
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+
+			fullPath := filepath.Join(currentPath, entry.Name())
+
+			// 1. 检查当前目录是不是模版
+			if hasConfigFile(fullPath) {
+				validPaths = append(validPaths, fullPath)
+				// 如果当前目录已经是模版了，就不再往里递归扫描子目录
+				// 避免模版嵌套 (e.g. found 'nginx', ignore 'nginx/conf')
+				continue
+			}
+
+			// 2. 如果不是模版，且未达最大深度，继续向下递归
+			scan(fullPath, currentDepth+1)
+		}
+	}
+
+	// 启动递归，层级从 1 开始
+	scan(rootDir, 1)
+
+	return validPaths, nil
 }

@@ -23,13 +23,15 @@ var runCmd = &cobra.Command{
 	Args:    cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		templateName := args[0]
-		c := createLogic(templateName)
-		if err := c.TfApply(); err != nil {
-			gologger.Error().Msgf("场景启动失败！%s", err.Error())
+		if c, err := createLogic(templateName); err == nil {
+			if err := c.TfApply(); err != nil {
+				gologger.Error().Msgf("场景启动失败！%s", err.Error())
+			}
+			if len(args) > 1 {
+				commandToRun = strings.Join(args[1:], " ")
+			}
 		}
-		if len(args) > 1 {
-			commandToRun = strings.Join(args[1:], " ")
-		}
+
 	},
 }
 
@@ -40,12 +42,13 @@ var createCmd = &cobra.Command{
 	Args:    cobra.ExactArgs(1), // 强制要求输入一个模板名，例如 pte
 	Run: func(cmd *cobra.Command, args []string) {
 		templateName := args[0]
-		c := createLogic(templateName)
-		gologger.Info().Msgf("✅「%s」%s 场景创建完成！，接下来您可以start启动该场景", c.Name, c.Id)
+		if c, err := createLogic(templateName); err == nil {
+			gologger.Info().Msgf("✅「%s」%s 场景创建完成！，接下来您可以start启动该场景", c.Name, c.Id)
+		}
 	},
 }
 
-func createLogic(templateName string) *redc.Case {
+func createLogic(templateName string) (*redc.Case, error) {
 
 	// 别名处理
 	if templateName == "pte" {
@@ -54,11 +57,11 @@ func createLogic(templateName string) *redc.Case {
 	// 创建 Case
 	c, err := redcProject.CaseCreate(templateName, userName, projectName, envVars)
 	if err != nil {
-		gologger.Error().Msgf("❌「%s」场景创建失败: %v", templateName, err)
-		return nil
+		gologger.Error().Msgf("❌「%s」场景创建失败\n %s\n", templateName, err.Error())
+		return nil, err
 	}
 	gologger.Info().Msgf("✅「%s」场景创建完成！", templateName)
-	return c
+	return c, nil
 }
 
 func init() {

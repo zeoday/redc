@@ -15,7 +15,8 @@ var RedcPath = ""
 var ProjectPath = "redc-taskresult"
 
 const ProjectFile = "project.json"
-const planPath = "case.tfplan"
+const RedcPlanPath = "case.tfplan"
+const MaxTfDepth = 2
 
 // Config 配置文件结构体，新增厂商配置也需要再这里添加
 // yaml 为配置文件，env为tf的环境变量参数
@@ -44,20 +45,19 @@ func LoadConfig(path string) error {
 
 	// 设置默认缓存路径
 	os.Setenv("TF_PLUGIN_CACHE_DIR", filepath.Join(home, ".terraform.d", "plugin-cache"))
-
+	if RedcPath == "" {
+		RedcPath = filepath.Join(home, "redc")
+	}
 	// 如果指定了 path，只查 path；否则查 [用户目录, 程序目录]
 	searchPaths := []string{path}
 	if path == "" {
 		exePath, _ := os.Executable() // 获取程序自身路径
 		searchPaths = []string{
-			filepath.Join(home, ".redc", "config.yaml"),         // 优先级1: 用户目录
+			filepath.Join(RedcPath, "config.yaml"),              // 优先级1: 用户目录
 			filepath.Join(filepath.Dir(exePath), "config.yaml"), // 优先级2: 程序旁
 		}
 	}
 
-	if RedcPath == "" {
-		RedcPath = filepath.Join(home, ".redc")
-	}
 	TemplateDir = filepath.Join(RedcPath, "templates")
 	ProjectPath = filepath.Join(RedcPath, "task-result")
 

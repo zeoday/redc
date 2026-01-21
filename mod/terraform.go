@@ -100,7 +100,7 @@ func (te *TerraformExecutor) Show(ctx context.Context) (*tfjson.State, error) {
 // ShowPlan 解析 Plan 文件并打印人类可读的摘要
 func (te *TerraformExecutor) ShowPlan(ctx context.Context) error {
 	// 1. 调用 Show 读取 Plan 文件
-	plan, err := te.tf.ShowPlanFile(ctx, planPath)
+	plan, err := te.tf.ShowPlanFile(ctx, RedcPlanPath)
 	if err != nil {
 		return fmt.Errorf("读取 Plan 失败: %w", err)
 	}

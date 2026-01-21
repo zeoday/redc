@@ -4,7 +4,6 @@ import (
 	"os"
 	redc "red-cloud/mod"
 	"red-cloud/mod/gologger"
-	"red-cloud/utils"
 
 	"github.com/spf13/cobra"
 )
@@ -16,18 +15,11 @@ var initCmd = &cobra.Command{
 		redc.RedcLog("执行初始化")
 		gologger.Info().Msg("初始化中...")
 
-		/*
-			// 清理旧目录
-			os.RemoveAll(redc.TemplateDir)
-
-			// 释放资源
-			if err := utils.ReleaseDir(redc.TemplateDir); err != nil {
-				gologger.Fatal().Msgf("释放模板资源失败: %s", err)
-			}
-		*/
-
 		// 遍历初始化
-		_, dirs := utils.GetFilesAndDirs(redc.TemplateDir)
+		dirs, err := redc.ScanTemplateDirs(redc.TemplateDir, redc.MaxTfDepth)
+		if err != nil {
+			gologger.Error().Msgf("扫描模板目录失败: %s", err)
+		}
 		for _, v := range dirs {
 			if err := redc.TfInit(v); err != nil {
 				gologger.Error().Msgf("❌「%s」场景初始化失败: %s", v, err)

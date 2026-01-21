@@ -24,7 +24,10 @@ func VerifyTemplates(ctx *ComposeContext) error {
 
 	for _, name := range ctx.SortedSvcKeys {
 		svc := ctx.RuntimeSvcs[name]
-		templatePath := filepath.Join(mod.TemplateDir, svc.Spec.Image)
+		templatePath, err := mod.GetTemplatePath(svc.Spec.Image)
+		if err != nil {
+			return fmt.Errorf("获取模版路径失败: %v", err)
+		}
 
 		// 1. 获取模版中声明的所有变量
 		declaredVars, ok := checkedTemplates[templatePath]

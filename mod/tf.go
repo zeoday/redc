@@ -67,7 +67,7 @@ func TfPlan(Path string, opts ...string) error {
 	}
 	o := ToPlan(opts)
 	// 增加 plan 输出文件
-	o = append(o, tfexec.Out(planPath))
+	o = append(o, tfexec.Out(RedcPlanPath))
 	err = te.Plan(ctx, o...)
 	if err != nil {
 		gologger.Debug().Msgf("场景创建失败: %v", err)
@@ -88,7 +88,7 @@ func TfApply(Path string, opts ...string) error {
 		return fmt.Errorf("场景启动失败,terraform未找到或配置错误: %w", err)
 	}
 	o := ToApply(opts)
-	o = append(o, tfexec.DirOrPlan(planPath))
+	o = append(o, tfexec.DirOrPlan(RedcPlanPath))
 	err = te.Apply(ctx, ToApply(opts)...)
 	if err != nil {
 		gologger.Debug().Msgf("场景启动失败: %s", err.Error())
