@@ -41,7 +41,10 @@ type Config struct {
 }
 
 func LoadConfig(path string) error {
-	home, _ := os.UserHomeDir() // 忽略错误，home为空也没关系
+	home, err := os.UserHomeDir() // 忽略错误，home为空也没关系
+	if err != nil {
+		return fmt.Errorf("无法获取用户目录\n%s", err.Error())
+	}
 
 	// 设置默认缓存路径
 	os.Setenv("TF_PLUGIN_CACHE_DIR", filepath.Join(home, ".terraform.d", "plugin-cache"))
@@ -63,7 +66,6 @@ func LoadConfig(path string) error {
 
 	var data []byte
 	var conf Config
-	var err error
 	for _, p := range searchPaths {
 		if p == "" {
 			continue
@@ -74,7 +76,7 @@ func LoadConfig(path string) error {
 	}
 
 	if data == nil {
-		gologger.Info().Msgf("未找到配置文件，正在创建默认配置文件: %s\n", defaultConfigPath)
+		gologger.Info().Msgf("未找到配置文件，正在创建空配置文件: %s\n", defaultConfigPath)
 		if err := os.MkdirAll(filepath.Dir(defaultConfigPath), 0755); err != nil {
 			return fmt.Errorf("创建配置目录失败: %v", err)
 		}
@@ -117,7 +119,7 @@ func bindEnv(v interface{}) {
 		}
 
 		// 如果是字符串且有值，读取 yaml 标签并 Setenv
-		if tag := fieldType.Tag.Get("env"); tag != "" && fieldVal.String() != "" {
+		if tag := fieldType.Tag.Get("env"); (tag != "" && tag != "-") && fieldVal.String() != "" {
 			os.Setenv(tag, fieldVal.String())
 		}
 	}

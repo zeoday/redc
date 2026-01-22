@@ -254,8 +254,8 @@ func ShowLocalTemplates() {
 
 	for _, tmpl := range list {
 		desc := tmpl.Description
-		if len(desc) > 50 {
-			desc = desc[:47] + "..."
+		if len(desc) > 100 {
+			desc = desc[:100] + "..."
 		}
 		ver := tmpl.Version
 		if ver == "" {
@@ -336,10 +336,13 @@ func readTemplateMeta(dirPath string) (*RedcTmpl, error) {
 	if err := json.Unmarshal(data, tmpl); err != nil {
 		return nil, err
 	}
-	// 如果 Name 为空，用目录名兜底
-	if tmpl.Name == "" {
-		tmpl.Name = filepath.Base(dirPath)
+	relPath, relErr := filepath.Rel(TemplateDir, dirPath)
+	if relErr != nil {
+		relPath = filepath.Base(dirPath)
 	}
+	finalName := filepath.ToSlash(relPath)
+	// 如果 Name 为空，用目录名兜底
+	tmpl.Name = finalName
 	return tmpl, nil
 }
 

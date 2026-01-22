@@ -37,7 +37,7 @@ var rootCmd = &cobra.Command{
 		}
 		// 统一加载配置
 		if err := redc.LoadConfig(cfgFile); err != nil {
-			gologger.Error().Msgf("配置文件加载失败: %s", err.Error())
+			gologger.Fatal().Msgf("配置载失败！%s\n", err.Error())
 		}
 		if redc.Debug {
 			gologger.DefaultLogger.SetMaxLevel(levels.LevelDebug)
@@ -69,17 +69,11 @@ func Execute() {
 }
 
 func init() {
-	// 定义本地 Flag (只在 root 下有效)
 	rootCmd.Flags().BoolVarP(&showVer, "version", "v", false, "显示版本信息")
-
-	// 定义全局 Flag
+	// 全局 Flag
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "配置文件路径")
 	rootCmd.PersistentFlags().StringVar(&redc.RedcPath, "", "", "运行路径，默认在user路径下")
-	// -u / --user
 	rootCmd.PersistentFlags().StringVarP(&redc.U, "user", "u", "system", "操作者")
-
 	rootCmd.PersistentFlags().StringVar(&redc.Project, "project", "default", "项目名称")
-
-	// --debug
 	rootCmd.PersistentFlags().BoolVar(&redc.Debug, "debug", false, "开启调试模式")
 }
