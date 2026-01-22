@@ -118,6 +118,9 @@ providers:
     TENCENTCLOUD_SECRET_ID: "AKIDXXXXXXXXXXXXXXXX"
     TENCENTCLOUD_SECRET_KEY: "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
     region: "ap-guangzhou"
+  cloudflare:
+    CF_EMAIL: "you@example.com"
+    CF_API_KEY: "your-cloudflare-api-key"
 ```
 
 If the configuration file fails to load, it will attempt to read system environment variables, please configure them before use.

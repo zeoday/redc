@@ -38,6 +38,10 @@ type Config struct {
 			Region    string `yaml:"region"`
 		} `yaml:"tencentcloud"`
 	} `yaml:"providers"`
+	Cloudflare struct {
+		Email  string `yaml:"CF_EMAIL" env:"CF_EMAIL"`
+		APIKey string `yaml:"CF_API_KEY" env:"CF_API_KEY"`
+	} `yaml:"cloudflare"`
 }
 
 func LoadConfig(path string) error {

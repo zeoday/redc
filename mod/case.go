@@ -69,7 +69,8 @@ func GenerateCaseID() string {
 // CaseScene 场景参数判断
 func CaseScene(t string, m map[string]string) ([]string, error) {
 	var par []string
-	switch t {
+	scene := filepath.Base(t)
+	switch scene {
 	case "cs-49", "c2-new", "snowc2":
 		par = RVar(
 			fmt.Sprintf("node_count=%d", Node),
@@ -81,7 +82,11 @@ func CaseScene(t string, m map[string]string) ([]string, error) {
 		if Domain == "360.com" {
 			return par, fmt.Errorf("创建 dnslog 时,域名不可为默认值")
 		}
-		par = RVar(fmt.Sprintf("domain=%s", Domain))
+		tfDomain := Domain
+		if !strings.HasPrefix(strings.ToLower(tfDomain), "a.") {
+			tfDomain = "a." + tfDomain
+		}
+		par = RVar(fmt.Sprintf("domain=%s", tfDomain))
 	case "pss5", "frp", "frp-loki", "nps":
 		par = []string{fmt.Sprintf("base64_command=%s", Base64Command)}
 	case "asm-node":
@@ -93,6 +98,13 @@ func CaseScene(t string, m map[string]string) ([]string, error) {
 	}
 	// 增加自定义参数
 	for k, v := range m {
+		if scene == "dnslog" || scene == "xraydnslog" || scene == "interactsh" {
+			if strings.EqualFold(k, "domain") {
+				if !strings.HasPrefix(strings.ToLower(v), "a.") {
+					v = "a." + v
+				}
+			}
+		}
 		par = append(par, fmt.Sprintf("%s=%s", k, v))
 	}
 	return par, nil

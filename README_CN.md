@@ -120,6 +120,9 @@ providers:
     TENCENTCLOUD_SECRET_ID: "AKIDXXXXXXXXXXXXXXXX"
     TENCENTCLOUD_SECRET_KEY: "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
     region: "ap-guangzhou"
+  cloudflare:
+    CF_EMAIL: "you@example.com"
+    CF_API_KEY: "your-cloudflare-api-key"
 ```
 
 在配置文件加载失败的情况下，会尝试读取系统环境变量，使用前请配置好
