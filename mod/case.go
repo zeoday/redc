@@ -133,6 +133,13 @@ func (p *RedcProject) CaseCreate(CaseName string, User string, Name string, vars
 		Name = RandomName(CaseName)
 	}
 
+	// 读取模板元数据，获取模块名（如果有）
+	meta, _ := readTemplateMeta(tpPath)
+	moduleName := ""
+	if meta != nil {
+		moduleName = meta.RedcModule
+	}
+
 	// 初始化实例
 	c := &Case{
 		CreateTime: time.Now().Format("2006-01-02 15:04:05"),
@@ -141,6 +148,7 @@ func (p *RedcProject) CaseCreate(CaseName string, User string, Name string, vars
 		Operator:   User,
 		Path:       casePath,
 		Type:       CaseName,
+		Module:     moduleName,
 		Parameter:  par,
 		State:      StatePending,
 	}
@@ -187,6 +195,9 @@ func (c *Case) TfApply() error {
 	for s, meta := range output {
 		fmt.Println(s, string(meta.Value))
 	}
+	if err := c.runModuleHook(); err != nil {
+		return err
+	}
 	return nil
 }
 func (c *Case) GetInstanceInfo(id string) (string, error) {
@@ -213,6 +224,42 @@ func (c *Case) GetInstanceInfo(id string) (string, error) {
 	// 3. 安全地获取 Value 并转换为字符串
 	// 这里假设 val.Value 是 string 类型，或者可以使用 fmt.Sprint 确保兼容性
 	return str, nil
+}
+
+// runModuleHook 在场景启动成功后执行模板声明的模块钩子
+func (c *Case) runModuleHook() error {
+	// 如果未记录模块名，尝试从 case.json 读取一次
+	if c.Module == "" {
+		if meta, err := readTemplateMeta(c.Path); err == nil {
+			c.Module = meta.RedcModule
+			if c.saveHandler != nil {
+				_ = c.saveHandler()
+			}
+		}
+	}
+	if c.Module == "" {
+		return nil
+	}
+
+	modules := strings.Split(c.Module, ",")
+	for _, m := range modules {
+		name := strings.TrimSpace(m)
+		if name == "" {
+			continue
+		}
+		handler, ok := moduleRegistry[name]
+		if !ok {
+			gologger.Warning().Msgf("未找到模块处理函数: %s", name)
+			continue
+		}
+
+		gologger.Info().Msgf("执行模块: %s", name)
+		if err := handler(c); err != nil {
+			gologger.Error().Msgf("模块执行失败(%s): %v", name, err)
+			return err
+		}
+	}
+	return nil
 }
 
 func (c *Case) TfOutput() (map[string]tfexec.OutputMeta, error) {

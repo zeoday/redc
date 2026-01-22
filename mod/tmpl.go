@@ -31,6 +31,7 @@ type RedcTmpl struct {
 	Description string `json:"description"`
 	User        string `json:"user"`
 	Version     string `json:"version"`
+	RedcModule  string `json:"redc_module"`
 	Path        string `json:"-"`
 }
 
@@ -250,7 +251,7 @@ func ShowLocalTemplates() {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 4, ' ', 0)
-	fmt.Fprintln(w, "NAME\tVERSION\tUSER\tDESCRIPTION")
+	fmt.Fprintln(w, "NAME\tVERSION\tUSER\tMODULE\tDESCRIPTION")
 
 	for _, tmpl := range list {
 		desc := tmpl.Description
@@ -261,7 +262,11 @@ func ShowLocalTemplates() {
 		if ver == "" {
 			ver = "unknown"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", tmpl.Name, ver, tmpl.User, desc)
+		module := tmpl.RedcModule
+		if module == "" {
+			module = "-"
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", tmpl.Name, ver, tmpl.User, module, desc)
 	}
 	w.Flush()
 }

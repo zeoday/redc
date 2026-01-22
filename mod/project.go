@@ -28,6 +28,7 @@ type Case struct {
 	Id           string    `json:"id"`
 	Name         string    `json:"name"`
 	Type         string    `json:"type"`
+	Module       string    `json:"module,omitempty"`
 	Operator     string    `json:"operator"`
 	Path         string    `json:"path"`
 	Node         int       `json:"node"`
