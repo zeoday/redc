@@ -161,7 +161,7 @@ func (p *RedcProject) CaseCreate(CaseName string, User string, Name string, vars
 		gologger.Error().Msgf("项目配置保存失败！")
 		return nil, err
 	}
-	RedcLog("创建成功 " + p.ProjectPath + uid + " " + CaseName)
+	RedcLog("创建成功 " + p.ProjectPath + "/" + uid + " " + CaseName)
 	return c, nil
 }
 
