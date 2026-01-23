@@ -31,7 +31,7 @@ var upCmd = &cobra.Command{
 			gologger.Fatal().Msgf("编排失败: %v", err)
 		}
 
-		redcProject.SaveProject()
+		//redcProject.SaveProject()
 		gologger.Info().Msg("✨ 所有服务部署完成！")
 	},
 }
@@ -50,7 +50,7 @@ var downCmd = &cobra.Command{
 			gologger.Fatal().Msgf("销毁失败: %v", err)
 		}
 
-		redcProject.SaveProject()
+		//redcProject.SaveProject()
 		gologger.Info().Msg("✨ 所有服务销毁完成！")
 	},
 }

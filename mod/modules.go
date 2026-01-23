@@ -14,8 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v3"
 	"red-cloud/mod/gologger"
+
+	"gopkg.in/yaml.v3"
 )
 
 // moduleRegistry 注册所有可用的模块钩子

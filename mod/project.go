@@ -1,47 +1,18 @@
 package mod
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"red-cloud/mod/gologger"
-	"red-cloud/pkg/store"
+	pb "red-cloud/proto"
 	"strings"
 	"text/tabwriter"
 	"time"
 
-	"github.com/hashicorp/terraform-exec/tfexec"
+	bolt "go.etcd.io/bbolt"
+	"google.golang.org/protobuf/proto"
 )
-
-// RedcProject 项目结构体
-type RedcProject struct {
-	ProjectName string  `json:"project_name"`
-	ProjectPath string  `json:"project_path"`
-	CreateTime  string  `json:"create_time"`
-	User        string  `json:"user"`
-	Case        []*Case `json:"case"`
-}
-
-// Case 项目信息
-type Case struct {
-	// Id uuid
-	Id           string    `json:"id"`
-	Name         string    `json:"name"`
-	Type         string    `json:"type"`
-	Module       string    `json:"module,omitempty"`
-	Operator     string    `json:"operator"`
-	Path         string    `json:"path"`
-	Node         int       `json:"node"`
-	CreateTime   string    `json:"create_time"`
-	StateTime    string    `json:"state_time"`
-	Parameter    []string  `json:"parameter"`
-	State        CaseState `json:"state"`
-	Output       string
-	output       map[string]tfexec.OutputMeta
-	saveHandler  func() error
-	removeHandle func() error
-}
 
 type ChangeCommand struct {
 	IsRemove bool
@@ -78,139 +49,153 @@ func NewProjectConfig(name string, user string) (*RedcProject, error) {
 	}
 
 	// 保存到 DB
-	if err := store.SaveProjectMeta(project); err != nil {
+	if err := project.SaveMeta(); err != nil {
 		return nil, fmt.Errorf("保存数据库失败: %v", err)
 	}
-	gologger.Info().Msgf("项目状态文件「%s」创建成功！", ProjectFile)
+	gologger.Info().Msgf("项目状态数据库创建成功！")
 	return project, nil
 
 }
 
 func ProjectParse(name string, user string) (*RedcProject, error) {
 	// 尝试直接读取项目
-	if p, err := store.GetProjectMeta(name); err == nil {
+	if p, err := LoadProjectMeta(name); err == nil {
 		// 项目鉴权
 		if p.User != user && user != "system" {
 			return nil, fmt.Errorf("当前用户「%s」无权限访问项目「%s」", user, name)
 		}
 		return p, nil
 	}
-	gologger.Info().Msgf("项目不存在，正在创建新项目: %s", name)
+	// 项目不存在，走创建逻辑 (保持不变)
+	path := filepath.Join(ProjectPath, name)
+	if _, statErr := os.Stat(path); os.IsNotExist(statErr) {
+		gologger.Info().Msgf("项目不存在，正在创建新项目: %s", name)
+		return NewProjectConfig(name, user)
+	}
 	return NewProjectConfig(name, user)
-}
-
-// ProjectByName 读取项目配置
-func ProjectByName(name string) (*RedcProject, error) {
-	path := filepath.Join(ProjectPath, name, ProjectFile)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		gologger.Debug().Msgf("读取项目文件失败 [%s]: %v", name, err)
-		return nil, err
-	}
-
-	var project RedcProject
-	if err := json.Unmarshal(data, &project); err != nil {
-		return nil, fmt.Errorf("解析项目配置失败: %w", err)
-	}
-
-	return &project, nil
 }
 
 // GetCase 支持通过 ID(精确/模糊) 或 Name(精确) 查找 Case
 // 逻辑参考 Docker: 优先精确匹配，其次 ID 前缀匹配。如果 ID 前缀匹配到多个，则报错歧义。
 func (p *RedcProject) GetCase(identifier string) (*Case, error) {
+	c, err := FindCaseBySearch(p.ProjectName, identifier)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. 绑定运行时逻辑 (复活对象)
+	c.bindHandlers()
+	return c, nil
+}
+
+// FindCaseBySearch 数据库层面的搜索 (Docker 风格：ID精确 -> Name精确 -> ID前缀)
+// 这个函数虽然会遍历，但它不占用内存，因为它边读边丢，只留匹配的那一个
+func FindCaseBySearch(projectID, keyword string) (*Case, error) {
 	var candidates []*Case
-	if len(p.Case) == 0 {
-		cases, _ := store.ListCases(p.ProjectName)
-		p.Case = cases
-	}
 
-	// 遍历所有 Case
-	for i := range p.Case {
-		// 使用指针引用，避免大结构体复制，且允许返回原始切片中的地址
-		c := p.Case[i]
-
-		// 先绑定项目操作函数
-		c.bindHandlers(p)
-
-		// 1. 第一优先级：精确匹配 (ID 或 Name)
-		// 如果输入的字符串完全等于 ID 或 Name，直接认定为目标
-		if c.Id == identifier || c.Name == identifier {
-			// 绑定 project 参数
-			return c, nil
+	err := dbExec(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(fmt.Sprintf("Cases_%s", projectID)))
+		if b == nil {
+			return fmt.Errorf("无数据")
 		}
 
-		// 2. 第二优先级：ID 前缀模糊匹配 (Docker 风格)
-		// 只有当 identifier 是 ID 的前缀时才算 (例如输入 "abc" 匹配 "abcde")
-		// 注意：通常不对 Name 做前缀匹配，防止误操作，这里只针对 ID
-		if strings.HasPrefix(c.Id, identifier) {
+		// 1. 尝试直接按 ID 获取 (最快，O(1))
+		if data := b.Get([]byte(keyword)); data != nil {
+			var p pb.Case
+			err := proto.Unmarshal(data, &p)
+			if err != nil {
+				return fmt.Errorf("解析数据失败: %w", err)
+			}
+			c := caseFromProto(&p)
+			c.ProjectID = projectID
 			candidates = append(candidates, c)
+			return nil // 找到了，直接结束
 		}
+
+		// 2. 如果 ID 没找到，进行遍历搜索 (Name 精确匹配 或 ID 前缀匹配)
+		// 注意：这里是流式读取，不会把所有数据加载到内存，内存占用极低
+		return b.ForEach(func(k, v []byte) error {
+			// 优化：先只匹配 ID 前缀 (Key)，不反序列化 Value，速度快
+			keyStr := string(k)
+
+			// 匹配 ID 前缀
+			matchPrefix := strings.HasPrefix(keyStr, keyword)
+
+			// 如果 ID 前缀不匹配，才不得不反序列化看 Name (稍微慢点，但必须做)
+			// 但为了逻辑简单，这里统一反序列化检查
+			// 生产环境可以优化为：另建一个 Name->ID 的索引桶
+
+			var p pb.Case
+			// 只有当 ID前缀匹配 或者 我们需要检查 Name 时才解析
+			// 这里为了简单，我们还是解析一下，但内存是复用的
+			if err := proto.Unmarshal(v, &p); err != nil {
+				return nil
+			}
+
+			// 检查 Name 精确匹配
+			if p.Name == keyword {
+				c := caseFromProto(&p)
+				c.ProjectID = projectID
+				candidates = []*Case{c}               // 名字精确匹配优先级最高，清空其他的
+				return fmt.Errorf("found_exact_name") // 用特殊 error 提前打断遍历
+			}
+
+			if matchPrefix {
+				c := caseFromProto(&p)
+				c.ProjectID = projectID
+				candidates = append(candidates, c)
+			}
+			return nil
+		})
+	})
+
+	// 处理特殊中断
+	if err != nil && err.Error() == "found_exact_name" {
+		return candidates[0], nil
+	}
+	if err != nil {
+		return nil, err
 	}
 
-	// 3. 处理匹配结果
+	// 结果判定
 	if len(candidates) == 0 {
-		return nil, fmt.Errorf("在项目 %s 中未找到 ID 或名称为 '%s' 的场景", p.ProjectName, identifier)
+		return nil, fmt.Errorf("未找到匹配 '%s' 的 Case", keyword)
+	}
+	if len(candidates) > 1 {
+		return nil, fmt.Errorf("存在歧义，关键词 '%s' 匹配到 %d 个 Case", keyword, len(candidates))
 	}
 
-	if len(candidates) == 1 {
-		l := candidates[0]
-		gologger.Debug().Msgf("关键词匹配「%s」%s %s", identifier, l.Name, l.Id)
-		return l, nil
-	}
-
-	// 4. 歧义处理 (匹配到多个 ID 前缀)
-	// 例如输入 "a1", 既匹配了 "a1b2..." 也匹配了 "a1c3..."
-	return nil, fmt.Errorf("输入 '%s' 存在歧义，匹配到 %d 个场景 (请提供更完整的 ID)", identifier, len(candidates))
+	return candidates[0], nil
 }
 
 // HandleCase 删除指定uid的case
 func (p *RedcProject) HandleCase(c *Case) error {
 	// 调用 store 直接删除
-	if err := store.DeleteCase(p.ProjectName, c.Id); err != nil {
+	if err := c.DBRemove(); err != nil {
 		return err
 	}
 	return nil
-	//uid := c.Id
-	//found := false
-	//for i, caseInfo := range p.Case {
-	//	if caseInfo.Id == uid {
-	//		// 执行删除逻辑：将 i 之后的所有元素前移
-	//		p.Case = append(p.Case[:i], p.Case[i+1:]...)
-	//		found = true
-	//		break // 找到并删除后立即退出循环
-	//	}
-	//}
-	//
-	//if !found {
-	//	return fmt.Errorf("未找到 UID 为 %s 的 case，无需删除", uid)
-	//}
-	//
-	//// 3. 将修改后的 project 写回文件
-	//err := p.SaveProject()
-	//if err != nil {
-	//	return fmt.Errorf("更新项目文件失败: %v", err)
-	//}
-	//
-	//return nil
 }
 
 func (p *RedcProject) AddCase(c *Case) error {
 	// 绑定 handler
-	c.bindHandlers(p)
-
+	c.bindHandlers()
 	// 保存到 DB
-	if err := c.saveHandler(); err != nil {
+	if err := c.DBSave(); err != nil {
 		return err
 	}
 
-	// 更新内存
-	p.Case = append(p.Case, c)
 	return nil
 }
 
 // CaseList 输出项目进程
 func (p *RedcProject) CaseList() {
+	cases, err := LoadProjectCases(p.ProjectName)
+	if err != nil {
+		gologger.Error().Msgf("加载列表失败: %v", err)
+		return
+	}
+
 	// minwidth=0: 最小单元格宽度
 	// tabwidth=8: tab 字符宽度
 	// padding=3:  列之间至少保留 3 个空格（比原来的 1 个更清晰）
@@ -222,7 +207,7 @@ func (p *RedcProject) CaseList() {
 	// 并在每一列后明确加上 \t 进行分割
 	fmt.Fprintln(w, "Case ID\tTYPE\tNAME\tOPERATOR\tCREATED\tSTATUS")
 
-	for _, c := range p.Case {
+	for _, c := range cases {
 
 		// ID过长显示前12位
 		displayID := c.Id
@@ -273,31 +258,11 @@ func (p *RedcProject) CaseList() {
 	}
 }
 
-// SaveProject 将修改后的项目配置写回 JSON 文件
-func (p *RedcProject) SaveProject() error {
-	dirPath := p.ProjectPath
-	path := filepath.Join(ProjectPath, p.ProjectName, ProjectFile)
-	// 2. 防御性编程：确保目录存在
-	// 防止用户手动删除了目录，导致保存文件失败
-	if err := os.MkdirAll(dirPath, 0755); err != nil {
-		return fmt.Errorf("无法恢复项目目录: %w", err)
-	}
-	// 2. 序列化数据
-	// MarshalIndent 会生成带缩进的 JSON，方便人类阅读；如果追求体积小，可用 json.Marshal
-	data, err := json.MarshalIndent(p, "", "    ")
-	if err != nil {
-		return fmt.Errorf("序列化失败: %v", err)
-	}
-
-	// 3. 写入文件
-	// 0644 表示：所有者有读写权限，其他人只读
-	err = os.WriteFile(path, data, 0644)
-	if err != nil {
-		return fmt.Errorf("写入文件失败: %v", err)
-	}
-
-	return nil
-}
+//// SaveProject 保存修改后的项目
+//func (p *RedcProject) SaveProject() error {
+//
+//	return nil
+//}
 
 // 简单的时长计算，返回 "2 hours", "5 minutes" 等
 func humanDurationShort(t time.Time) string {

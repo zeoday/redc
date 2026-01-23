@@ -8,24 +8,12 @@ import (
 	"os"
 	"path/filepath"
 	"red-cloud/mod/gologger"
-	"red-cloud/pkg/store"
 	"red-cloud/utils"
 	"strings"
 	"text/tabwriter"
 	"time"
 
 	"github.com/hashicorp/terraform-exec/tfexec"
-)
-
-type CaseState string
-
-const (
-	StateRunning CaseState = "running"
-	StateStopped CaseState = "stopped"
-	StateError   CaseState = "error"
-	StateCreated CaseState = "created"
-	StatePending CaseState = "pending"
-	StateUnknown CaseState = "unknown"
 )
 
 func RandomName(s string) string {
@@ -164,10 +152,11 @@ func (p *RedcProject) CaseCreate(CaseName string, User string, Name string, vars
 		Type:       CaseName,
 		Module:     moduleName,
 		Parameter:  par,
+		ProjectID:  p.ProjectName,
 		State:      StatePending,
 	}
 	// 绑定 project 参数
-	c.bindHandlers(p)
+	c.bindHandlers()
 
 	// 构建场景
 	if err := c.TfPlan(); err != nil {
@@ -178,7 +167,6 @@ func (p *RedcProject) CaseCreate(CaseName string, User string, Name string, vars
 	gologger.Info().Msgf("场景创建成功！%s", uid)
 	// 确认场景创建无误后,才会写入到配置文件中
 	err = p.AddCase(c)
-	err = p.SaveProject()
 	if err != nil {
 		gologger.Error().Msgf("项目配置保存失败！")
 		return nil, err
@@ -288,13 +276,13 @@ func (c *Case) TfOutput() (map[string]tfexec.OutputMeta, error) {
 }
 
 // bindHandlers 绑定项目方法
-func (c *Case) bindHandlers(p *RedcProject) {
+func (c *Case) bindHandlers() {
 	c.saveHandler = func() error {
 		// 保存单个 Case，不再保存整个 Project
-		return store.SaveCase(p.ProjectName, c)
+		return c.DBSave()
 	}
 	c.removeHandle = func() error {
-		return store.DeleteCase(p.ProjectName, c.Id)
+		return c.DBRemove()
 	}
 }
 
@@ -307,7 +295,7 @@ func (c *Case) TfPlan() error {
 	return nil
 }
 
-func (c *Case) StatusChange(s CaseState) {
+func (c *Case) StatusChange(s string) {
 	c.State = s
 	c.StateTime = time.Now().Format("2006-01-02 15:04:05")
 	if c.saveHandler != nil {
