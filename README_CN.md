@@ -260,8 +260,8 @@ redc image ls
 ecs 为模版文件名称
 
 ````bash
-redc create --name boring_sheep_ecs  [模版名称] # 创建一个实例并 plan（该过程不会创建实例，只是检查信息）
-# create创建完成后会返回caseid 可使用start命令启动
+redc plan --name boring_sheep_ecs  [模版名称] # 规划一个实例（该过程验证配置但不会创建基础设施）
+# plan完成后会返回caseid 可使用start命令实际创建基础设施
 redc start [caseid]
 redc start [casename]
 ````
@@ -374,7 +374,7 @@ redc mcp sse localhost:9000
 
 - `list_templates` - 列出所有可用模板
 - `list_cases` - 列出项目中的所有场景
-- `create_case` - 从模板创建新场景
+- `plan_case` - 从模板规划新场景（预览资源而不实际创建）
 - `start_case` / `stop_case` / `kill_case` - 管理场景生命周期
 - `get_case_status` - 检查场景状态
 - `exec_command` - 在场景上执行命令

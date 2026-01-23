@@ -22,8 +22,8 @@ The redc MCP server exposes the following capabilities:
 
 1. **list_templates** - List all available redc templates/images
 2. **list_cases** - List all running cases in the current project
-3. **create_case** - Create a new case from a template
-4. **start_case** - Start a case by ID
+3. **plan_case** - Plan a new case from a template (like terraform plan - preview resources without creating them)
+4. **start_case** - Start a case by ID (this actually creates and starts the infrastructure)
 5. **stop_case** - Stop a running case by ID
 6. **kill_case** - Kill (destroy) a case by ID
 7. **get_case_status** - Get the status of a specific case
@@ -136,7 +136,7 @@ Response:
   "id": 3,
   "method": "tools/call",
   "params": {
-    "name": "create_case",
+    "name": "plan_case",
     "arguments": {
       "template": "aliyun/ecs",
       "name": "my-test-case",
@@ -147,6 +147,8 @@ Response:
   }
 }
 ```
+
+**Note:** `plan_case` performs a terraform plan to validate the configuration without actually creating infrastructure. Use `start_case` afterwards to actually create and start the resources.
 
 ### Start a Case
 

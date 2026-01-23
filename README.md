@@ -252,13 +252,13 @@ redc image ls
 ecs is the template file name
 
 ````bash
-redc create --name boring_sheep_ecs  [template_name] # Create an instance and plan (this process does not create the instance, just checks information)
-# After create completes, it returns a caseid which can be used with the start command
+redc plan --name boring_sheep_ecs  [template_name] # Plan an instance (this process validates the configuration but doesn't create infrastructure)
+# After plan completes, it returns a caseid which can be used with the start command to actually create infrastructure
 redc start [caseid]
 redc start [casename]
 ````
 
-Directly create and start a case with template name ecs
+Directly plan and start a case with template name ecs
 
 ```
 redc run aliyun/ecs
@@ -366,7 +366,7 @@ redc mcp sse localhost:9000
 
 - `list_templates` - List all available templates
 - `list_cases` - List all cases in the project
-- `create_case` - Create a new case from template
+- `plan_case` - Plan a new case from template (preview resources without creating)
 - `start_case` / `stop_case` / `kill_case` - Manage case lifecycle
 - `get_case_status` - Check case status
 - `exec_command` - Execute commands on cases

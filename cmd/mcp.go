@@ -242,8 +242,8 @@ func (s *MCPServer) getTools() []Tool {
 			},
 		},
 		{
-			Name:        "create_case",
-			Description: "Create a new case from a template",
+			Name:        "plan_case",
+			Description: "Plan a new case from a template (like terraform plan - preview resources without creating them)",
 			InputSchema: ToolSchema{
 				Type: "object",
 				Properties: map[string]Property{
@@ -443,14 +443,14 @@ func (s *MCPServer) executeTool(name string, args map[string]interface{}) (ToolR
 	case "list_cases":
 		return s.toolListCases()
 
-	case "create_case":
+	case "plan_case":
 		template, ok := args["template"].(string)
 		if !ok {
 			return ToolResult{}, fmt.Errorf("missing or invalid 'template' parameter")
 		}
 		caseName, _ := args["name"].(string)
 		env, _ := args["env"].(map[string]interface{})
-		return s.toolCreateCase(template, caseName, env)
+		return s.toolPlanCase(template, caseName, env)
 
 	case "start_case":
 		caseID, ok := args["case_id"].(string)
@@ -540,8 +540,8 @@ func (s *MCPServer) toolListCases() (ToolResult, error) {
 	}, nil
 }
 
-func (s *MCPServer) toolCreateCase(template string, name string, env map[string]interface{}) (ToolResult, error) {
-	// Create case using the RedcProject.CaseCreate method
+func (s *MCPServer) toolPlanCase(template string, name string, env map[string]interface{}) (ToolResult, error) {
+	// Plan case using the RedcProject.CaseCreate method (which performs terraform plan)
 	vars := make(map[string]string)
 	if env != nil {
 		for k, v := range env {
@@ -551,14 +551,15 @@ func (s *MCPServer) toolCreateCase(template string, name string, env map[string]
 	
 	c, err := s.project.CaseCreate(template, redc.U, name, vars)
 	if err != nil {
-		return ToolResult{}, fmt.Errorf("failed to create case: %v", err)
+		return ToolResult{}, fmt.Errorf("failed to plan case: %v", err)
 	}
 
-	output := fmt.Sprintf("Case created successfully:\n")
+	output := fmt.Sprintf("Case planned successfully (terraform plan completed):\n")
 	output += fmt.Sprintf("- ID: %s\n", c.GetId())
 	output += fmt.Sprintf("- Name: %s\n", c.Name)
 	output += fmt.Sprintf("- Template: %s\n", template)
-	output += fmt.Sprintf("\nUse 'start_case' with ID '%s' to start the case.\n", c.GetId())
+	output += fmt.Sprintf("\nThe case has been validated but not started yet.\n")
+	output += fmt.Sprintf("Use 'start_case' with ID '%s' to actually create and start the infrastructure.\n", c.GetId())
 
 	return ToolResult{
 		Content: []ContentItem{{

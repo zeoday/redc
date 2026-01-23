@@ -23,7 +23,7 @@ var runCmd = &cobra.Command{
 	Args:    cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		templateName := args[0]
-		if c, err := createLogic(templateName); err == nil {
+		if c, err := planLogic(templateName); err == nil {
 			if err := c.TfApply(); err != nil {
 				gologger.Error().Msgf("场景启动失败！%s", err.Error())
 			}
@@ -35,20 +35,20 @@ var runCmd = &cobra.Command{
 	},
 }
 
-var createCmd = &cobra.Command{
-	Use:     "create [template_name]",
-	Short:   "创建一个新的基础设施场景",
-	Example: "redc create ecs -u team1 -n operation_alpha",
+var planCmd = &cobra.Command{
+	Use:     "plan [template_name]",
+	Short:   "预览（plan）一个新的基础设施场景，检查将要创建的资源",
+	Example: "redc plan ecs -u team1 -n operation_alpha",
 	Args:    cobra.ExactArgs(1), // 强制要求输入一个模板名，例如 pte
 	Run: func(cmd *cobra.Command, args []string) {
 		templateName := args[0]
-		if c, err := createLogic(templateName); err == nil {
-			gologger.Info().Msgf("✅「%s」%s 场景创建完成！，接下来您可以start启动该场景", c.Name, c.Id)
+		if c, err := planLogic(templateName); err == nil {
+			gologger.Info().Msgf("✅「%s」%s 场景 plan 完成！，接下来您可以start启动该场景", c.Name, c.Id)
 		}
 	},
 }
 
-func createLogic(templateName string) (*redc.Case, error) {
+func planLogic(templateName string) (*redc.Case, error) {
 
 	// 别名处理
 	if templateName == "pte" {
@@ -65,13 +65,13 @@ func createLogic(templateName string) (*redc.Case, error) {
 }
 
 func init() {
-	rootCmd.AddCommand(createCmd)
+	rootCmd.AddCommand(planCmd)
 	rootCmd.AddCommand(runCmd)
 	CRCommonFlagSet := pflag.NewFlagSet("common", pflag.ExitOnError)
 
 	CRCommonFlagSet.StringVarP(&userName, "user", "u", "system", "指定用户/操作员")
 	CRCommonFlagSet.StringVarP(&projectName, "name", "n", "", "指定项目/任务名称")
 	CRCommonFlagSet.StringToStringVarP(&envVars, "env", "e", nil, "设置环境变量 (格式: key=value)")
-	createCmd.Flags().AddFlagSet(CRCommonFlagSet)
+	planCmd.Flags().AddFlagSet(CRCommonFlagSet)
 	runCmd.Flags().AddFlagSet(CRCommonFlagSet)
 }

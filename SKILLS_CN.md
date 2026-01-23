@@ -46,9 +46,9 @@ redc image ls                       # 列出本地模板
 
 ### 部署
 ```bash
-redc run <模板> -n <名称> -e key=val    # 创建并启动
-redc create <模板> -n <名称>             # 仅创建
-redc start <case-id>                    # 启动场景
+redc run <模板> -n <名称> -e key=val    # 规划并启动（创建基础设施）
+redc plan <模板> -n <名称>             # 仅规划（预览而不创建）
+redc start <case-id>                    # 启动场景（创建基础设施）
 ```
 
 ### 管理
@@ -80,8 +80,8 @@ redc exec 8a57078ee856 whoami
 
 **受控部署:**
 ```bash
-redc create aws/ec2 -n staging
-# 审查后:
+redc plan aws/ec2 -n staging
+# 审查规划的资源后:
 redc start <case-id>
 redc cp deploy.sh <case-id>:/root/
 redc exec <case-id> "bash /root/deploy.sh"
