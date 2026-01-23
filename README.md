@@ -30,6 +30,15 @@
 
 ---
 
+## 📚 Documentation
+
+- **[User Guide](README.md)** - Complete installation and usage guide
+- **[AI Operations Skills](SKILLS.md)** - Comprehensive guide for AI agents and automation tools
+- **[Template Repository](https://github.com/wgpsec/redc-template)** - Pre-configured infrastructure templates
+- **[Online Templates](https://redc.wgpsec.org/)** - Browse and download templates
+
+---
+
 Redc is built on Terraform, further simplifying the complete lifecycle (create, configure, destroy) of red team infrastructure.
 
 Redc is not just a machine provisioning tool, but an automated cloud resource scheduler!
