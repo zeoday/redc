@@ -370,7 +370,10 @@ func (s *MCPServer) readResource(uri string) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		data, _ := json.MarshalIndent(dirs, "", "  ")
+		data, err := json.MarshalIndent(dirs, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal templates: %v", err)
+		}
 		return ResourceContents{
 			URI:      uri,
 			MimeType: "application/json",
@@ -394,7 +397,10 @@ func (s *MCPServer) readResource(uri string) (interface{}, error) {
 				"type":   c.Type,
 			})
 		}
-		data, _ := json.MarshalIndent(caseList, "", "  ")
+		data, err := json.MarshalIndent(caseList, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal cases: %v", err)
+		}
 		return ResourceContents{
 			URI:      uri,
 			MimeType: "application/json",
@@ -411,7 +417,10 @@ func (s *MCPServer) readResource(uri string) (interface{}, error) {
 			"template_dir": redc.TemplateDir,
 			"redc_path":    redc.RedcPath,
 		}
-		data, _ := json.MarshalIndent(config, "", "  ")
+		data, err := json.MarshalIndent(config, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal config: %v", err)
+		}
 		return ResourceContents{
 			URI:      uri,
 			MimeType: "application/json",
