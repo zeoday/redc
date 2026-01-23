@@ -8,7 +8,7 @@ import (
 
 	// 【请修改这里】根据你的 go.mod 替换为正确的 pb 路径
 	// 例如你的 module 叫 "red-cloud"，这里就是 "red-cloud/pb"
-	"red-cloud/proto"
+	"red-cloud/pb"
 
 	bolt "go.etcd.io/bbolt"
 	"google.golang.org/protobuf/proto"

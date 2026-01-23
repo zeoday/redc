@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"red-cloud/mod/gologger"
-	pb "red-cloud/proto"
+	"red-cloud/pb"
 	"strings"
 	"text/tabwriter"
 	"time"
