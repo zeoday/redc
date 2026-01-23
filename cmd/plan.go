@@ -23,7 +23,7 @@ var runCmd = &cobra.Command{
 	Args:    cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		templateName := args[0]
-		if c, err := createLogic(templateName); err == nil {
+		if c, err := planLogic(templateName); err == nil {
 			if err := c.TfApply(); err != nil {
 				gologger.Error().Msgf("场景启动失败！%s", err.Error())
 			}
@@ -42,13 +42,13 @@ var planCmd = &cobra.Command{
 	Args:    cobra.ExactArgs(1), // 强制要求输入一个模板名，例如 pte
 	Run: func(cmd *cobra.Command, args []string) {
 		templateName := args[0]
-		if c, err := createLogic(templateName); err == nil {
+		if c, err := planLogic(templateName); err == nil {
 			gologger.Info().Msgf("✅「%s」%s 场景 plan 完成！，接下来您可以start启动该场景", c.Name, c.Id)
 		}
 	},
 }
 
-func createLogic(templateName string) (*redc.Case, error) {
+func planLogic(templateName string) (*redc.Case, error) {
 
 	// 别名处理
 	if templateName == "pte" {
