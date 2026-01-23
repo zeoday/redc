@@ -366,7 +366,7 @@ redc mcp sse localhost:9000
 
 - `list_templates` - List all available templates
 - `list_cases` - List all cases in the project
-- `create_case` - Create a new case from template
+- `plan_case` - Plan a new case from template (preview resources without creating)
 - `start_case` / `stop_case` / `kill_case` - Manage case lifecycle
 - `get_case_status` - Check case status
 - `exec_command` - Execute commands on cases

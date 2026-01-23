@@ -374,7 +374,7 @@ redc mcp sse localhost:9000
 
 - `list_templates` - 列出所有可用模板
 - `list_cases` - 列出项目中的所有场景
-- `create_case` - 从模板创建新场景
+- `plan_case` - 从模板规划新场景（预览资源而不实际创建）
 - `start_case` / `stop_case` / `kill_case` - 管理场景生命周期
 - `get_case_status` - 检查场景状态
 - `exec_command` - 在场景上执行命令
