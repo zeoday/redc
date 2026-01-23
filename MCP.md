@@ -1,0 +1,295 @@
+# MCP (Model Context Protocol) Support
+
+[中文](MCP_CN.md) | English
+
+---
+
+## Overview
+
+redc now supports the Model Context Protocol (MCP), which allows AI assistants and automation tools to interact with redc's infrastructure management capabilities programmatically.
+
+MCP support enables:
+- **AI-driven infrastructure management**: Let AI assistants help you deploy and manage red team infrastructure
+- **Automated workflows**: Integrate redc with AI tools and automation platforms
+- **Programmatic access**: Control redc through a standardized JSON-RPC protocol
+- **Multi-modal integration**: Works with various AI clients via STDIO or SSE transports
+
+## Features
+
+The redc MCP server exposes the following capabilities:
+
+### Tools (Actions)
+
+1. **list_templates** - List all available redc templates/images
+2. **list_cases** - List all running cases in the current project
+3. **create_case** - Create a new case from a template
+4. **start_case** - Start a case by ID
+5. **stop_case** - Stop a running case by ID
+6. **kill_case** - Kill (destroy) a case by ID
+7. **get_case_status** - Get the status of a specific case
+8. **exec_command** - Execute a command on a case
+
+### Resources
+
+1. **redc://templates** - JSON list of available templates
+2. **redc://cases** - JSON list of all cases in the current project
+3. **redc://config** - Current redc configuration
+
+## Transport Modes
+
+redc MCP server supports two transport modes:
+
+### 1. STDIO Transport
+
+STDIO mode is ideal for local integration with AI assistants and tools. The server reads JSON-RPC requests from stdin and writes responses to stdout.
+
+**Usage:**
+```bash
+redc mcp stdio
+```
+
+This mode is perfect for:
+- Claude Desktop integration
+- Local AI assistant tools
+- Development and testing
+- Pipeline automation
+
+### 2. SSE (Server-Sent Events) Transport
+
+SSE mode runs an HTTP server that can handle multiple clients and provides a web-accessible endpoint.
+
+**Usage:**
+```bash
+# Default address (localhost:8080)
+redc mcp sse
+
+# Custom address
+redc mcp sse localhost:9000
+
+# Listen on all interfaces
+redc mcp sse 0.0.0.0:8080
+
+# Short form (port only)
+redc mcp sse :8080
+```
+
+The SSE server exposes three endpoints:
+- `GET /` - Server information
+- `POST /message` - Send JSON-RPC messages (recommended)
+- `GET /sse` - SSE streaming endpoint
+
+This mode is perfect for:
+- Web-based AI clients
+- Remote access
+- Multi-user environments
+- Production deployments
+
+## Usage Examples
+
+### Initialize MCP Protocol
+
+When connecting to the MCP server, the client must first send an `initialize` request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {}
+}
+```
+
+Response:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "protocolVersion": "2024-11-05",
+    "capabilities": {
+      "tools": {},
+      "resources": {}
+    },
+    "serverInfo": {
+      "name": "redc",
+      "version": "1.x.x"
+    }
+  }
+}
+```
+
+### List Available Tools
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/list"
+}
+```
+
+### Create a Case
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "create_case",
+    "arguments": {
+      "template": "aliyun/ecs",
+      "name": "my-test-case",
+      "env": {
+        "region": "cn-hangzhou"
+      }
+    }
+  }
+}
+```
+
+### Start a Case
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "tools/call",
+  "params": {
+    "name": "start_case",
+    "arguments": {
+      "case_id": "8a57078ee856"
+    }
+  }
+}
+```
+
+### Execute a Command
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "tools/call",
+  "params": {
+    "name": "exec_command",
+    "arguments": {
+      "case_id": "8a57078ee856",
+      "command": "whoami"
+    }
+  }
+}
+```
+
+### Read Resources
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "resources/read",
+  "params": {
+    "uri": "redc://cases"
+  }
+}
+```
+
+## Integration with AI Assistants
+
+### Claude Desktop
+
+Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "redc": {
+      "command": "/path/to/redc",
+      "args": ["mcp", "stdio"],
+      "env": {
+        "REDC_PROJECT": "default"
+      }
+    }
+  }
+}
+```
+
+### Using curl with SSE mode
+
+```bash
+# Start the SSE server
+redc mcp sse localhost:8080
+
+# In another terminal, send requests
+curl -X POST http://localhost:8080/message \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/list"
+  }'
+```
+
+## Configuration
+
+The MCP server uses the same configuration as the redc CLI:
+
+- **Project**: Use `--project` flag to specify the project (default: "default")
+- **User**: Use `--user` flag to specify the operator (default: "system")
+- **Config file**: Use `--config` flag to specify a custom config file
+- **Debug mode**: Use `--debug` flag to enable debug logging
+
+Example:
+```bash
+redc mcp sse --project myproject --user alice --debug
+```
+
+## Security Considerations
+
+### STDIO Mode
+- Runs locally with the same permissions as the user running redc
+- No network exposure
+- Safe for local development
+
+### SSE Mode
+- Exposes HTTP endpoints on the network
+- **WARNING**: No authentication by default
+- Recommended to:
+  - Bind to localhost only (default)
+  - Use firewall rules to restrict access
+  - Deploy behind a reverse proxy with authentication
+  - Use VPN or SSH tunnels for remote access
+
+## Troubleshooting
+
+### Server won't start
+- Check if the port is already in use
+- Verify redc configuration is valid
+- Ensure templates directory exists
+
+### Commands fail
+- Verify the case ID is correct
+- Check case status before executing commands
+- Ensure SSH connectivity to the case
+- Check redc logs for detailed error messages
+
+### Connection issues
+- For STDIO: Check that JSON-RPC messages are properly formatted
+- For SSE: Verify the server is running and accessible
+- Use `--debug` flag for verbose logging
+
+## Protocol Version
+
+redc implements MCP protocol version **2024-11-05**.
+
+## Additional Resources
+
+- [MCP Specification](https://modelcontextprotocol.io/)
+- [redc Documentation](README.md)
+- [Template Repository](https://github.com/wgpsec/redc-template)
+
+## Support
+
+For issues or questions:
+- GitHub Issues: https://github.com/wgpsec/redc/issues
+- Discussions: https://github.com/wgpsec/redc/discussions
