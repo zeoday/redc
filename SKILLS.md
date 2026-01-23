@@ -46,9 +46,9 @@ redc image ls                       # List local templates
 
 ### Deploy
 ```bash
-redc run <template> -n <name> -e key=val    # Create & start
-redc create <template> -n <name>             # Create only
-redc start <case-id>                         # Start case
+redc run <template> -n <name> -e key=val    # Plan & start (create infrastructure)
+redc plan <template> -n <name>              # Plan only (preview without creating)
+redc start <case-id>                        # Start case (create infrastructure)
 ```
 
 ### Manage
@@ -80,8 +80,8 @@ redc exec 8a57078ee856 whoami
 
 **Controlled:**
 ```bash
-redc create aws/ec2 -n staging
-# Review, then:
+redc plan aws/ec2 -n staging
+# Review the planned resources, then:
 redc start <case-id>
 redc cp deploy.sh <case-id>:/root/
 redc exec <case-id> "bash /root/deploy.sh"

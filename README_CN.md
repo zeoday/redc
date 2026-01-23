@@ -260,8 +260,8 @@ redc image ls
 ecs 为模版文件名称
 
 ````bash
-redc create --name boring_sheep_ecs  [模版名称] # 创建一个实例并 plan（该过程不会创建实例，只是检查信息）
-# create创建完成后会返回caseid 可使用start命令启动
+redc plan --name boring_sheep_ecs  [模版名称] # 规划一个实例（该过程验证配置但不会创建基础设施）
+# plan完成后会返回caseid 可使用start命令实际创建基础设施
 redc start [caseid]
 redc start [casename]
 ````

@@ -22,8 +22,8 @@ redc MCP 服务器提供以下能力：
 
 1. **list_templates** - 列出所有可用的 redc 模板/镜像
 2. **list_cases** - 列出当前项目中的所有场景
-3. **create_case** - 从模板创建新场景
-4. **start_case** - 通过 ID 启动场景
+3. **plan_case** - 从模板规划新场景（类似 terraform plan - 预览资源而不实际创建）
+4. **start_case** - 通过 ID 启动场景（这将实际创建并启动基础设施）
 5. **stop_case** - 通过 ID 停止运行中的场景
 6. **kill_case** - 通过 ID 销毁场景
 7. **get_case_status** - 获取特定场景的状态
@@ -136,7 +136,7 @@ SSE 服务器提供三个端点：
   "id": 3,
   "method": "tools/call",
   "params": {
-    "name": "create_case",
+    "name": "plan_case",
     "arguments": {
       "template": "aliyun/ecs",
       "name": "my-test-case",
@@ -147,6 +147,8 @@ SSE 服务器提供三个端点：
   }
 }
 ```
+
+**注意：** `plan_case` 执行 terraform plan 来验证配置而不实际创建基础设施。之后使用 `start_case` 来实际创建和启动资源。
 
 ### 启动场景
 
