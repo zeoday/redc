@@ -34,6 +34,7 @@
 
 - **[使用指南](README_CN.md)** - 完整的安装和使用指南
 - **[AI 运维 Skills](SKILLS_CN.md)** - AI 代理和自动化工具的综合指南
+- **[MCP 协议支持](MCP_CN.md)** - AI 助手的模型上下文协议集成
 - **[模板仓库](https://github.com/wgpsec/redc-template)** - 预配置的基础设施模板
 - **[在线模板](https://redc.wgpsec.org/)** - 浏览和下载模板
 
@@ -341,6 +342,60 @@ redc cp [caseid]:/root/test.txt ./
 ````
 redc change [caseid]
 ````
+
+## MCP（模型上下文协议）支持
+
+redc 现已支持模型上下文协议，可与 AI 助手和自动化工具无缝集成。
+
+### 主要特性
+
+- **两种传输模式**：STDIO 用于本地集成，SSE 用于基于 Web 的访问
+- **全面的工具**：创建、管理和在基础设施上执行命令
+- **AI 友好**：支持 Claude Desktop、自定义 AI 工具和自动化平台
+- **安全性**：STDIO 在本地运行无网络暴露；SSE 可限制为 localhost
+
+### 快速开始
+
+**启动 STDIO 服务器**（用于 Claude Desktop 集成）：
+```bash
+redc mcp stdio
+```
+
+**启动 SSE 服务器**（用于基于 Web 的客户端）：
+```bash
+# 默认（localhost:8080）
+redc mcp sse
+
+# 自定义端口
+redc mcp sse localhost:9000
+```
+
+### 可用工具
+
+- `list_templates` - 列出所有可用模板
+- `list_cases` - 列出项目中的所有场景
+- `create_case` - 从模板创建新场景
+- `start_case` / `stop_case` / `kill_case` - 管理场景生命周期
+- `get_case_status` - 检查场景状态
+- `exec_command` - 在场景上执行命令
+
+### 示例：与 Claude Desktop 集成
+
+添加到 `~/Library/Application Support/Claude/claude_desktop_config.json`：
+```json
+{
+  "mcpServers": {
+    "redc": {
+      "command": "/path/to/redc",
+      "args": ["mcp", "stdio"]
+    }
+  }
+}
+```
+
+详细文档请参阅 **[MCP_CN.md](MCP_CN.md)**。
+
+---
 
 ## 编排服务compose （WIP）
 

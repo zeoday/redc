@@ -34,6 +34,7 @@
 
 - **[User Guide](README.md)** - Complete installation and usage guide
 - **[AI Operations Skills](SKILLS.md)** - Comprehensive guide for AI agents and automation tools
+- **[MCP Protocol Support](MCP.md)** - Model Context Protocol integration for AI assistants
 - **[Template Repository](https://github.com/wgpsec/redc-template)** - Pre-configured infrastructure templates
 - **[Online Templates](https://redc.wgpsec.org/)** - Browse and download templates
 
@@ -333,6 +334,60 @@ This requires template support for changes, can switch elastic public IP
 ````
 redc change [caseid]
 ````
+
+## MCP (Model Context Protocol) Support
+
+redc now supports the Model Context Protocol, enabling seamless integration with AI assistants and automation tools.
+
+### Key Features
+
+- **Two Transport Modes**: STDIO for local integration and SSE for web-based access
+- **Comprehensive Tools**: Create, manage, and execute commands on infrastructure
+- **AI-Friendly**: Works with Claude Desktop, custom AI tools, and automation platforms
+- **Secure**: STDIO runs locally with no network exposure; SSE can be restricted to localhost
+
+### Quick Start
+
+**Start STDIO Server** (for Claude Desktop integration):
+```bash
+redc mcp stdio
+```
+
+**Start SSE Server** (for web-based clients):
+```bash
+# Default (localhost:8080)
+redc mcp sse
+
+# Custom port
+redc mcp sse localhost:9000
+```
+
+### Available Tools
+
+- `list_templates` - List all available templates
+- `list_cases` - List all cases in the project
+- `create_case` - Create a new case from template
+- `start_case` / `stop_case` / `kill_case` - Manage case lifecycle
+- `get_case_status` - Check case status
+- `exec_command` - Execute commands on cases
+
+### Example: Integrate with Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "redc": {
+      "command": "/path/to/redc",
+      "args": ["mcp", "stdio"]
+    }
+  }
+}
+```
+
+For detailed documentation, see **[MCP.md](MCP.md)**.
+
+---
 
 ## Compose Orchestration Service （WIP）
 
