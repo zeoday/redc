@@ -33,8 +33,9 @@
 ## 📚 Documentation
 
 - **[User Guide](README.md)** - Complete installation and usage guide
-- **[AI Operations Skills](SKILLS.md)** - Comprehensive guide for AI agents and automation tools
-- **[MCP Protocol Support](MCP.md)** - Model Context Protocol integration for AI assistants
+- **[AI Operations Skills](.claude/skills/useage/SKILL.md)** - Comprehensive guide for AI agents and automation tools
+- **[MCP Protocol Support](doc/MCP.md)** - Model Context Protocol integration for AI assistants
+- **[Compose Orchestration Guide](doc/Compose.md)** - Best practices for multi-service orchestration
 - **[Template Repository](https://github.com/wgpsec/redc-template)** - Pre-configured infrastructure templates
 - **[Online Templates](https://redc.wgpsec.org/)** - Browse and download templates
 
@@ -408,212 +409,66 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-For detailed documentation, see **[MCP.md](MCP.md)**.
+For detailed documentation, see **[MCP.md](doc/MCP.md)**.
 
 ---
 
-## Compose Orchestration Service （WIP）
+## Compose Orchestration Service
 
-redc provides an orchestration service
+redc provides an orchestration service that allows you to manage multiple cloud service instances simultaneously through YAML configuration files, enabling complex infrastructure deployments.
 
-**Start orchestration service**
+### Quick Start
 
-```
-redc compose up
-```
-
-**Stop compose**
-
-````
-redc compose down
-````
-
-File name: `redc-compose.yaml`
-
-**Compose Template**
+**Configuration File Example** ([Full Example](doc/redc-compose.yaml))
 
 ```yaml
 version: "3.9"
 
-# ==============================================================================
-# 1. Configs: Global Configuration Center
-# Purpose: Define reusable static resources, redc will inject them into Terraform variables
-# ==============================================================================
-configs:
-  # [File type] SSH public key
-  admin_ssh_key:
-    file: ~/.ssh/id_rsa.pub
-
-  # [Structure type] Security group whitelist (will be serialized to JSON)
-  global_whitelist:
-    rules:
-      - port: 22
-        cidr: 1.2.3.4/32
-        desc: "Admin Access"
-      - port: 80
-        cidr: 0.0.0.0/0
-        desc: "HTTP Listener"
-      - port: 443
-        cidr: 0.0.0.0/0
-        desc: "HTTPS Listener"
-
-# ==============================================================================
-# 2. Plugins: Plugin Services (Non-compute resources)
-# Purpose: Cloud resources independent of servers, such as DNS resolution, object storage, VPC peering, etc.
-# ==============================================================================
-plugins:
-  # Plugin A: Alibaba Cloud DNS resolution
-  # Scenario: After infrastructure starts, automatically point domain to Teamserver IP
-  dns_record:
-    image: plugin-dns-aliyun
-    # Reference externally defined provider name
-    provider: ali_hk_main
-    environment:
-      - domain=redteam-ops.com
-      - record=cs
-      - type=A
-      - value=${teamserver.outputs.public_ip}
-
-  # Plugin B: AWS S3 storage bucket (Loot Box)
-  # Scenario: Only enabled in production environment ('prod'), used to store returned data
-  loot_bucket:
-    image: plugin-s3
-    profiles:
-      - prod
-    provider: aws_us_east
-    environment:
-      - bucket_name=rt-ops-2026-logs
-      - acl=private
-
-# ==============================================================================
-# 3. Services: Case Scenarios
-# ==============================================================================
+# Service definitions
 services:
-
-  # ---------------------------------------------------------------------------
-  # Service A: Core Control End (Teamserver)
-  # Features: Always starts (no profile), includes complete lifecycle hooks and file transfer
-  # ---------------------------------------------------------------------------
-  teamserver:
-    image: ecs
-    provider: ali_hk_main
-    container_name: ts_leader
-
-    # [Configs] Inject global configuration (tf_var=config_key)
-    configs:
-      - ssh_public_key=admin_ssh_key
-      - security_rules=global_whitelist
-
-    environment:
-      - password=StrongPassword123!
-      - region=ap-southeast-1
-
-    # [Volumes] File upload (Local -> Remote)
-    # Execute immediately after machine SSH is connected
-    volumes:
-      - ./tools/cobaltstrike.jar:/root/cs/cobaltstrike.jar
-      - ./profiles/amazon.profile:/root/cs/c2.profile
-      - ./scripts/init_server.sh:/root/init.sh
-
-    # [Command] Instance internal auto-start
+  # Alibaba Cloud ECS instance
+  aliyun_server:
+    image: aliyun/ecs
+    container_name: my_aliyun_ecs
     command: |
-      chmod +x /root/init.sh
-      /root/init.sh start --profile /root/cs/c2.profile
+      echo "Alibaba Cloud ECS initialized"
+      uptime
+  
+  # Volcengine ECS instance
+  volcengine_server:
+    image: volcengine/ecs
+    container_name: my_volcengine_ecs
+    command: |
+      echo "Volcengine ECS initialized"
+      uptime
 
-    # [Downloads] File return (Remote -> Local)
-    # Grab credentials after startup completes
-    downloads:
-      - /root/cs/.cobaltstrike.beacon_keys:./loot/beacon.keys
-      - /root/cs/teamserver.prop:./loot/ts.prop
-
-  # ---------------------------------------------------------------------------
-  # Service B: Global Proxy Matrix (Global Redirectors)
-  # Features: Matrix Deployment + Profiles
-  # ---------------------------------------------------------------------------
-  global_redirectors:
-    image: nginx-proxy
-
-    # [Profiles] Only start in specified mode (e.g., redc up --profile prod)
-    profiles:
-      - prod
-
-    # [Matrix] Multiple Provider references
-    # redc will automatically split into:
-    # 1. global_redirectors_aws_us_east
-    # 2. global_redirectors_tencent_sg
-    # 3. global_redirectors_ali_jp (assuming this exists in providers.yaml)
-    provider:
-      - aws_us_east
-      - tencent_sg
-      - ali_jp
-
-    depends_on:
-      - teamserver
-
-    configs:
-      - ingress_rules=global_whitelist
-
-    # Inject current provider's alias
-    environment:
-      - upstream_ip=${teamserver.outputs.public_ip}
-      - node_tag=${provider.alias}
-
-    command: docker run -d -p 80:80 -e UPSTREAM=${teamserver.outputs.public_ip} nginx-proxy
-
-  # ---------------------------------------------------------------------------
-  # Service C: Attack/Scan Nodes
-  # Features: Attack mode specific
-  # ---------------------------------------------------------------------------
-  scan_workers:
-    image: aws-ec2-spot
-    profiles:
-      - attack
-    deploy:
-      replicas: 5
-    provider: aws_us_east
-    command: /app/run_scan.sh
-
-# ==============================================================================
-# 4. Setup: Joint Orchestration (Post-Deployment Hooks)
-# Purpose: After all infrastructure is Ready, execute cross-machine registration/interaction logic
-# Note: redc will automatically skip related tasks for services not started based on currently activated Profile
-# ==============================================================================
+# Post-deployment tasks
 setup:
+  - name: "Check Alibaba Cloud instance"
+    service: aliyun_server
+    command: hostname && ip addr show
 
-  # Task 1: Basic check (always execute)
-  - name: "Check Teamserver status"
-    service: teamserver
-    command: ./ts_cli status
-
-  # Task 2: Register AWS proxy (only effective in prod mode)
-  # Reference split instance name: {service}_{provider}
-  - name: "Register AWS proxy node"
-    service: teamserver
-    command: >
-      ./aggressor_cmd listener_create 
-      --name aws_http 
-      --host ${global_redirectors_aws_us_east.outputs.public_ip} 
-      --port 80
-
-  # Task 3: Register Tencent proxy (only effective in prod mode)
-  - name: "Register Tencent proxy node"
-    service: teamserver
-    command: >
-      ./aggressor_cmd listener_create 
-      --name tencent_http 
-      --host ${global_redirectors_tencent_sg.outputs.public_ip} 
-      --port 80
-
-  # Task 4: Register Aliyun proxy (only effective in prod mode)
-  - name: "Register Aliyun proxy node"
-    service: teamserver
-    command: >
-      ./aggressor_cmd listener_create 
-      --name ali_http 
-      --host ${global_redirectors_ali_jp.outputs.public_ip} 
-      --port 80
-
+  - name: "Check Volcengine instance"
+    service: volcengine_server
+    command: hostname && ip addr show
 ```
+
+**Common Commands**
+
+```bash
+# Preview configuration
+redc compose config redc-compose.yaml
+
+# Start orchestration
+redc compose up redc-compose.yaml
+
+# Stop orchestration
+redc compose down redc-compose.yaml
+```
+
+**Detailed Documentation**
+
+For complete usage guide, advanced features, and best practices, see **[Compose Orchestration Guide](doc/Compose.md)**.
 
 ---
 

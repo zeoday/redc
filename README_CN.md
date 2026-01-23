@@ -33,8 +33,9 @@
 ## 📚 文档
 
 - **[使用指南](README_CN.md)** - 完整的安装和使用指南
-- **[AI 运维 Skills](SKILLS_CN.md)** - AI 代理和自动化工具的综合指南
-- **[MCP 协议支持](MCP_CN.md)** - AI 助手的模型上下文协议集成
+- **[AI 运维 Skills](.claude/skills/useage/SKILL_CN.md)** - AI 代理和自动化工具的综合指南
+- **[MCP 协议支持](doc/MCP_CN.md)** - AI 助手的模型上下文协议集成
+- **[Compose 编排指南](doc/Compose_CN.md)** - 多服务编排部署最佳实践
 - **[模板仓库](https://github.com/wgpsec/redc-template)** - 预配置的基础设施模板
 - **[在线模板](https://redc.wgpsec.org/)** - 浏览和下载模板
 
@@ -379,7 +380,7 @@ redc mcp sse localhost:9000
 - `get_case_status` - 检查场景状态
 - `exec_command` - 在场景上执行命令
 
-### 示例: 与 Chrerry stdio 集成
+### 示例：与 Chrerry stdio 集成
 
 以Chrerry stdio为例 填入 http://localhost:9000/sse 即可获得到工具信息
 
@@ -416,212 +417,66 @@ redc mcp sse localhost:9000
 }
 ```
 
-详细文档请参阅 **[MCP_CN.md](MCP_CN.md)**。
+详细文档请参阅 **[MCP_CN.md](doc/MCP_CN.md)**。
 
 ---
 
-## 编排服务compose （WIP）
+## 编排服务 Compose
 
-redc 提供了一个编排服务
+redc 提供了一个编排服务，可以通过 YAML 配置文件同时管理多个云服务实例，实现复杂的基础设施部署。
 
-**启动编排服务**
+### 快速开始
 
-```
-redc compose up
-```
-
-**关闭compose**
-
-````
-redc compose down
-````
-
-文件名称：`redc-compose.yaml`
-
-**compose 模版**
+**配置文件示例** ([完整示例](doc/redc-compose.yaml))
 
 ```yaml
 version: "3.9"
 
-# ==============================================================================
-# 1. Configs: 全局配置中心
-# 作用: 定义可复用的静态资源，redc 会将其注入到 Terraform 变量中
-# ==============================================================================
-configs:
-  # [文件型] SSH 公钥
-  admin_ssh_key:
-    file: ~/.ssh/id_rsa.pub
-
-  # [结构型] 安全组白名单 (将被序列化为 JSON 传递)
-  global_whitelist:
-    rules:
-      - port: 22
-        cidr: 1.2.3.4/32
-        desc: "Admin Access"
-      - port: 80
-        cidr: 0.0.0.0/0
-        desc: "HTTP Listener"
-      - port: 443
-        cidr: 0.0.0.0/0
-        desc: "HTTPS Listener"
-
-# ==============================================================================
-# 2. Plugins: 插件服务 (非计算资源)
-# 作用: 独立于服务器的云资源，如 DNS 解析、对象存储、VPC 对等连接等
-# ==============================================================================
-plugins:
-  # 插件 A: 阿里云 DNS 解析
-  # 场景: 基础设施启动后，自动将域名指向 Teamserver IP
-  dns_record:
-    image: plugin-dns-aliyun
-    # 引用外部定义的 provider 名称
-    provider: ali_hk_main
-    environment:
-      - domain=redteam-ops.com
-      - record=cs
-      - type=A
-      - value=${teamserver.outputs.public_ip}
-
-  # 插件 B: AWS S3 存储桶 (Loot Box)
-  # 场景: 仅在生产环境 ('prod') 启用，用于存放回传数据
-  loot_bucket:
-    image: plugin-s3
-    profiles:
-      - prod
-    provider: aws_us_east
-    environment:
-      - bucket_name=rt-ops-2026-logs
-      - acl=private
-
-# ==============================================================================
-# 3. Services: Case场景
-# ==============================================================================
+# 服务定义
 services:
-
-  # ---------------------------------------------------------------------------
-  # Service A: 核心控制端 (Teamserver)
-  # 特性: 总是启动 (无 profile)，包含完整生命周期钩子和文件流转
-  # ---------------------------------------------------------------------------
-  teamserver:
-    image: ecs
-    provider: ali_hk_main
-    container_name: ts_leader
-
-    # [Configs] 注入全局配置 (tf_var=config_key)
-    configs:
-      - ssh_public_key=admin_ssh_key
-      - security_rules=global_whitelist
-
-    environment:
-      - password=StrongPassword123!
-      - region=ap-southeast-1
-
-    # [Volumes] 文件上传 (Local -> Remote)
-    # 机器 SSH 连通后立即执行
-    volumes:
-      - ./tools/cobaltstrike.jar:/root/cs/cobaltstrike.jar
-      - ./profiles/amazon.profile:/root/cs/c2.profile
-      - ./scripts/init_server.sh:/root/init.sh
-
-    # [Command] 实例内部自启动
+  # 阿里云 ECS 实例
+  aliyun_server:
+    image: aliyun/ecs
+    container_name: my_aliyun_ecs
     command: |
-      chmod +x /root/init.sh
-      /root/init.sh start --profile /root/cs/c2.profile
+      echo "阿里云 ECS 初始化完成"
+      uptime
+  
+  # 火山云 ECS 实例
+  volcengine_server:
+    image: volcengine/ecs
+    container_name: my_volcengine_ecs
+    command: |
+      echo "火山云 ECS 初始化完成"
+      uptime
 
-    # [Downloads] 文件回传 (Remote -> Local)
-    # 启动完成后抓取凭证
-    downloads:
-      - /root/cs/.cobaltstrike.beacon_keys:./loot/beacon.keys
-      - /root/cs/teamserver.prop:./loot/ts.prop
-
-  # ---------------------------------------------------------------------------
-  # Service B: 全球代理矩阵 (Global Redirectors)
-  # 特性: 矩阵部署 (Matrix Deployment) + Profiles
-  # ---------------------------------------------------------------------------
-  global_redirectors:
-    image: nginx-proxy
-
-    # [Profiles] 仅在指定模式下启动 (e.g., redc up --profile prod)
-    profiles:
-      - prod
-
-    # [Matrix] 多 Provider 引用
-    # redc 会自动裂变出:
-    # 1. global_redirectors_aws_us_east
-    # 2. global_redirectors_tencent_sg
-    # 3. global_redirectors_ali_jp (假设 providers.yaml 里有这个)
-    provider:
-      - aws_us_east
-      - tencent_sg
-      - ali_jp
-
-    depends_on:
-      - teamserver
-
-    configs:
-      - ingress_rules=global_whitelist
-
-    # 注入当前 provider 的别名
-    environment:
-      - upstream_ip=${teamserver.outputs.public_ip}
-      - node_tag=${provider.alias}
-
-    command: docker run -d -p 80:80 -e UPSTREAM=${teamserver.outputs.public_ip} nginx-proxy
-
-  # ---------------------------------------------------------------------------
-  # Service C: 攻击/扫描节点
-  # 特性: 攻击模式专用
-  # ---------------------------------------------------------------------------
-  scan_workers:
-    image: aws-ec2-spot
-    profiles:
-      - attack
-    deploy:
-      replicas: 5
-    provider: aws_us_east
-    command: /app/run_scan.sh
-
-# ==============================================================================
-# 4. Setup: 联合编排 (Post-Deployment Hooks)
-# 作用: 基础设施全部 Ready 后，执行跨机器的注册/交互逻辑
-# 注意: redc 会根据当前激活的 Profile 自动跳过未启动服务的相关任务
-# ==============================================================================
+# 后置编排任务
 setup:
+  - name: "检查阿里云实例"
+    service: aliyun_server
+    command: hostname && ip addr show
 
-  # 任务 1: 基础检查 (总是执行)
-  - name: "检查 Teamserver 状态"
-    service: teamserver
-    command: ./ts_cli status
-
-  # 任务 2: 注册 AWS 代理 (仅 prod 模式有效)
-  # 引用裂变后的实例名称: {service}_{provider}
-  - name: "注册 AWS 代理节点"
-    service: teamserver
-    command: >
-      ./aggressor_cmd listener_create 
-      --name aws_http 
-      --host ${global_redirectors_aws_us_east.outputs.public_ip} 
-      --port 80
-
-  # 任务 3: 注册 Tencent 代理 (仅 prod 模式有效)
-  - name: "注册 Tencent 代理节点"
-    service: teamserver
-    command: >
-      ./aggressor_cmd listener_create 
-      --name tencent_http 
-      --host ${global_redirectors_tencent_sg.outputs.public_ip} 
-      --port 80
-
-  # 任务 4: 注册 Aliyun 代理 (仅 prod 模式有效)
-  - name: "注册 Aliyun 代理节点"
-    service: teamserver
-    command: >
-      ./aggressor_cmd listener_create 
-      --name ali_http 
-      --host ${global_redirectors_ali_jp.outputs.public_ip} 
-      --port 80
-
+  - name: "检查火山云实例"
+    service: volcengine_server
+    command: hostname && ip addr show
 ```
+
+**常用命令**
+
+```bash
+# 预览配置
+redc compose config redc-compose.yaml
+
+# 启动编排服务
+redc compose up redc-compose.yaml
+
+# 关闭编排服务
+redc compose down redc-compose.yaml
+```
+
+**详细文档**
+
+完整的使用说明、高级功能和最佳实践,请参阅 **[Compose 编排指南](doc/Compose_CN.md)**。
 
 ---
 

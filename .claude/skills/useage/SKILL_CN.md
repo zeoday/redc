@@ -1,3 +1,8 @@
+---
+name: Redc-useage
+description: 多云红队基础设施自动化工具。使用 Terraform 在阿里云、腾讯云、AWS 等云平台部署和管理资源。包含初始化、部署、管理、执行和清理基础设施场景的命令。
+---
+
 # Redc Skills - AI 运维指南
 
 基于 Terraform 的多云红队基础设施自动化工具。
@@ -164,6 +169,3 @@ case_id = redc_run("aliyun/ecs", "auto_deploy", {"password": "Secure123"})
 - 仓库: https://github.com/wgpsec/redc
 - 模板: https://github.com/wgpsec/redc-template
 - 在线: https://redc.wgpsec.org/
-
----
-**版本:** 1.0.0 | **许可证:** Apache 2.0

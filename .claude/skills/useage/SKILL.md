@@ -1,3 +1,8 @@
+---
+name: Redc-useage
+description: Multi-cloud red team infrastructure automation. Deploy and manage cloud resources across AWS, Aliyun, Tencent Cloud with Terraform. Includes commands for init, deploy, manage, execute, and cleanup of infrastructure cases.
+---
+
 # Redc Skills - AI Operations Guide
 
 Multi-cloud red team infrastructure automation tool built on Terraform.
@@ -164,6 +169,3 @@ case_id = redc_run("aliyun/ecs", "auto_deploy", {"password": "Secure123"})
 - Repo: https://github.com/wgpsec/redc
 - Templates: https://github.com/wgpsec/redc-template
 - Online: https://redc.wgpsec.org/
-
----
-**Version:** 1.0.0 | **License:** Apache 2.0
