@@ -30,6 +30,15 @@
 
 ---
 
+## 📚 文档
+
+- **[使用指南](README_CN.md)** - 完整的安装和使用指南
+- **[AI 运维 Skills](SKILLS_CN.md)** - AI 代理和自动化工具的综合指南
+- **[模板仓库](https://github.com/wgpsec/redc-template)** - 预配置的基础设施模板
+- **[在线模板](https://redc.wgpsec.org/)** - 浏览和下载模板
+
+---
+
 Redc 基于 Terraform 封装，将红队基础设施的完整生命周期（创建、配置、销毁）进一步简化。
 
 Redc 不仅仅是开机工具，更是对云资源的自动化调度器！
