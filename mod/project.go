@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"red-cloud/mod/gologger"
+	"red-cloud/pkg/store"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -36,6 +37,7 @@ type Case struct {
 	StateTime    string    `json:"state_time"`
 	Parameter    []string  `json:"parameter"`
 	State        CaseState `json:"state"`
+	Output       string
 	output       map[string]tfexec.OutputMeta
 	saveHandler  func() error
 	removeHandle func() error
@@ -66,7 +68,6 @@ func NewProjectConfig(name string, user string) (*RedcProject, error) {
 	if err := os.MkdirAll(path, 0755); err != nil {
 		return nil, fmt.Errorf("创建项目目录失败: %w", err)
 	}
-	gologger.Info().Msgf("项目目录「%s」创建成功！", name)
 	// 创建项目状态文件
 	currentTime := time.Now().Format("2006-01-02 15:04:05")
 	project := &RedcProject{
@@ -76,9 +77,9 @@ func NewProjectConfig(name string, user string) (*RedcProject, error) {
 		User:        user,
 	}
 
-	if err := project.SaveProject(); err != nil {
-		// 如果保存失败，应该清理目录吗？视业务逻辑而定，这里暂时只返回错误
-		return nil, fmt.Errorf("保存项目状态文件失败: %w", err)
+	// 保存到 DB
+	if err := store.SaveProjectMeta(project); err != nil {
+		return nil, fmt.Errorf("保存数据库失败: %v", err)
 	}
 	gologger.Info().Msgf("项目状态文件「%s」创建成功！", ProjectFile)
 	return project, nil
@@ -87,23 +88,14 @@ func NewProjectConfig(name string, user string) (*RedcProject, error) {
 
 func ProjectParse(name string, user string) (*RedcProject, error) {
 	// 尝试直接读取项目
-	if p, err := ProjectByName(name); err == nil {
+	if p, err := store.GetProjectMeta(name); err == nil {
 		// 项目鉴权
 		if p.User != user && user != "system" {
 			return nil, fmt.Errorf("当前用户「%s」无权限访问项目「%s」", user, name)
 		}
-		// 读取成功，直接返回
 		return p, nil
 	}
-	path := filepath.Join(ProjectPath, name)
-	// 检查目录是否存在，或者直接尝试创建
-	if _, statErr := os.Stat(path); os.IsNotExist(statErr) {
-		gologger.Info().Msgf("项目不存在，正在创建新项目: %s", name)
-		return NewProjectConfig(name, user)
-	} else if statErr != nil {
-		// 目录存在但有其他错误（如权限不足）
-		return nil, statErr
-	}
+	gologger.Info().Msgf("项目不存在，正在创建新项目: %s", name)
 	return NewProjectConfig(name, user)
 }
 
@@ -128,6 +120,10 @@ func ProjectByName(name string) (*RedcProject, error) {
 // 逻辑参考 Docker: 优先精确匹配，其次 ID 前缀匹配。如果 ID 前缀匹配到多个，则报错歧义。
 func (p *RedcProject) GetCase(identifier string) (*Case, error) {
 	var candidates []*Case
+	if len(p.Case) == 0 {
+		cases, _ := store.ListCases(p.ProjectName)
+		p.Case = cases
+	}
 
 	// 遍历所有 Case
 	for i := range p.Case {
@@ -170,31 +166,45 @@ func (p *RedcProject) GetCase(identifier string) (*Case, error) {
 
 // HandleCase 删除指定uid的case
 func (p *RedcProject) HandleCase(c *Case) error {
-	uid := c.Id
-	found := false
-	for i, caseInfo := range p.Case {
-		if caseInfo.Id == uid {
-			// 执行删除逻辑：将 i 之后的所有元素前移
-			p.Case = append(p.Case[:i], p.Case[i+1:]...)
-			found = true
-			break // 找到并删除后立即退出循环
-		}
+	// 调用 store 直接删除
+	if err := store.DeleteCase(p.ProjectName, c.Id); err != nil {
+		return err
 	}
-
-	if !found {
-		return fmt.Errorf("未找到 UID 为 %s 的 case，无需删除", uid)
-	}
-
-	// 3. 将修改后的 project 写回文件
-	err := p.SaveProject()
-	if err != nil {
-		return fmt.Errorf("更新项目文件失败: %v", err)
-	}
-
 	return nil
+	//uid := c.Id
+	//found := false
+	//for i, caseInfo := range p.Case {
+	//	if caseInfo.Id == uid {
+	//		// 执行删除逻辑：将 i 之后的所有元素前移
+	//		p.Case = append(p.Case[:i], p.Case[i+1:]...)
+	//		found = true
+	//		break // 找到并删除后立即退出循环
+	//	}
+	//}
+	//
+	//if !found {
+	//	return fmt.Errorf("未找到 UID 为 %s 的 case，无需删除", uid)
+	//}
+	//
+	//// 3. 将修改后的 project 写回文件
+	//err := p.SaveProject()
+	//if err != nil {
+	//	return fmt.Errorf("更新项目文件失败: %v", err)
+	//}
+	//
+	//return nil
 }
 
 func (p *RedcProject) AddCase(c *Case) error {
+	// 绑定 handler
+	c.bindHandlers(p)
+
+	// 保存到 DB
+	if err := c.saveHandler(); err != nil {
+		return err
+	}
+
+	// 更新内存
 	p.Case = append(p.Case, c)
 	return nil
 }

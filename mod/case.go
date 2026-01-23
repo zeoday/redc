@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"red-cloud/mod/gologger"
+	"red-cloud/pkg/store"
 	"red-cloud/utils"
 	"strings"
 	"text/tabwriter"
@@ -24,6 +25,7 @@ const (
 	StateError   CaseState = "error"
 	StateCreated CaseState = "created"
 	StatePending CaseState = "pending"
+	StateUnknown CaseState = "unknown"
 )
 
 func RandomName(s string) string {
@@ -76,7 +78,7 @@ func CaseScene(t string, m map[string]string) ([]string, error) {
 			fmt.Sprintf("node_count=%d", Node),
 			fmt.Sprintf("domain=%s", Domain),
 		)
-	case "proxy","aws-proxy", "aliyun-proxy", "asm":
+	case "proxy", "aws-proxy", "aliyun-proxy", "asm":
 		par = RVar(fmt.Sprintf("node_count=%d", Node))
 	case "dnslog", "xraydnslog", "interactsh":
 		if Domain == "360.com" {
@@ -287,12 +289,12 @@ func (c *Case) TfOutput() (map[string]tfexec.OutputMeta, error) {
 
 // bindHandlers 绑定项目方法
 func (c *Case) bindHandlers(p *RedcProject) {
-	// 随时删除自己
-	c.removeHandle = func() error {
-		return p.HandleCase(c)
-	}
 	c.saveHandler = func() error {
-		return p.SaveProject()
+		// 保存单个 Case，不再保存整个 Project
+		return store.SaveCase(p.ProjectName, c)
+	}
+	c.removeHandle = func() error {
+		return store.DeleteCase(p.ProjectName, c.Id)
 	}
 }
 

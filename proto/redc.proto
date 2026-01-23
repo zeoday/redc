@@ -1,0 +1,38 @@
+syntax = "proto3";
+package redc;
+option go_package = "./pb";
+
+// 对应 Go 中的 CaseState
+enum CaseState {
+  UNKNOWN = 0;
+  CREATED = 1;
+  RUNNING = 2;
+  STOPPED = 3;
+  ERROR   = 4;
+}
+
+message Case {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  string module = 4;
+  string operator = 5;
+  string path = 6;
+  int32  node = 7;
+  string create_time = 8;
+  string state_time = 9;
+  repeated string parameter = 10;
+  CaseState state = 11;
+
+  // Output 是 map[string]OutputMeta，这里简化存储为 JSON 字符串
+  // 或者你可以定义一个 message OutputMeta 然后用 map<string, OutputMeta>
+  string output_json = 12;
+}
+
+message Project {
+  string project_name = 1;
+  string project_path = 2;
+  string create_time = 3;
+  string user = 4;
+  // 不存 Case 列表
+}
