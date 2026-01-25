@@ -45,6 +45,7 @@ brews:
       name: homebrew-tap
       branch: master
       token: "{{ .Env.GITHUB_TOKEN }}"
+    directory: Formula
     url_template: "https://github.com/wgpsec/redc/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
     homepage: "https://redc.wgpsec.org"
     description: "Redc is Red Team Infrastructure Multi-Cloud Automated Deployment Tool"
