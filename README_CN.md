@@ -66,7 +66,6 @@ REDC 下载地址：https://github.com/wgpsec/redc/releases
 **安装**
 
 ```bash
-brew tap wgpsec/tap
 brew install wgpsec/tap/redc
 ```
 

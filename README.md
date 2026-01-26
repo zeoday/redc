@@ -66,7 +66,6 @@ Download the compressed file for your system, extract it and run it from the com
 **Install**
 
 ```bash
-brew tap wgpsec/tap
 brew install wgpsec/tap/redc
 ```
 
