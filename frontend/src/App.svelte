@@ -1,12 +1,12 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { EventsOn, EventsOff, BrowserOpenURL } from '../wailsjs/runtime/runtime.js';
-  import { ListCases, ListTemplates, StartCase, StopCase, RemoveCase, CreateCase, CreateAndRunCase, GetConfig, GetCaseOutputs, GetTemplateVariables, SaveProxyConfig, FetchRegistryTemplates, PullTemplate, RemoveTemplate, GetMCPStatus, StartMCPServer, StopMCPServer, GetProvidersConfig, SaveProvidersConfig } from '../wailsjs/go/main/App.js';
+  import { ListCases, ListTemplates, StartCase, StopCase, RemoveCase, CreateCase, CreateAndRunCase, GetConfig, GetCaseOutputs, GetTemplateVariables, SaveProxyConfig, FetchRegistryTemplates, PullTemplate, RemoveTemplate, GetMCPStatus, StartMCPServer, StopMCPServer, GetProvidersConfig, SaveProvidersConfig, SetDebugLogging } from '../wailsjs/go/main/App.js';
 
   let cases = [];
   let templates = [];
   let logs = [];
-  let config = { redcPath: '', projectPath: '', logPath: '', httpProxy: '', httpsProxy: '', noProxy: '' };
+  let config = { redcPath: '', projectPath: '', logPath: '', httpProxy: '', httpsProxy: '', noProxy: '', debugEnabled: false };
   let activeTab = 'dashboard';
   let selectedTemplate = '';
   let newCaseName = '';
@@ -19,6 +19,8 @@
   let variableValues = {};
   let proxyForm = { httpProxy: '', httpsProxy: '', noProxy: '' };
   let proxySaving = false;
+  let debugEnabled = false;
+  let debugSaving = false;
   
   // Registry state
   let registryTemplates = [];
@@ -93,6 +95,7 @@
       deleting: '删除中...', refresh: '刷新', close: '关闭',
       paramName: '参数名', paramType: '类型', paramDesc: '描述', paramDefault: '默认值', paramRequired: '必填',
       noParams: '该模板没有可配置参数', loadingParams: '正在加载参数...',
+      debugLogs: '调试日志', debugLogsDesc: '启用后控制台输出更详细的日志信息', enable: '开启', disable: '关闭',
     },
     en: {
       dashboard: 'Dashboard', console: 'Console', settings: 'Settings', credentials: 'Credentials', registry: 'Template Registry', ai: 'AI Integration', localTemplates: 'Local Templates',
@@ -128,6 +131,7 @@
       deleting: 'Deleting...', refresh: 'Refresh', close: 'Close',
       paramName: 'Name', paramType: 'Type', paramDesc: 'Description', paramDefault: 'Default', paramRequired: 'Required',
       noParams: 'No configurable parameters', loadingParams: 'Loading parameters...',
+      debugLogs: 'Debug Logs', debugLogsDesc: 'Show more verbose logs in console', enable: 'Enable', disable: 'Disable',
     }
   };
   $: t = i18n[lang];
@@ -139,6 +143,11 @@
 
   function openGitHub() {
     BrowserOpenURL('https://github.com/wgpsec/redc');
+  }
+
+  function stripAnsi(value) {
+    if (!value) return '';
+    return value.replace(/\x1B\[[0-9;]*m/g, '');
   }
 
   function setCreateStatus(status, message, detail = '') {
@@ -159,19 +168,20 @@
   }
 
   function updateCreateStatusFromLog(message) {
-    if (message.includes('正在创建场景:') || message.includes('正在创建并运行场景:')) {
+    const cleanMessage = stripAnsi(message);
+    if (cleanMessage.includes('正在创建场景:') || cleanMessage.includes('正在创建并运行场景:')) {
       setCreateStatus('creating', t.creating, message);
       return;
     }
-    if (message.includes('场景初始化中:')) {
+    if (cleanMessage.includes('场景初始化中:')) {
       setCreateStatus('initializing', t.initializing, message);
       return;
     }
-    if (message.includes('场景创建成功')) {
+    if (cleanMessage.includes('场景创建成功')) {
       setCreateStatus('success', t.createSuccess, message);
       return;
     }
-    if (message.includes('场景创建失败') || message.includes('创建场景时发生错误')) {
+    if (cleanMessage.includes('场景创建失败') || cleanMessage.includes('创建场景时发生错误')) {
       setCreateStatus('error', t.createFailed, message);
       return;
     }
@@ -225,6 +235,7 @@
         httpsProxy: config.httpsProxy || '',
         noProxy: config.noProxy || ''
       };
+      debugEnabled = !!config.debugEnabled;
     } catch (e) {
       error = e.message || String(e);
       cases = [];
@@ -245,6 +256,20 @@
       error = e.message || String(e);
     } finally {
       proxySaving = false;
+    }
+  }
+
+  async function handleToggleDebug() {
+    const nextValue = !debugEnabled;
+    debugSaving = true;
+    try {
+      await SetDebugLogging(nextValue);
+      debugEnabled = nextValue;
+      config.debugEnabled = nextValue;
+    } catch (e) {
+      error = e.message || String(e);
+    } finally {
+      debugSaving = false;
     }
   }
 
@@ -1021,7 +1046,7 @@
             {#each logs as log}
               <div class="flex">
                 <span class="text-gray-600 select-none">[{log.time}]</span>
-                <span class="text-gray-300 ml-2">{log.message}</span>
+                <span class="text-gray-300 ml-2">{stripAnsi(log.message)}</span>
               </div>
             {:else}
               <div class="text-gray-600">$ {t.waitOutput}</div>
@@ -1088,6 +1113,30 @@
                 </button>
                 <span class="ml-3 text-[12px] text-gray-500">{t.proxyHint}</span>
               </div>
+            </div>
+          </div>
+
+          <!-- 调试日志 -->
+          <div class="bg-white rounded-xl border border-gray-100 p-5">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-[14px] font-medium text-gray-900">{t.debugLogs}</div>
+                <div class="text-[12px] text-gray-500 mt-1">{t.debugLogsDesc}</div>
+              </div>
+              <button
+                class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                class:bg-emerald-500={debugEnabled}
+                class:bg-gray-300={!debugEnabled}
+                on:click={handleToggleDebug}
+                disabled={debugSaving}
+                aria-label={debugEnabled ? t.disable : t.enable}
+              >
+                <span
+                  class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                  class:translate-x-6={debugEnabled}
+                  class:translate-x-1={!debugEnabled}
+                ></span>
+              </button>
             </div>
           </div>
         </div>
