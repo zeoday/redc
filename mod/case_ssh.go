@@ -2,7 +2,9 @@ package mod
 
 import (
 	"fmt"
+	"path/filepath"
 	"red-cloud/utils/sshutil"
+	"strings"
 	"time"
 )
 
@@ -44,20 +46,38 @@ func (c *Case) GetSSHConfig() (*sshutil.SSHConfig, error) {
 	pwdKeys := []string{"password", "ecs_password", "root_password"}
 	var pwd string
 	for _, key := range pwdKeys {
-		pwd, _ = c.GetInstanceInfo(key) // 密码允许失败(可能是 Key 登录)，但这里为了简化暂不处理 KeyPath
+		pwd, _ = c.GetInstanceInfo(key)
 		if pwd != "" {
 			break
 		}
 	}
 
-	// 3. 返回标准配置
+	// 3. 尝试获取 SSH 私钥路径
+	// 优先顺序: ssh_key_path -> private_key_path -> key_path
+	keyPathKeys := []string{"ssh_key_path", "private_key_path", "key_path"}
+	var keyPath string
+	for _, key := range keyPathKeys {
+		keyPath, _ = c.GetInstanceInfo(key)
+		if keyPath != "" {
+			break
+		}
+	}
+
+	// 3.1 如果是相对路径，转换为相对于 Case 目录的绝对路径
+	if keyPath != "" && c.Path != "" {
+		if strings.HasPrefix(keyPath, "./") || strings.HasPrefix(keyPath, "../") {
+			keyPath = filepath.Join(c.Path, keyPath)
+		}
+	}
+
+	// 4. 返回标准配置
 	return &sshutil.SSHConfig{
 		Host:     ip,
 		Port:     22,
 		User:     "root",
 		Password: pwd,
-		//KeyPath: "",
-		Timeout: 5 * time.Second,
+		KeyPath:  keyPath,
+		Timeout:  5 * time.Second,
 	}, nil
 }
 func (c *Case) getSSHClient() (*sshutil.Client, error) {

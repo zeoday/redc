@@ -891,9 +891,28 @@ func (a *App) GetCaseOutputs(caseID string) (map[string]string, error) {
 		if len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"' {
 			value = value[1 : len(value)-1]
 		}
+		// Resolve relative file paths to absolute paths based on case directory
+		if isRelativeFilePath(value) {
+			absPath := filepath.Join(c.Path, value)
+			if _, err := os.Stat(absPath); err == nil {
+				value = absPath
+			}
+		}
 		result[name] = value
 	}
 	return result, nil
+}
+
+// isRelativeFilePath checks if the value looks like a relative file path
+func isRelativeFilePath(value string) bool {
+	if value == "" {
+		return false
+	}
+	// Check for common relative path patterns
+	if strings.HasPrefix(value, "./") || strings.HasPrefix(value, "../") {
+		return true
+	}
+	return false
 }
 
 // RegistryTemplate represents a template from the remote registry
