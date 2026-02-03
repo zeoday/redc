@@ -169,6 +169,30 @@
     return value.replace(/\x1B\[[0-9;]*m/g, '');
   }
 
+  function normalizeVersion(value) {
+    if (!value) return '';
+    return String(value).trim().replace(/^v/i, '');
+  }
+
+  function compareVersions(a, b) {
+    const va = normalizeVersion(a).split('.').map(part => parseInt(part, 10));
+    const vb = normalizeVersion(b).split('.').map(part => parseInt(part, 10));
+    const maxLen = Math.max(va.length, vb.length);
+    for (let i = 0; i < maxLen; i += 1) {
+      const na = Number.isFinite(va[i]) ? va[i] : 0;
+      const nb = Number.isFinite(vb[i]) ? vb[i] : 0;
+      if (na > nb) return 1;
+      if (na < nb) return -1;
+    }
+    return 0;
+  }
+
+  function hasUpdate(tmpl) {
+    if (!tmpl || !tmpl.installed) return false;
+    if (!tmpl.latest || !tmpl.localVersion) return false;
+    return compareVersions(tmpl.latest, tmpl.localVersion) > 0;
+  }
+
   function setCreateStatus(status, message, detail = '') {
     createStatus = status;
     createStatusMessage = message || '';
@@ -1270,12 +1294,12 @@
                         <span class="w-3 h-3 border-2 border-amber-200 border-t-amber-600 rounded-full animate-spin"></span>
                         {t.pulling}
                       </span>
-                    {:else if tmpl.installed}
+                    {:else if tmpl.installed && hasUpdate(tmpl)}
                       <button 
                         class="px-3 py-1.5 text-[12px] font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                         on:click={() => handlePullTemplate(tmpl.name, true)}
                       >{t.update}</button>
-                    {:else}
+                    {:else if !tmpl.installed}
                       <button 
                         class="px-3 py-1.5 text-[12px] font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
                         on:click={() => handlePullTemplate(tmpl.name, false)}
