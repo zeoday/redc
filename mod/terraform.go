@@ -3,11 +3,13 @@ package mod
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"red-cloud/mod/gologger"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/hc-install/product"
@@ -31,12 +33,37 @@ const (
 type TerraformExecutor struct {
 	tf         *tfexec.Terraform
 	workingDir string
+	stdout     io.Writer
+	stderr     io.Writer
+}
+
+// TerraformOption configures a TerraformExecutor
+type TerraformOption func(*TerraformExecutor)
+
+// WithStdout sets a custom stdout writer for terraform output
+func WithStdout(w io.Writer) TerraformOption {
+	return func(te *TerraformExecutor) {
+		te.stdout = w
+	}
+}
+
+// WithStderr sets a custom stderr writer for terraform output
+func WithStderr(w io.Writer) TerraformOption {
+	return func(te *TerraformExecutor) {
+		te.stderr = w
+	}
 }
 
 // NewTerraformExecutor creates a new terraform executor for the given working directory
-func NewTerraformExecutor(workingDir string) (*TerraformExecutor, error) {
+func NewTerraformExecutor(workingDir string, opts ...TerraformOption) (*TerraformExecutor, error) {
+	// Determine bin directory
+	binDir := ".bin"
+	if RedcPath != "" {
+		binDir = filepath.Join(RedcPath, "bin")
+	}
+
 	// Find terraform executable
-	execPath, err := GetTerraformExecPath(context.Background(), ".bin")
+	execPath, err := GetTerraformExecPath(context.Background(), binDir)
 	if err != nil {
 		return nil, fmt.Errorf("terraform executable not found: %w", err)
 	}
@@ -45,16 +72,49 @@ func NewTerraformExecutor(workingDir string) (*TerraformExecutor, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create terraform executor: %w", err)
 	}
-	// Set stdout and stderr to os defaults for visibility
-	if Debug {
-		tf.SetStdout(os.Stdout)
-		tf.SetStderr(os.Stderr)
-	}
 
-	return &TerraformExecutor{
+	te := &TerraformExecutor{
 		tf:         tf,
 		workingDir: workingDir,
-	}, nil
+		stdout:     os.Stdout,
+		stderr:     os.Stderr,
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(te)
+	}
+
+	// Set stdout and stderr for visibility in debug mode or with custom writers
+	if Debug || te.stdout != os.Stdout || te.stderr != os.Stderr {
+		tf.SetStdout(te.stdout)
+		tf.SetStderr(te.stderr)
+	}
+
+	// Pass all environment variables including proxy settings to terraform subprocess
+	// Check if proxy is configured
+	proxyVars := []string{"HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy", "NO_PROXY", "no_proxy"}
+	hasProxy := false
+	for _, key := range proxyVars {
+		if os.Getenv(key) != "" {
+			hasProxy = true
+			break
+		}
+	}
+	
+	// Only set custom env if proxy is configured, otherwise let tfexec use os.Environ()
+	if hasProxy {
+		envVars := make(map[string]string)
+		// Copy all current environment variables
+		for _, env := range os.Environ() {
+			if idx := strings.Index(env, "="); idx > 0 {
+				envVars[env[:idx]] = env[idx+1:]
+			}
+		}
+		tf.SetEnv(envVars)
+	}
+
+	return te, nil
 }
 
 // Init runs terraform init with upgrade option
@@ -169,6 +229,18 @@ func GetTerraformExecPath(ctx context.Context, priorityDir string) (string, erro
 	// 1. 尝试从系统环境变量 PATH 中查找
 	if path, err := exec.LookPath("terraform"); err == nil {
 		return path, nil
+	}
+
+	// 1.5 macOS GUI 应用可能没有继承完整 PATH，尝试常见路径
+	commonPaths := []string{
+		"/opt/homebrew/bin/terraform",     // Homebrew on Apple Silicon
+		"/usr/local/bin/terraform",         // Homebrew on Intel / manual install
+		"/usr/bin/terraform",               // System
+	}
+	for _, p := range commonPaths {
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
+		}
 	}
 
 	// 2. 检查自定义目录中是否已经存在（针对之前下载过的情况）

@@ -17,3 +17,9 @@ redc-taskresult
 redc.log
 red-cloud
 redc
+
+# Wails
+build/bin/
+frontend/node_modules/
+frontend/dist/
+frontend/wailsjs/

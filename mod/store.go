@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"time"
 
 	// 【请修改这里】根据你的 go.mod 替换为正确的 pb 路径
@@ -166,6 +167,11 @@ func LoadProjectCases(projectName string) ([]*Case, error) {
 			}
 			return nil
 		})
+	})
+
+	// 按创建时间降序排序（最新的在前面）
+	sort.Slice(cases, func(i, j int) bool {
+		return cases[i].CreateTime > cases[j].CreateTime
 	})
 
 	return cases, err
