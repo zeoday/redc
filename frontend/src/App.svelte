@@ -357,12 +357,20 @@
     }
   }
 
-  $: filteredRegistryTemplates = registryTemplates.filter(t => 
-    !registrySearch || 
-    t.name.toLowerCase().includes(registrySearch.toLowerCase()) ||
-    (t.description && t.description.toLowerCase().includes(registrySearch.toLowerCase())) ||
-    (t.tags && t.tags.some(tag => tag.toLowerCase().includes(registrySearch.toLowerCase())))
-  );
+  $: filteredRegistryTemplates = registryTemplates
+    .filter(t => 
+      !registrySearch || 
+      t.name.toLowerCase().includes(registrySearch.toLowerCase()) ||
+      (t.description && t.description.toLowerCase().includes(registrySearch.toLowerCase())) ||
+      (t.tags && t.tags.some(tag => tag.toLowerCase().includes(registrySearch.toLowerCase())))
+    )
+    .sort((a, b) => {
+      // Installed templates first
+      if (a.installed && !b.installed) return -1;
+      if (!a.installed && b.installed) return 1;
+      // Then sort by name alphabetically
+      return a.name.localeCompare(b.name);
+    });
 
   // Listen for refresh events to update pulling status
   $: if (registryTemplates.length > 0) {
