@@ -465,6 +465,7 @@
     .filter(t => 
       !registrySearch || 
       t.name.toLowerCase().includes(registrySearch.toLowerCase()) ||
+      (t.author && t.author.toLowerCase().includes(registrySearch.toLowerCase())) ||
       (t.description && t.description.toLowerCase().includes(registrySearch.toLowerCase())) ||
       (t.tags && t.tags.some(tag => tag.toLowerCase().includes(registrySearch.toLowerCase())))
     )
