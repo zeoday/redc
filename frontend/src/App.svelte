@@ -86,6 +86,7 @@
       stopServer: '停止服务器', startServer: '启动服务器', stoppingServer: '停止中...', startingServer: '启动中...',
       aboutMcp: '关于 MCP', mcpInfo: 'Model Context Protocol (MCP) 是一种开放协议，允许 AI 助手与外部工具和数据源进行交互。启用 MCP 服务器后，您可以通过 Claude、Cursor 等支持 MCP 的 AI 工具直接管理 RedC 基础设施。',
       availableTools: '可用工具',
+      stdioHint: 'STDIO 通过 stdin/stdout 交换数据，无需在 GUI 启动或停止。',
       configPath: '配置文件路径', defaultPath: '留空使用默认路径 ~/redc/config.yaml', loadConfig: '加载配置',
       currentConfig: '当前配置', securityTip: '安全提示：', securityInfo: '凭据以脱敏形式显示，编辑时需重新输入完整值。空字段不会覆盖已有配置。',
       edit: '编辑', cancel: '取消', save: '保存', notSet: '未设置', enterNew: '输入新值覆盖', clickLoad: '点击"加载配置"查看凭据',
@@ -123,6 +124,7 @@
       stopServer: 'Stop Server', startServer: 'Start Server', stoppingServer: 'Stopping...', startingServer: 'Starting...',
       aboutMcp: 'About MCP', mcpInfo: 'Model Context Protocol (MCP) is an open protocol that allows AI assistants to interact with external tools and data sources. With MCP server enabled, you can manage RedC infrastructure directly via Claude, Cursor and other MCP-compatible AI tools.',
       availableTools: 'Available Tools',
+      stdioHint: 'STDIO uses stdin/stdout for data exchange. No GUI start/stop required.',
       configPath: 'Config File Path', defaultPath: 'Leave empty for default ~/redc/config.yaml', loadConfig: 'Load Config',
       currentConfig: 'Current config', securityTip: 'Security Notice:', securityInfo: 'Credentials are displayed in masked form. Re-enter full values when editing. Empty fields won\'t overwrite existing config.',
       edit: 'Edit', cancel: 'Cancel', save: 'Save', notSet: 'Not set', enterNew: 'Enter new value', clickLoad: 'Click "Load Config" to view credentials',
@@ -1338,27 +1340,33 @@
                     <span class="text-gray-500">{t.transportMode}</span>
                     <p class="font-medium text-gray-900 mt-0.5">{mcpStatus.mode === 'sse' ? 'SSE (HTTP)' : 'STDIO'}</p>
                   </div>
-                  <div>
-                    <span class="text-gray-500">{t.listenAddr}</span>
-                    <p class="font-mono font-medium text-gray-900 mt-0.5">{mcpStatus.address || '-'}</p>
-                  </div>
-                  <div>
-                    <span class="text-gray-500">{t.protocolVersion}</span>
-                    <p class="font-medium text-gray-900 mt-0.5">{mcpStatus.protocolVersion}</p>
-                  </div>
-                  <div>
-                    <span class="text-gray-500">{t.msgEndpoint}</span>
-                    <p class="font-mono font-medium text-gray-900 mt-0.5 text-[11px]">http://{mcpStatus.address}/message</p>
-                  </div>
+                  {#if mcpStatus.mode === 'sse'}
+                    <div>
+                      <span class="text-gray-500">{t.listenAddr}</span>
+                      <p class="font-mono font-medium text-gray-900 mt-0.5">{mcpStatus.address || '-'}</p>
+                    </div>
+                    <div>
+                      <span class="text-gray-500">{t.protocolVersion}</span>
+                      <p class="font-medium text-gray-900 mt-0.5">{mcpStatus.protocolVersion}</p>
+                    </div>
+                    <div>
+                      <span class="text-gray-500">{t.msgEndpoint}</span>
+                      <p class="font-mono font-medium text-gray-900 mt-0.5 text-[11px]">http://{mcpStatus.address}/message</p>
+                    </div>
+                  {:else}
+                    <div class="col-span-2 text-[12px] text-gray-500">{t.stdioHint}</div>
+                  {/if}
                 </div>
               </div>
-              <button 
-                class="w-full h-10 bg-red-500 text-white text-[13px] font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
-                on:click={handleStopMCP}
-                disabled={mcpLoading}
-              >
-                {mcpLoading ? t.stoppingServer : t.stopServer}
-              </button>
+              {#if mcpStatus.mode === 'sse'}
+                <button 
+                  class="w-full h-10 bg-red-500 text-white text-[13px] font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                  on:click={handleStopMCP}
+                  disabled={mcpLoading}
+                >
+                  {mcpLoading ? t.stoppingServer : t.stopServer}
+                </button>
+              {/if}
             {:else}
               <!-- Configuration form -->
               <div class="space-y-4 mb-4">
@@ -1391,15 +1399,21 @@
                       bind:value={mcpForm.address} 
                     />
                   </div>
+                {:else}
+                  <div class="text-[12px] text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+                    {t.stdioHint}
+                  </div>
                 {/if}
               </div>
-              <button 
-                class="w-full h-10 bg-gray-900 text-white text-[13px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
-                on:click={handleStartMCP}
-                disabled={mcpLoading}
-              >
-                {mcpLoading ? t.startingServer : t.startServer}
-              </button>
+              {#if mcpForm.mode === 'sse'}
+                <button 
+                  class="w-full h-10 bg-gray-900 text-white text-[13px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+                  on:click={handleStartMCP}
+                  disabled={mcpLoading}
+                >
+                  {mcpLoading ? t.startingServer : t.startServer}
+                </button>
+              {/if}
             {/if}
           </div>
 
