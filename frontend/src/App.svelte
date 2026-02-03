@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime.js';
+  import { EventsOn, EventsOff, BrowserOpenURL } from '../wailsjs/runtime/runtime.js';
   import { ListCases, ListTemplates, StartCase, StopCase, RemoveCase, CreateCase, CreateAndRunCase, GetConfig, GetCaseOutputs, GetTemplateVariables, SaveProxyConfig, FetchRegistryTemplates, PullTemplate, GetMCPStatus, StartMCPServer, StopMCPServer, GetProvidersConfig, SaveProvidersConfig } from '../wailsjs/go/main/App.js';
 
   let cases = [];
@@ -40,15 +40,84 @@
   let editFields = {};
   let customConfigPath = '';
 
-  const stateConfig = {
-    'running': { label: '运行中', color: 'text-emerald-600', bg: 'bg-emerald-50', dot: 'bg-emerald-500' },
-    'stopped': { label: '已停止', color: 'text-slate-500', bg: 'bg-slate-50', dot: 'bg-slate-400' },
-    'error': { label: '异常', color: 'text-red-600', bg: 'bg-red-50', dot: 'bg-red-500' },
-    'created': { label: '已创建', color: 'text-blue-600', bg: 'bg-blue-50', dot: 'bg-blue-500' },
-    'pending': { label: '等待中', color: 'text-amber-600', bg: 'bg-amber-50', dot: 'bg-amber-500' },
-    'starting': { label: '启动中', color: 'text-amber-600', bg: 'bg-amber-50', dot: 'bg-amber-500 animate-pulse' },
-    'stopping': { label: '停止中', color: 'text-amber-600', bg: 'bg-amber-50', dot: 'bg-amber-500 animate-pulse' },
-    'removing': { label: '删除中', color: 'text-amber-600', bg: 'bg-amber-50', dot: 'bg-amber-500 animate-pulse' }
+  // i18n state
+  let lang = localStorage.getItem('lang') || 'zh';
+  const i18n = {
+    zh: {
+      dashboard: '仪表盘', console: '控制台', settings: '设置', credentials: '凭据管理', registry: '仓库', ai: 'AI 集成',
+      sceneManage: '场景管理', templateRepo: '模板仓库', aiIntegration: 'AI 集成',
+      template: '模板', selectTemplate: '选择模板...', name: '名称', optional: '可选',
+      create: '创建', createAndRun: '创建并运行', templateParams: '模板参数',
+      id: 'ID', type: '类型', state: '状态', time: '时间', actions: '操作',
+      start: '启动', stop: '停止', delete: '删除', noScene: '暂无场景',
+      running: '运行中', stopped: '已停止', error: '异常', created: '已创建',
+      pending: '等待中', starting: '启动中', stopping: '停止中', removing: '删除中',
+      processing: '处理中', loadingOutputs: '正在加载输出信息...', noOutput: '场景未运行，无输出信息',
+      copied: '已复制', copy: '复制', terminal: 'Terminal', clear: '清空', waitOutput: '等待输出...',
+      redcPath: 'RedC 路径', projectPath: '项目路径', logPath: '日志路径',
+      proxyConfig: '代理配置', httpProxy: 'HTTP 代理', httpsProxy: 'HTTPS 代理', noProxyLabel: '不使用代理的地址 (NO_PROXY)',
+      saving: '保存中...', saveProxy: '保存代理配置', proxyHint: '配置后将用于 Terraform 的网络请求',
+      search: '搜索模板...', loading: '加载中...', refreshRepo: '刷新仓库', installed: '已安装',
+      update: '更新', pull: '拉取', pulling: '拉取中...', noMatch: '未找到匹配的模板', clickRefresh: '点击"刷新仓库"加载模板列表',
+      mcpServer: 'MCP 服务器', mcpDesc: 'Model Context Protocol 服务',
+      transportMode: '传输模式', listenAddr: '监听地址', protocolVersion: '协议版本', msgEndpoint: '消息端点',
+      stopServer: '停止服务器', startServer: '启动服务器', stoppingServer: '停止中...', startingServer: '启动中...',
+      aboutMcp: '关于 MCP', mcpInfo: 'Model Context Protocol (MCP) 是一种开放协议，允许 AI 助手与外部工具和数据源进行交互。启用 MCP 服务器后，您可以通过 Claude、Cursor 等支持 MCP 的 AI 工具直接管理 RedC 基础设施。',
+      availableTools: '可用工具',
+      configPath: '配置文件路径', defaultPath: '留空使用默认路径 ~/redc/config.yaml', loadConfig: '加载配置',
+      currentConfig: '当前配置', securityTip: '安全提示：', securityInfo: '凭据以脱敏形式显示，编辑时需重新输入完整值。空字段不会覆盖已有配置。',
+      edit: '编辑', cancel: '取消', save: '保存', notSet: '未设置', enterNew: '输入新值覆盖', clickLoad: '点击"加载配置"查看凭据',
+      confirmDelete: '确认删除', cannotUndo: '此操作不可撤销', confirmDeleteScene: '确定要删除场景', region: '区域', credentialsJson: '凭据 JSON',
+      selectTemplateErr: '请选择一个模板',
+    },
+    en: {
+      dashboard: 'Dashboard', console: 'Console', settings: 'Settings', credentials: 'Credentials', registry: 'Registry', ai: 'AI Integration',
+      sceneManage: 'Scene Management', templateRepo: 'Template Registry', aiIntegration: 'AI Integration',
+      template: 'Template', selectTemplate: 'Select template...', name: 'Name', optional: 'Optional',
+      create: 'Create', createAndRun: 'Create & Run', templateParams: 'Template Parameters',
+      id: 'ID', type: 'Type', state: 'State', time: 'Time', actions: 'Actions',
+      start: 'Start', stop: 'Stop', delete: 'Delete', noScene: 'No scenes',
+      running: 'Running', stopped: 'Stopped', error: 'Error', created: 'Created',
+      pending: 'Pending', starting: 'Starting', stopping: 'Stopping', removing: 'Removing',
+      processing: 'Processing', loadingOutputs: 'Loading outputs...', noOutput: 'Scene not running, no outputs',
+      copied: 'Copied', copy: 'Copy', terminal: 'Terminal', clear: 'Clear', waitOutput: 'Waiting for output...',
+      redcPath: 'RedC Path', projectPath: 'Project Path', logPath: 'Log Path',
+      proxyConfig: 'Proxy Configuration', httpProxy: 'HTTP Proxy', httpsProxy: 'HTTPS Proxy', noProxyLabel: 'No Proxy Addresses (NO_PROXY)',
+      saving: 'Saving...', saveProxy: 'Save Proxy Config', proxyHint: 'Used for Terraform network requests',
+      search: 'Search templates...', loading: 'Loading...', refreshRepo: 'Refresh Registry', installed: 'Installed',
+      update: 'Update', pull: 'Pull', pulling: 'Pulling...', noMatch: 'No matching templates', clickRefresh: 'Click "Refresh Registry" to load templates',
+      mcpServer: 'MCP Server', mcpDesc: 'Model Context Protocol Service',
+      transportMode: 'Transport Mode', listenAddr: 'Listen Address', protocolVersion: 'Protocol Version', msgEndpoint: 'Message Endpoint',
+      stopServer: 'Stop Server', startServer: 'Start Server', stoppingServer: 'Stopping...', startingServer: 'Starting...',
+      aboutMcp: 'About MCP', mcpInfo: 'Model Context Protocol (MCP) is an open protocol that allows AI assistants to interact with external tools and data sources. With MCP server enabled, you can manage RedC infrastructure directly via Claude, Cursor and other MCP-compatible AI tools.',
+      availableTools: 'Available Tools',
+      configPath: 'Config File Path', defaultPath: 'Leave empty for default ~/redc/config.yaml', loadConfig: 'Load Config',
+      currentConfig: 'Current config', securityTip: 'Security Notice:', securityInfo: 'Credentials are displayed in masked form. Re-enter full values when editing. Empty fields won\'t overwrite existing config.',
+      edit: 'Edit', cancel: 'Cancel', save: 'Save', notSet: 'Not set', enterNew: 'Enter new value', clickLoad: 'Click "Load Config" to view credentials',
+      confirmDelete: 'Confirm Delete', cannotUndo: 'This cannot be undone', confirmDeleteScene: 'Are you sure you want to delete scene', region: 'Region', credentialsJson: 'Credentials JSON',
+      selectTemplateErr: 'Please select a template',
+    }
+  };
+  $: t = i18n[lang];
+
+  function toggleLang() {
+    lang = lang === 'zh' ? 'en' : 'zh';
+    localStorage.setItem('lang', lang);
+  }
+
+  function openGitHub() {
+    BrowserOpenURL('https://github.com/wgpsec/redc');
+  }
+
+  $: stateConfig = {
+    'running': { label: t.running, color: 'text-emerald-600', bg: 'bg-emerald-50', dot: 'bg-emerald-500' },
+    'stopped': { label: t.stopped, color: 'text-slate-500', bg: 'bg-slate-50', dot: 'bg-slate-400' },
+    'error': { label: t.error, color: 'text-red-600', bg: 'bg-red-50', dot: 'bg-red-500' },
+    'created': { label: t.created, color: 'text-blue-600', bg: 'bg-blue-50', dot: 'bg-blue-500' },
+    'pending': { label: t.pending, color: 'text-amber-600', bg: 'bg-amber-50', dot: 'bg-amber-500' },
+    'starting': { label: t.starting, color: 'text-amber-600', bg: 'bg-amber-50', dot: 'bg-amber-500 animate-pulse' },
+    'stopping': { label: t.stopping, color: 'text-amber-600', bg: 'bg-amber-50', dot: 'bg-amber-500 animate-pulse' },
+    'removing': { label: t.removing, color: 'text-amber-600', bg: 'bg-amber-50', dot: 'bg-amber-500 animate-pulse' }
   };
 
   onMount(async () => {
@@ -170,7 +239,7 @@
 
   async function handleCreate() {
     if (!selectedTemplate) {
-      error = '请选择一个模板';
+      error = t.selectTemplateErr;
       return;
     }
     try {
@@ -194,7 +263,7 @@
 
   async function handleCreateAndRun() {
     if (!selectedTemplate) {
-      error = '请选择一个模板';
+      error = t.selectTemplateErr;
       return;
     }
     try {
@@ -430,7 +499,7 @@
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
           </svg>
-          仪表盘
+          {t.dashboard}
         </button>
         <button 
           class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-all
@@ -440,7 +509,7 @@
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
           </svg>
-          控制台
+          {t.console}
         </button>
         <button 
           class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-all
@@ -451,7 +520,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
-          设置
+          {t.settings}
         </button>
         <button 
           class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-all
@@ -461,7 +530,7 @@
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
           </svg>
-          凭据管理
+          {t.credentials}
         </button>
         <button 
           class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-all
@@ -471,7 +540,7 @@
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
           </svg>
-          仓库
+          {t.registry}
         </button>
         <button 
           class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-all
@@ -481,13 +550,31 @@
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
           </svg>
-          AI 集成
+          {t.ai}
         </button>
       </div>
     </nav>
 
     <div class="p-2 border-t border-gray-100">
-      <div class="px-2 py-2 text-[10px] text-gray-400">v1.0.0</div>
+      <div class="flex items-center justify-between px-2 py-2">
+        <span class="text-[10px] text-gray-400">v1.0.0</span>
+        <div class="flex items-center gap-1">
+          <button
+            class="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors text-[10px] font-medium"
+            on:click={toggleLang}
+            title={lang === 'zh' ? 'Switch to English' : '切换到中文'}
+          >{lang === 'zh' ? 'EN' : '中'}</button>
+          <button
+            class="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+            on:click={openGitHub}
+            title="GitHub"
+          >
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.167 6.839 9.49.5.092.682-.217.682-.482 0-.237-.009-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
   </aside>
 
@@ -496,7 +583,7 @@
     <!-- Header -->
     <header class="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-6">
       <h1 class="text-[15px] font-medium text-gray-900">
-        {#if activeTab === 'dashboard'}场景管理{:else if activeTab === 'console'}控制台{:else if activeTab === 'registry'}模板仓库{:else if activeTab === 'ai'}AI 集成{:else if activeTab === 'credentials'}凭据管理{:else}设置{/if}
+        {#if activeTab === 'dashboard'}{t.sceneManage}{:else if activeTab === 'console'}{t.console}{:else if activeTab === 'registry'}{t.templateRepo}{:else if activeTab === 'ai'}{t.aiIntegration}{:else if activeTab === 'credentials'}{t.credentials}{:else}{t.settings}{/if}
       </h1>
       <button 
         class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-50 text-gray-400 hover:text-gray-600 transition-colors"
@@ -534,23 +621,23 @@
           <div class="bg-white rounded-xl border border-gray-100 p-5">
             <div class="flex items-end gap-4 mb-4">
               <div class="flex-1">
-                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">模板</label>
+                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.template}</label>
                 <select 
                   class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
                   bind:value={selectedTemplate}
                   on:change={() => loadTemplateVariables(selectedTemplate)}
                 >
-                  <option value="">选择模板...</option>
+                  <option value="">{t.selectTemplate}</option>
                   {#each templates || [] as tmpl}
                     <option value={tmpl.name}>{tmpl.name}</option>
                   {/each}
                 </select>
               </div>
               <div class="w-48">
-                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">名称</label>
+                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.name}</label>
                 <input 
                   type="text" 
-                  placeholder="可选" 
+                  placeholder={t.optional}
                   class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
                   bind:value={newCaseName} 
                 />
@@ -559,20 +646,20 @@
                 class="h-10 px-5 bg-gray-900 text-white text-[13px] font-medium rounded-lg hover:bg-gray-800 transition-colors"
                 on:click={handleCreate}
               >
-                创建
+                {t.create}
               </button>
               <button 
                 class="h-10 px-5 bg-emerald-500 text-white text-[13px] font-medium rounded-lg hover:bg-emerald-600 transition-colors"
                 on:click={handleCreateAndRun}
               >
-                创建并运行
+                {t.createAndRun}
               </button>
             </div>
             
             <!-- Template Variables -->
             {#if templateVariables.length > 0}
               <div class="border-t border-gray-100 pt-4 mt-4">
-                <div class="text-[12px] font-medium text-gray-500 mb-3">模板参数</div>
+                <div class="text-[12px] font-medium text-gray-500 mb-3">{t.templateParams}</div>
                 <div class="grid grid-cols-2 gap-3">
                   {#each templateVariables as variable}
                     <div class="flex flex-col">
@@ -603,12 +690,12 @@
             <table class="w-full">
               <thead>
                 <tr class="border-b border-gray-100">
-                  <th class="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">ID</th>
-                  <th class="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">名称</th>
-                  <th class="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">类型</th>
-                  <th class="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">状态</th>
-                  <th class="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">时间</th>
-                  <th class="text-right px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">操作</th>
+                  <th class="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{t.id}</th>
+                  <th class="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{t.name}</th>
+                  <th class="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{t.type}</th>
+                  <th class="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{t.state}</th>
+                  <th class="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{t.time}</th>
+                  <th class="text-right px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{t.actions}</th>
                 </tr>
               </thead>
               <tbody>
@@ -644,24 +731,24 @@
                       <div class="inline-flex items-center gap-1">
                         {#if c.state === 'starting' || c.state === 'stopping' || c.state === 'removing'}
                           <span class="px-2.5 py-1 text-[12px] font-medium text-amber-600">
-                            {stateConfig[c.state]?.label || '处理中'}...
+                            {stateConfig[c.state]?.label || t.processing}...
                           </span>
                         {:else if c.state !== 'running'}
                           <button 
                             class="px-2.5 py-1 text-[12px] font-medium text-emerald-700 bg-emerald-50 rounded-md hover:bg-emerald-100 transition-colors"
                             on:click={() => handleStart(c.id)}
-                          >启动</button>
+                          >{t.start}</button>
                         {:else}
                           <button 
                             class="px-2.5 py-1 text-[12px] font-medium text-amber-700 bg-amber-50 rounded-md hover:bg-amber-100 transition-colors"
                             on:click={() => handleStop(c.id)}
-                          >停止</button>
+                          >{t.stop}</button>
                         {/if}
                         {#if c.state !== 'starting' && c.state !== 'stopping' && c.state !== 'removing'}
                           <button 
                             class="px-2.5 py-1 text-[12px] font-medium text-gray-600 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors"
                             on:click={() => showDeleteConfirm(c.id, c.name)}
-                          >删除</button>
+                          >{t.delete}</button>
                         {/if}
                       </div>
                     </td>
@@ -681,13 +768,13 @@
                                       <button 
                                         class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded flex items-center gap-1"
                                         on:click|stopPropagation={() => copyToClipboard(value, key)}
-                                        title="复制"
+                                        title={t.copy}
                                       >
                                         {#if copiedKey === key}
                                           <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                                           </svg>
-                                          <span class="text-[10px] text-emerald-500">已复制</span>
+                                          <span class="text-[10px] text-emerald-500">{t.copied}</span>
                                         {:else}
                                           <svg class="w-4 h-4 text-gray-400 hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -700,10 +787,10 @@
                                 {/each}
                               </div>
                             {:else}
-                              <div class="text-[13px] text-gray-500">正在加载输出信息...</div>
+                              <div class="text-[13px] text-gray-500">{t.loadingOutputs}</div>
                             {/if}
                           {:else}
-                            <div class="text-[13px] text-gray-500">场景未运行，无输出信息</div>
+                            <div class="text-[13px] text-gray-500">{t.noOutput}</div>
                           {/if}
                         </div>
                       </td>
@@ -716,7 +803,7 @@
                         <svg class="w-10 h-10 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                         </svg>
-                        <p class="text-[13px]">暂无场景</p>
+                        <p class="text-[13px]">{t.noScene}</p>
                       </div>
                     </td>
                   </tr>
@@ -735,12 +822,12 @@
                 <span class="w-3 h-3 rounded-full bg-[#ffbd2e]"></span>
                 <span class="w-3 h-3 rounded-full bg-[#27ca40]"></span>
               </div>
-              <span class="text-[12px] text-gray-500 ml-2">Terminal</span>
+              <span class="text-[12px] text-gray-500 ml-2">{t.terminal}</span>
             </div>
             <button 
               class="text-[11px] text-gray-500 hover:text-gray-300 transition-colors"
               on:click={clearLogs}
-            >清空</button>
+            >{t.clear}</button>
           </div>
           <div class="flex-1 p-4 overflow-auto font-mono text-[12px] leading-5">
             {#each logs as log}
@@ -749,7 +836,7 @@
                 <span class="text-gray-300 ml-2">{log.message}</span>
               </div>
             {:else}
-              <div class="text-gray-600">$ 等待输出...</div>
+              <div class="text-gray-600">$ {t.waitOutput}</div>
             {/each}
           </div>
         </div>
@@ -759,46 +846,46 @@
           <!-- 基本信息 -->
           <div class="bg-white rounded-xl border border-gray-100 divide-y divide-gray-100">
             <div class="px-5 py-4">
-              <div class="text-[12px] font-medium text-gray-500 mb-1">RedC 路径</div>
+              <div class="text-[12px] font-medium text-gray-500 mb-1">{t.redcPath}</div>
               <div class="text-[13px] text-gray-900 font-mono">{config.redcPath || '-'}</div>
             </div>
             <div class="px-5 py-4">
-              <div class="text-[12px] font-medium text-gray-500 mb-1">项目路径</div>
+              <div class="text-[12px] font-medium text-gray-500 mb-1">{t.projectPath}</div>
               <div class="text-[13px] text-gray-900 font-mono">{config.projectPath || '-'}</div>
             </div>
             <div class="px-5 py-4">
-              <div class="text-[12px] font-medium text-gray-500 mb-1">日志路径</div>
+              <div class="text-[12px] font-medium text-gray-500 mb-1">{t.logPath}</div>
               <div class="text-[13px] text-gray-900 font-mono">{config.logPath || '-'}</div>
             </div>
           </div>
 
           <!-- 代理配置 -->
           <div class="bg-white rounded-xl border border-gray-100 p-5">
-            <div class="text-[14px] font-medium text-gray-900 mb-4">代理配置</div>
+            <div class="text-[14px] font-medium text-gray-900 mb-4">{t.proxyConfig}</div>
             <div class="space-y-4">
               <div>
-                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">HTTP 代理</label>
+                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.httpProxy}</label>
                 <input 
                   type="text" 
-                  placeholder="例如: http://127.0.0.1:7890 或 socks5://127.0.0.1:1080" 
+                  placeholder="http://127.0.0.1:7890" 
                   class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
                   bind:value={proxyForm.httpProxy} 
                 />
               </div>
               <div>
-                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">HTTPS 代理</label>
+                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.httpsProxy}</label>
                 <input 
                   type="text" 
-                  placeholder="例如: http://127.0.0.1:7890 或 socks5://127.0.0.1:1080" 
+                  placeholder="http://127.0.0.1:7890" 
                   class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
                   bind:value={proxyForm.httpsProxy} 
                 />
               </div>
               <div>
-                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">不使用代理的地址 (NO_PROXY)</label>
+                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.noProxyLabel}</label>
                 <input 
                   type="text" 
-                  placeholder="例如: localhost,127.0.0.1,.local" 
+                  placeholder="localhost,127.0.0.1,.local" 
                   class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
                   bind:value={proxyForm.noProxy} 
                 />
@@ -809,9 +896,9 @@
                   on:click={handleSaveProxy}
                   disabled={proxySaving}
                 >
-                  {proxySaving ? '保存中...' : '保存代理配置'}
+                  {proxySaving ? t.saving : t.saveProxy}
                 </button>
-                <span class="ml-3 text-[12px] text-gray-500">配置后将用于 Terraform 的网络请求</span>
+                <span class="ml-3 text-[12px] text-gray-500">{t.proxyHint}</span>
               </div>
             </div>
           </div>
@@ -828,7 +915,7 @@
                 </svg>
                 <input 
                   type="text" 
-                  placeholder="搜索模板..." 
+                  placeholder={t.search}
                   class="w-full h-10 pl-10 pr-4 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
                   bind:value={registrySearch} 
                 />
@@ -838,7 +925,7 @@
                 on:click={loadRegistryTemplates}
                 disabled={registryLoading}
               >
-                {registryLoading ? '加载中...' : '刷新仓库'}
+                {registryLoading ? t.loading : t.refreshRepo}
               </button>
             </div>
           </div>
@@ -876,7 +963,7 @@
                         <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                         </svg>
-                        已安装
+                        {t.installed}
                       </span>
                     {/if}
                   </div>
@@ -902,18 +989,18 @@
                     </div>
                     {#if pullingTemplates[tmpl.name]}
                       <span class="px-3 py-1.5 text-[12px] font-medium text-amber-600">
-                        拉取中...
+                        {t.pulling}
                       </span>
                     {:else if tmpl.installed}
                       <button 
                         class="px-3 py-1.5 text-[12px] font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                         on:click={() => handlePullTemplate(tmpl.name, true)}
-                      >更新</button>
+                      >{t.update}</button>
                     {:else}
                       <button 
                         class="px-3 py-1.5 text-[12px] font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
                         on:click={() => handlePullTemplate(tmpl.name, false)}
-                      >拉取</button>
+                      >{t.pull}</button>
                     {/if}
                   </div>
                 </div>
@@ -924,9 +1011,9 @@
                   </svg>
                   <p class="text-[13px] text-gray-400">
                     {#if registrySearch}
-                      未找到匹配的模板
+                      {t.noMatch}
                     {:else}
-                      点击"刷新仓库"加载模板列表
+                      {t.clickRefresh}
                     {/if}
                   </p>
                 </div>
@@ -947,20 +1034,20 @@
                   </svg>
                 </div>
                 <div>
-                  <h2 class="text-[14px] font-semibold text-gray-900">MCP 服务器</h2>
-                  <p class="text-[12px] text-gray-500">Model Context Protocol 服务</p>
+                  <h2 class="text-[14px] font-semibold text-gray-900">{t.mcpServer}</h2>
+                  <p class="text-[12px] text-gray-500">{t.mcpDesc}</p>
                 </div>
               </div>
               <div class="flex items-center gap-2">
                 {#if mcpStatus.running}
                   <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-600 text-[12px] font-medium rounded-full">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    运行中
+                    {t.running}
                   </span>
                 {:else}
                   <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 text-gray-500 text-[12px] font-medium rounded-full">
                     <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
-                    已停止
+                    {t.stopped}
                   </span>
                 {/if}
               </div>
@@ -971,19 +1058,19 @@
               <div class="bg-gray-50 rounded-lg p-4 mb-4">
                 <div class="grid grid-cols-2 gap-4 text-[12px]">
                   <div>
-                    <span class="text-gray-500">传输模式</span>
+                    <span class="text-gray-500">{t.transportMode}</span>
                     <p class="font-medium text-gray-900 mt-0.5">{mcpStatus.mode === 'sse' ? 'SSE (HTTP)' : 'STDIO'}</p>
                   </div>
                   <div>
-                    <span class="text-gray-500">监听地址</span>
+                    <span class="text-gray-500">{t.listenAddr}</span>
                     <p class="font-mono font-medium text-gray-900 mt-0.5">{mcpStatus.address || '-'}</p>
                   </div>
                   <div>
-                    <span class="text-gray-500">协议版本</span>
+                    <span class="text-gray-500">{t.protocolVersion}</span>
                     <p class="font-medium text-gray-900 mt-0.5">{mcpStatus.protocolVersion}</p>
                   </div>
                   <div>
-                    <span class="text-gray-500">消息端点</span>
+                    <span class="text-gray-500">{t.msgEndpoint}</span>
                     <p class="font-mono font-medium text-gray-900 mt-0.5 text-[11px]">http://{mcpStatus.address}/message</p>
                   </div>
                 </div>
@@ -993,13 +1080,13 @@
                 on:click={handleStopMCP}
                 disabled={mcpLoading}
               >
-                {mcpLoading ? '停止中...' : '停止服务器'}
+                {mcpLoading ? t.stoppingServer : t.stopServer}
               </button>
             {:else}
               <!-- Configuration form -->
               <div class="space-y-4 mb-4">
                 <div>
-                  <label class="block text-[12px] font-medium text-gray-500 mb-1.5">传输模式</label>
+                  <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.transportMode}</label>
                   <div class="flex gap-2">
                     <button 
                       class="flex-1 h-10 px-4 text-[13px] font-medium rounded-lg border transition-colors
@@ -1019,7 +1106,7 @@
                 </div>
                 {#if mcpForm.mode === 'sse'}
                   <div>
-                    <label class="block text-[12px] font-medium text-gray-500 mb-1.5">监听地址</label>
+                    <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.listenAddr}</label>
                     <input 
                       type="text" 
                       placeholder="localhost:8080" 
@@ -1034,20 +1121,19 @@
                 on:click={handleStartMCP}
                 disabled={mcpLoading}
               >
-                {mcpLoading ? '启动中...' : '启动服务器'}
+                {mcpLoading ? t.startingServer : t.startServer}
               </button>
             {/if}
           </div>
 
           <!-- MCP Info Card -->
           <div class="bg-white rounded-xl border border-gray-100 p-5">
-            <h3 class="text-[14px] font-semibold text-gray-900 mb-3">关于 MCP</h3>
+            <h3 class="text-[14px] font-semibold text-gray-900 mb-3">{t.aboutMcp}</h3>
             <p class="text-[12px] text-gray-600 leading-relaxed mb-4">
-              Model Context Protocol (MCP) 是一种开放协议，允许 AI 助手与外部工具和数据源进行交互。
-              启用 MCP 服务器后，您可以通过 Claude、Cursor 等支持 MCP 的 AI 工具直接管理 RedC 基础设施。
+              {t.mcpInfo}
             </p>
             <div class="bg-gray-50 rounded-lg p-4">
-              <div class="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-2">可用工具</div>
+              <div class="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-2">{t.availableTools}</div>
               <div class="grid grid-cols-2 gap-2 text-[12px]">
                 <div class="flex items-center gap-2 text-gray-700">
                   <span class="w-1 h-1 rounded-full bg-gray-400"></span>
@@ -1092,10 +1178,10 @@
           <div class="bg-white rounded-xl border border-gray-100 p-5">
             <div class="flex items-center gap-4">
               <div class="flex-1">
-                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">配置文件路径</label>
+                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.configPath}</label>
                 <input 
                   type="text" 
-                  placeholder="留空使用默认路径 ~/redc/config.yaml" 
+                  placeholder={t.defaultPath}
                   class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
                   bind:value={customConfigPath} 
                 />
@@ -1105,12 +1191,12 @@
                 on:click={loadProvidersConfig}
                 disabled={credentialsLoading}
               >
-                {credentialsLoading ? '加载中...' : '加载配置'}
+                {credentialsLoading ? t.loading : t.loadConfig}
               </button>
             </div>
             {#if providersConfig.configPath}
               <div class="mt-3 text-[12px] text-gray-500">
-                当前配置: <span class="font-mono">{providersConfig.configPath}</span>
+                {t.currentConfig}: <span class="font-mono">{providersConfig.configPath}</span>
               </div>
             {/if}
           </div>
@@ -1121,7 +1207,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
             </svg>
             <div class="text-[12px] text-amber-800">
-              <strong>安全提示：</strong>凭据以脱敏形式显示，编辑时需重新输入完整值。空字段不会覆盖已有配置。
+              <strong>{t.securityTip}</strong>{t.securityInfo}
             </div>
           </div>
 
@@ -1141,20 +1227,20 @@
                         <button 
                           class="px-3 py-1 text-[12px] font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
                           on:click={cancelEditProvider}
-                        >取消</button>
+                        >{t.cancel}</button>
                         <button 
                           class="px-3 py-1 text-[12px] font-medium text-white bg-emerald-500 rounded-md hover:bg-emerald-600 transition-colors disabled:opacity-50"
                           on:click={() => saveProviderCredentials(provider.name)}
                           disabled={credentialsSaving[provider.name]}
                         >
-                          {credentialsSaving[provider.name] ? '保存中...' : '保存'}
+                          {credentialsSaving[provider.name] ? t.saving : t.save}
                         </button>
                       </div>
                     {:else}
                       <button 
                         class="px-3 py-1 text-[12px] font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
                         on:click={() => startEditProvider(provider)}
-                      >编辑</button>
+                      >{t.edit}</button>
                     {/if}
                   </div>
                   <div class="p-5 space-y-3">
@@ -1170,21 +1256,21 @@
                           {#if isSecretField(key)}
                             <input 
                               type="password"
-                              placeholder="输入新值覆盖"
+                              placeholder={t.enterNew}
                               class="w-full h-9 px-3 text-[12px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
                               bind:value={editFields[key]}
                             />
                           {:else}
                             <input 
                               type="text"
-                              placeholder={value || '未设置'}
+                              placeholder={value || t.notSet}
                               class="w-full h-9 px-3 text-[12px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
                               bind:value={editFields[key]}
                             />
                           {/if}
                         {:else}
                           <div class="h-9 px-3 flex items-center text-[12px] bg-gray-50 rounded-lg font-mono {value ? 'text-gray-900' : 'text-gray-400'}">
-                            {value || '未设置'}
+                            {value || t.notSet}
                           </div>
                         {/if}
                       </div>
@@ -1196,7 +1282,7 @@
                   <svg class="w-10 h-10 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
                   </svg>
-                  <p class="text-[13px] text-gray-400">点击"加载配置"查看凭据</p>
+                  <p class="text-[13px] text-gray-400">{t.clickLoad}</p>
                 </div>
               {/each}
             </div>
@@ -1219,23 +1305,23 @@
             </svg>
           </div>
           <div>
-            <h3 class="text-[15px] font-semibold text-gray-900">确认删除</h3>
-            <p class="text-[13px] text-gray-500">此操作不可撤销</p>
+            <h3 class="text-[15px] font-semibold text-gray-900">{t.confirmDelete}</h3>
+            <p class="text-[13px] text-gray-500">{t.cannotUndo}</p>
           </div>
         </div>
         <p class="text-[13px] text-gray-600">
-          确定要删除场景 <span class="font-medium text-gray-900">"{deleteConfirm.caseName}"</span> 吗？
+          {t.confirmDeleteScene} <span class="font-medium text-gray-900">"{deleteConfirm.caseName}"</span>?
         </p>
       </div>
       <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2">
         <button 
           class="px-4 py-2 text-[13px] font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           on:click={cancelDelete}
-        >取消</button>
+        >{t.cancel}</button>
         <button 
           class="px-4 py-2 text-[13px] font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
           on:click={confirmDelete}
-        >删除</button>
+        >{t.delete}</button>
       </div>
     </div>
   </div>
