@@ -6,7 +6,7 @@
   let cases = [];
   let templates = [];
   let logs = [];
-  let config = { redcPath: '', projectPath: '', httpProxy: '', httpsProxy: '', noProxy: '' };
+  let config = { redcPath: '', projectPath: '', logPath: '', httpProxy: '', httpsProxy: '', noProxy: '' };
   let activeTab = 'dashboard';
   let selectedTemplate = '';
   let newCaseName = '';
@@ -625,6 +625,10 @@
             <div class="px-5 py-4">
               <div class="text-[12px] font-medium text-gray-500 mb-1">项目路径</div>
               <div class="text-[13px] text-gray-900 font-mono">{config.projectPath || '-'}</div>
+            </div>
+            <div class="px-5 py-4">
+              <div class="text-[12px] font-medium text-gray-500 mb-1">日志路径</div>
+              <div class="text-[13px] text-gray-900 font-mono">{config.logPath || '-'}</div>
             </div>
           </div>
 

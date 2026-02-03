@@ -26,6 +26,7 @@ type App struct {
 	project     *redc.RedcProject
 	mu          sync.Mutex
 	initError   string
+	logMgr      *gologger.LogManager
 }
 
 // NewApp creates a new App application struct
@@ -59,6 +60,7 @@ func (a *App) startup(ctx context.Context) {
 	// Load default project
 	if p, err := redc.ProjectParse(redc.Project, redc.U); err == nil {
 		a.project = p
+		a.logMgr = gologger.NewLogManager(p.ProjectPath)
 		runtime.LogInfof(ctx, "项目加载成功: %s", a.project.ProjectName)
 	} else {
 		a.initError = fmt.Sprintf("项目加载失败: %v", err)
@@ -66,9 +68,16 @@ func (a *App) startup(ctx context.Context) {
 	}
 }
 
-// emitLog sends a log message to the frontend
+// emitLog sends a log message to the frontend and writes to file
 func (a *App) emitLog(message string) {
 	runtime.EventsEmit(a.ctx, "log", message)
+	// Also write to GUI log file
+	if a.logMgr != nil {
+		if logger, err := a.logMgr.NewServiceLogger("gui"); err == nil {
+			logger.Write([]byte(message + "\n"))
+			logger.Close()
+		}
+	}
 }
 
 // emitRefresh notifies the frontend to refresh data
@@ -76,9 +85,16 @@ func (a *App) emitRefresh() {
 	runtime.EventsEmit(a.ctx, "refresh", nil)
 }
 
-// createLogWriter creates an io.Writer that emits logs to the frontend
+// createLogWriter creates an io.Writer that emits logs to the frontend and writes to file
 func (a *App) createLogWriter(prefix string) io.Writer {
-	return gologger.NewEventWriter(a.emitLog, prefix)
+	eventWriter := gologger.NewEventWriter(a.emitLog, prefix)
+	// If logMgr is available, create a multi-writer that also writes to file
+	if a.logMgr != nil {
+		if fileLogger, err := a.logMgr.NewServiceLogger(prefix); err == nil {
+			return io.MultiWriter(eventWriter, fileLogger)
+		}
+	}
+	return eventWriter
 }
 
 // CaseInfo represents case information for frontend display
@@ -96,6 +112,7 @@ type CaseInfo struct {
 type ConfigInfo struct {
 	RedcPath    string `json:"redcPath"`
 	ProjectPath string `json:"projectPath"`
+	LogPath     string `json:"logPath"`
 	HttpProxy   string `json:"httpProxy"`
 	HttpsProxy  string `json:"httpsProxy"`
 	NoProxy     string `json:"noProxy"`
@@ -103,9 +120,14 @@ type ConfigInfo struct {
 
 // GetConfig returns current configuration
 func (a *App) GetConfig() ConfigInfo {
+	logPath := ""
+	if a.logMgr != nil {
+		logPath = a.logMgr.BaseDir
+	}
 	return ConfigInfo{
 		RedcPath:    redc.RedcPath,
 		ProjectPath: redc.ProjectPath,
+		LogPath:     logPath,
 		HttpProxy:   os.Getenv("HTTP_PROXY"),
 		HttpsProxy:  os.Getenv("HTTPS_PROXY"),
 		NoProxy:     os.Getenv("NO_PROXY"),
