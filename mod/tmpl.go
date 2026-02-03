@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -25,7 +26,7 @@ var TemplateDir = "redc-templates"
 
 const TmplCaseFile = "case.json"
 
-// RedcTmpl 对应 case.json 的结构
+// RedcTmpl 对应本地 case.json 的结构
 type RedcTmpl struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -42,21 +43,173 @@ type PullOptions struct {
 	Timeout     time.Duration
 }
 
-// 内部使用的远程索引结构
-type remoteIndex struct {
-	Templates map[string]struct {
-		Latest   string              `json:"latest"`
-		Versions map[string]artifact `json:"versions"`
-	} `json:"templates"`
+// =============================================================================
+//  远程索引数据结构 (JSON Mapping)
+// =============================================================================
+
+// RemoteIndex 对应 index.json
+type RemoteIndex struct {
+	UpdatedAt string                  `json:"updated_at"`
+	RepoName  string                  `json:"repo_name"`
+	Templates map[string]TemplateItem `json:"templates"`
 }
 
-type artifact struct {
-	URL    string `json:"url"`
-	SHA256 string `json:"sha256"`
+// TemplateItem 对应 templates 下的具体项
+type TemplateItem struct {
+	ID       string                     `json:"id"`       // e.g. "aliyun/ecs"
+	Provider string                     `json:"provider"` // e.g. "aliyun"
+	Slug     string                     `json:"slug"`     // e.g. "ecs"
+	Latest   string                     `json:"latest"`   // e.g. "1.0.1"
+	Versions map[string]TemplateVersion `json:"versions"`
+	Metadata TemplateMetadata           `json:"metadata"`
+}
+
+// TemplateMetadata 元数据信息
+type TemplateMetadata struct {
+	Name        string `json:"name"`
+	Author      string `json:"author"`
+	Description string `json:"description"`
+	Readme      string `json:"readme"`
+}
+
+// TemplateVersion 具体版本信息
+type TemplateVersion struct {
+	URL       string `json:"url"`
+	SHA256    string `json:"sha256"`
+	UpdatedAt string `json:"updated_at"`
+}
+
+// SearchResult 搜索结果结构
+type SearchResult struct {
+	Key         string
+	Version     string
+	Description string
+	Author      string
+	Provider    string
+	Score       int
 }
 
 // =============================================================================
-//  核心功能：Pull (下载/更新)
+//  网络层：索引获取
+// =============================================================================
+
+// GetRemoteIndex 获取并解析远程索引 (独立函数，便于复用)
+func GetRemoteIndex(ctx context.Context, registryURL string) (*RemoteIndex, error) {
+	var idx RemoteIndex
+	// 添加时间戳防止 CDN 缓存
+	indexURL := fmt.Sprintf("%s/index.json?t=%d", registryURL, time.Now().Unix())
+	if err := fetchJSON(ctx, indexURL, &idx); err != nil {
+		return nil, fmt.Errorf("fetch index failed: %w", err)
+	}
+	return &idx, nil
+}
+
+// =============================================================================
+//  逻辑层：智能搜索算法
+// =============================================================================
+
+// SearchFromIndex 在内存中的索引进行搜索 (纯 CPU 计算)
+// 支持多关键词、权重打分、长度惩罚排序
+func SearchFromIndex(idx *RemoteIndex, query string) []SearchResult {
+	var results []SearchResult
+	query = strings.ToLower(strings.TrimSpace(query))
+	tokens := strings.Fields(query) // 分词
+
+	for key, tmpl := range idx.Templates {
+		// 预处理字段 (全部归一化为小写)
+		fields := struct {
+			Key, Provider, Slug, Name, Author, Desc string
+		}{
+			Key:      strings.ToLower(key),
+			Provider: strings.ToLower(tmpl.Provider),
+			Slug:     strings.ToLower(tmpl.Slug),
+			Name:     strings.ToLower(tmpl.Metadata.Name),
+			Author:   strings.ToLower(tmpl.Metadata.Author),
+			Desc:     strings.ToLower(tmpl.Metadata.Description),
+		}
+
+		score := 0
+		allTokensMatched := true
+
+		// 核心评分逻辑
+		if len(tokens) > 0 {
+			for _, token := range tokens {
+				tokenScore := 0
+
+				// 规则 A: 完整 Key 精确匹配 (最高权重)
+				if fields.Key == token {
+					tokenScore += 1000
+				}
+				// 规则 B: Slug/Name 精确匹配 (次高权重, e.g. 搜 "ecs" 命中 "aliyun/ecs")
+				if fields.Slug == token || fields.Name == token {
+					tokenScore += 500
+				}
+				// 规则 C: Provider 精确匹配
+				if fields.Provider == token {
+					tokenScore += 200
+				}
+				// 规则 D: 字段包含匹配
+				if strings.Contains(fields.Key, token) {
+					tokenScore += 50
+				} else if strings.Contains(fields.Author, token) {
+					tokenScore += 30
+				} else if strings.Contains(fields.Desc, token) {
+					tokenScore += 10
+				}
+
+				if tokenScore == 0 {
+					allTokensMatched = false
+					break
+				}
+				score += tokenScore
+			}
+		} else {
+			// 无关键词列出所有，默认低分
+			score = 1
+		}
+
+		if allTokensMatched {
+			results = append(results, SearchResult{
+				Key:         key,
+				Version:     tmpl.Latest,
+				Description: tmpl.Metadata.Description,
+				Author:      tmpl.Metadata.Author,
+				Provider:    tmpl.Provider,
+				Score:       score,
+			})
+		}
+	}
+
+	// 结果排序：分数高 > 名字短 > 字母序
+	sort.Slice(results, func(i, j int) bool {
+		// 优先级 1: 分数
+		if results[i].Score != results[j].Score {
+			return results[i].Score > results[j].Score
+		}
+		// 优先级 2: 长度 (越短越基础，越靠前)
+		if len(results[i].Key) != len(results[j].Key) {
+			return len(results[i].Key) < len(results[j].Key)
+		}
+		// 优先级 3: 字母序
+		return results[i].Key < results[j].Key
+	})
+
+	return results
+}
+
+// Search 对外暴露的完整搜索接口 (网络 + 计算)
+func Search(ctx context.Context, query string, opts PullOptions) ([]SearchResult, error) {
+	// 1. 获取远程索引
+	idx, err := GetRemoteIndex(ctx, opts.RegistryURL)
+	if err != nil {
+		return nil, err
+	}
+	// 2. 内存搜索
+	return SearchFromIndex(idx, query), nil
+}
+
+// =============================================================================
+//  业务层：Pull 流程
 // =============================================================================
 
 // Pull 执行拉取流程
@@ -109,10 +262,9 @@ func pullCore(ctx context.Context, imageName, tag, localVer string, exists bool,
 	gologger.Info().Msgf("🔍 Connecting to registry %s...", opts.RegistryURL)
 
 	// 1. 获取远程索引
-	var idx remoteIndex
-	indexURL := fmt.Sprintf("%s/index.json?t=%d", opts.RegistryURL, time.Now().Unix())
-	if err := fetchJSON(ctx, indexURL, &idx); err != nil {
-		return false, fmt.Errorf("fetch index failed: %w", err)
+	idx, err := GetRemoteIndex(ctx, opts.RegistryURL)
+	if err != nil {
+		return false, err
 	}
 
 	// 2. 查找模版
@@ -130,7 +282,7 @@ func pullCore(ctx context.Context, imageName, tag, localVer string, exists bool,
 		targetTag = tmpl.Latest
 	}
 
-	art, ok := tmpl.Versions[targetTag]
+	verData, ok := tmpl.Versions[targetTag]
 	if !ok {
 		return false, fmt.Errorf("version '%s' not found", targetTag)
 	}
@@ -147,13 +299,12 @@ func pullCore(ctx context.Context, imageName, tag, localVer string, exists bool,
 	}
 
 	// 5. 下载并原子安装
-	// 使用 resolveSafePath 确保写入路径安全
 	targetDir, err := resolveSafePath(imageName)
 	if err != nil {
 		return false, fmt.Errorf("invalid install path: %w", err)
 	}
 
-	if err := downloadAndInstall(ctx, art, targetDir); err != nil {
+	if err := downloadAndInstall(ctx, verData, targetDir); err != nil {
 		return false, err
 	}
 
@@ -161,22 +312,15 @@ func pullCore(ctx context.Context, imageName, tag, localVer string, exists bool,
 }
 
 // =============================================================================
-//  本地管理功能：List, Find, Remove, Check
+//  本地管理功能
 // =============================================================================
 
 // GetTemplatePath 根据镜像名称查找并返回本地路径
-// 这是"模版有效性"的权威检查函数
-// 1. 检查路径安全性
-// 2. 检查目录是否存在
-// 3. 检查 case.json 是否存在
 func GetTemplatePath(imageName string) (string, error) {
-	// 1. 获取安全路径
 	path, err := resolveSafePath(imageName)
 	if err != nil {
 		return "", err
 	}
-
-	// 2. 检查目录是否存在
 	info, err := os.Stat(path)
 	if os.IsNotExist(err) {
 		return "", fmt.Errorf("template '%s' not found", imageName)
@@ -184,26 +328,19 @@ func GetTemplatePath(imageName string) (string, error) {
 	if !info.IsDir() {
 		return "", fmt.Errorf("path '%s' exists but is not a directory", path)
 	}
-
-	// 3. 验证是否为有效模版 (必须包含 case.json)
 	configPath := filepath.Join(path, TmplCaseFile)
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		return "", fmt.Errorf("template broken: missing %s in %s", TmplCaseFile, imageName)
 	}
-
 	return path, nil
 }
 
 // CheckLocalImage 检查本地是否存在指定模版
 func CheckLocalImage(imageName string) (bool, string, error) {
-	// 复用 GetTemplatePath 进行严格校验
-	// 如果路径非法、目录不存在或缺少配置文件，均视为不存在(false)
 	path, err := GetTemplatePath(imageName)
 	if err != nil {
 		return false, "", nil
 	}
-
-	// 读取元数据
 	meta, err := readTemplateMeta(path)
 	if err != nil || meta.Version == "" {
 		return true, "unknown", nil
@@ -213,26 +350,17 @@ func CheckLocalImage(imageName string) (bool, string, error) {
 
 // RemoveTemplate 删除指定模版
 func RemoveTemplate(imageName string) error {
-	// 1. 获取安全路径
-	// 这里不使用 GetTemplatePath，因为即使 case.json 丢失(损坏的模版)，
-	// 我们也希望用户能够通过 remove 命令删除它。
 	targetPath, err := resolveSafePath(imageName)
 	if err != nil {
 		return err
 	}
-
-	// 2. 检查是否存在
 	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
 		return fmt.Errorf("template '%s' not found", imageName)
 	}
-
 	gologger.Info().Msgf("🗑️  Removing template: %s", imageName)
-
-	// 3. 执行删除
 	if err := os.RemoveAll(targetPath); err != nil {
 		return fmt.Errorf("failed to remove: %w", err)
 	}
-
 	gologger.Info().Msg("✅ Successfully removed.")
 	return nil
 }
@@ -244,15 +372,12 @@ func ShowLocalTemplates() {
 		gologger.Error().Msgf("Failed to list templates: %v", err)
 		return
 	}
-
 	if len(list) == 0 {
 		gologger.Info().Msgf("No templates found in directory: %s", TemplateDir)
 		return
 	}
-
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 4, ' ', 0)
 	fmt.Fprintln(w, "NAME\tVERSION\tUSER\tMODULE\tDESCRIPTION")
-
 	for _, tmpl := range list {
 		desc := tmpl.Description
 		if len(desc) > 100 {
@@ -276,13 +401,12 @@ func ListLocalTemplates() ([]*RedcTmpl, error) {
 	if _, err := os.Stat(TemplateDir); os.IsNotExist(err) {
 		return nil, nil
 	}
-
-	dirs, err := ScanTemplateDirs(TemplateDir, MaxTfDepth)
+	// 假设最大深度为 3，根据需要调整
+	dirs, err := ScanTemplateDirs(TemplateDir, 3)
 	if err != nil {
 		return nil, err
 	}
 	var templates []*RedcTmpl
-
 	for _, dirPath := range dirs {
 		t, err := readTemplateMeta(dirPath)
 		if err != nil {
@@ -298,20 +422,13 @@ func ListLocalTemplates() ([]*RedcTmpl, error) {
 //  通用辅助函数 / Utils
 // =============================================================================
 
-// resolveSafePath 核心路径处理函数 (Internal)
-// 功能：拼接路径 + 安全检查 (防止路径穿越)
-// 返回：拼接后的路径（如果安全）
+// resolveSafePath 核心路径处理函数
 func resolveSafePath(imageName string) (string, error) {
 	if imageName == "" {
 		return "", fmt.Errorf("image name cannot be empty")
 	}
-	// 防止出现路径异常情况
 	localImageName := filepath.FromSlash(imageName)
-	// 1. 拼接路径
 	targetPath := filepath.Join(TemplateDir, localImageName)
-
-	// 2. 安全检查：防止路径穿越 (Zip Slip / Path Traversal)
-	// 逻辑：目标路径必须以 TemplateDir 为前缀
 	absBase, err := filepath.Abs(TemplateDir)
 	if err != nil {
 		return "", fmt.Errorf("resolve base path failed: %w", err)
@@ -320,13 +437,9 @@ func resolveSafePath(imageName string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve target path failed: %w", err)
 	}
-
-	// 确保 target 在 base 目录下
-	// 加 Separator 是为了防止前缀部分匹配误判 (如 /tmp/foo vs /tmp/foobar)
 	if !strings.HasPrefix(absTarget, absBase+string(os.PathSeparator)) && absTarget != absBase {
 		return "", fmt.Errorf("security violation: invalid path traversal detected in '%s'", imageName)
 	}
-
 	return targetPath, nil
 }
 
@@ -346,7 +459,6 @@ func readTemplateMeta(dirPath string) (*RedcTmpl, error) {
 		relPath = filepath.Base(dirPath)
 	}
 	finalName := filepath.ToSlash(relPath)
-	// 如果 Name 为空，用目录名兜底
 	tmpl.Name = finalName
 	return tmpl, nil
 }
@@ -362,15 +474,14 @@ func fetchJSON(ctx context.Context, url string, v interface{}) error {
 		return err
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("http status %d", resp.StatusCode)
 	}
 	return json.NewDecoder(resp.Body).Decode(v)
 }
 
-// downloadAndInstall 下载并解压 (原子操作)
-func downloadAndInstall(ctx context.Context, art artifact, finalDest string) error {
+// downloadAndInstall 下载并解压 (适配新的 TemplateVersion 结构)
+func downloadAndInstall(ctx context.Context, verData TemplateVersion, finalDest string) error {
 	// 1. 创建临时 ZIP 文件
 	tmpZip, err := os.CreateTemp("", "redc-dl-*.zip")
 	if err != nil {
@@ -382,7 +493,7 @@ func downloadAndInstall(ctx context.Context, art artifact, finalDest string) err
 	}()
 
 	// 2. 下载
-	req, err := http.NewRequestWithContext(ctx, "GET", art.URL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", verData.URL, nil)
 	if err != nil {
 		return err
 	}
@@ -391,7 +502,6 @@ func downloadAndInstall(ctx context.Context, art artifact, finalDest string) err
 		return fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("http status: %d", resp.StatusCode)
 	}
@@ -400,16 +510,15 @@ func downloadAndInstall(ctx context.Context, art artifact, finalDest string) err
 	bar := progressbar.DefaultBytes(resp.ContentLength, "⬇️  Downloading")
 	hasher := sha256.New()
 	writer := io.MultiWriter(tmpZip, hasher, bar)
-
 	if _, err := io.Copy(writer, resp.Body); err != nil {
 		return fmt.Errorf("write failed: %w", err)
 	}
-	tmpZip.Close() // 必须显式关闭才能被 zip reader 读取
+	tmpZip.Close()
 
 	// 4. 校验 Hash
 	actualHash := hex.EncodeToString(hasher.Sum(nil))
-	if !strings.EqualFold(actualHash, art.SHA256) {
-		return fmt.Errorf("checksum mismatch!\nLocal: %s\nRemote: %s", actualHash, art.SHA256)
+	if !strings.EqualFold(actualHash, verData.SHA256) {
+		return fmt.Errorf("checksum mismatch!\nLocal: %s\nRemote: %s", actualHash, verData.SHA256)
 	}
 
 	gologger.Info().Msg("📦 Extracting...")
@@ -419,13 +528,10 @@ func downloadAndInstall(ctx context.Context, art artifact, finalDest string) err
 	if err := os.MkdirAll(parentDir, os.ModePerm); err != nil {
 		return fmt.Errorf("mkdir parent failed: %w", err)
 	}
-
-	// 创建一个同级的临时目录用于解压，确保 rename 是原子操作
 	tmpExtractDir, err := os.MkdirTemp(parentDir, ".tmp-install-*")
 	if err != nil {
 		return fmt.Errorf("mkdir temp failed: %w", err)
 	}
-	// 无论成功与否，最后都清理掉这个临时文件夹
 	defer os.RemoveAll(tmpExtractDir)
 
 	// 解压到临时目录
@@ -433,7 +539,7 @@ func downloadAndInstall(ctx context.Context, art artifact, finalDest string) err
 		return fmt.Errorf("unzip failed: %w", err)
 	}
 
-	// 6. 原子替换：删除旧目录 -> 移动新目录
+	// 6. 原子替换
 	if err := os.RemoveAll(finalDest); err != nil {
 		return fmt.Errorf("remove old version failed: %w", err)
 	}
@@ -451,40 +557,29 @@ func unzip(src, dest string) error {
 		return err
 	}
 	defer r.Close()
-
 	destClean := filepath.Clean(dest) + string(os.PathSeparator)
-
 	for _, f := range r.File {
 		fpath := filepath.Join(dest, f.Name)
-
-		// 安全检查: Zip Slip
 		if !strings.HasPrefix(filepath.Clean(fpath)+string(os.PathSeparator), destClean) {
 			return fmt.Errorf("zip slip detected: %s", f.Name)
 		}
-
 		if f.FileInfo().IsDir() {
 			os.MkdirAll(fpath, os.ModePerm)
 			continue
 		}
-
 		if err := os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
 			return err
 		}
-
 		outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 		if err != nil {
 			return err
 		}
-
 		rc, err := f.Open()
 		if err != nil {
 			outFile.Close()
 			return err
 		}
-
-		// 限制文件大小，可选，防止压缩包炸弹
 		io.Copy(outFile, rc)
-
 		outFile.Close()
 		rc.Close()
 	}
@@ -492,56 +587,34 @@ func unzip(src, dest string) error {
 }
 
 // ScanTemplateDirs 扫描指定目录寻找模版
-// rootDir: 根目录
-// maxDepth: 最大扫描深度 (例如 2 表示只扫 root/a 和 root/a/b)
 func ScanTemplateDirs(rootDir string, maxDepth int) ([]string, error) {
 	var validPaths []string
-
-	// 辅助函数：判断是否存在 case.json
 	hasConfigFile := func(dirPath string) bool {
 		configPath := filepath.Join(dirPath, TmplCaseFile)
 		_, err := os.Stat(configPath)
 		return err == nil
 	}
-
-	// 定义递归函数
-	// currentPath: 当前扫描的绝对/相对路径
-	// currentDepth: 当前层级 (相对于 rootDir，第一级子目录为 1)
 	var scan func(currentPath string, currentDepth int)
 	scan = func(currentPath string, currentDepth int) {
-		// 递归终止条件：超过最大深度
 		if currentDepth > maxDepth {
 			return
 		}
-
 		entries, err := os.ReadDir(currentPath)
 		if err != nil {
-			// 遇到权限不足等错误，跳过该目录，不中断整体流程
 			return
 		}
-
 		for _, entry := range entries {
 			if !entry.IsDir() {
 				continue
 			}
-
 			fullPath := filepath.Join(currentPath, entry.Name())
-
-			// 1. 检查当前目录是不是模版
 			if hasConfigFile(fullPath) {
 				validPaths = append(validPaths, fullPath)
-				// 如果当前目录已经是模版了，就不再往里递归扫描子目录
-				// 避免模版嵌套 (e.g. found 'nginx', ignore 'nginx/conf')
 				continue
 			}
-
-			// 2. 如果不是模版，且未达最大深度，继续向下递归
 			scan(fullPath, currentDepth+1)
 		}
 	}
-
-	// 启动递归，层级从 1 开始
 	scan(rootDir, 1)
-
 	return validPaths, nil
 }
