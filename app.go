@@ -16,6 +16,7 @@ import (
 
 	redc "red-cloud/mod"
 	"red-cloud/mod/gologger"
+	"red-cloud/mod/mcp"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -27,6 +28,7 @@ type App struct {
 	mu          sync.Mutex
 	initError   string
 	logMgr      *gologger.LogManager
+	mcpManager  *mcp.MCPServerManager
 }
 
 // NewApp creates a new App application struct
@@ -764,5 +766,82 @@ func (a *App) PullTemplate(templateName string, force bool) error {
 		a.emitLog(fmt.Sprintf("模板拉取成功: %s", templateName))
 	}()
 
+	return nil
+}
+
+// MCPStatus represents the MCP server status for frontend display
+type MCPStatus struct {
+	Running         bool   `json:"running"`
+	Mode            string `json:"mode"`
+	Address         string `json:"address"`
+	ProtocolVersion string `json:"protocolVersion"`
+}
+
+// GetMCPStatus returns the current MCP server status
+func (a *App) GetMCPStatus() MCPStatus {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.mcpManager == nil {
+		return MCPStatus{Running: false}
+	}
+
+	status := a.mcpManager.GetStatus()
+	return MCPStatus{
+		Running:         status["running"].(bool),
+		Mode:            status["mode"].(string),
+		Address:         status["address"].(string),
+		ProtocolVersion: status["protocolVersion"].(string),
+	}
+}
+
+// StartMCPServer starts the MCP server with the specified mode and address
+func (a *App) StartMCPServer(mode string, address string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.project == nil {
+		return fmt.Errorf("项目未加载")
+	}
+
+	// Create manager if not exists
+	if a.mcpManager == nil {
+		a.mcpManager = mcp.NewMCPServerManager(a.project)
+		a.mcpManager.SetLogCallback(a.emitLog)
+	}
+
+	// Convert mode string to TransportMode
+	var transportMode mcp.TransportMode
+	switch mode {
+	case "sse":
+		transportMode = mcp.TransportSSE
+	case "stdio":
+		transportMode = mcp.TransportSTDIO
+	default:
+		return fmt.Errorf("未知的传输模式: %s", mode)
+	}
+
+	if err := a.mcpManager.Start(transportMode, address); err != nil {
+		return fmt.Errorf("启动 MCP 服务器失败: %v", err)
+	}
+
+	a.emitLog(fmt.Sprintf("MCP 服务器已启动 - 模式: %s, 地址: %s", mode, address))
+	return nil
+}
+
+// StopMCPServer stops the running MCP server
+func (a *App) StopMCPServer() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.mcpManager == nil {
+		return fmt.Errorf("MCP 服务器未初始化")
+	}
+
+	if err := a.mcpManager.Stop(); err != nil {
+		return fmt.Errorf("停止 MCP 服务器失败: %v", err)
+	}
+
+	a.emitLog("MCP 服务器已停止")
 	return nil
 }

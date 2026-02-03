@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime.js';
-  import { ListCases, ListTemplates, StartCase, StopCase, RemoveCase, CreateCase, CreateAndRunCase, GetConfig, GetCaseOutputs, GetTemplateVariables, SaveProxyConfig, FetchRegistryTemplates, PullTemplate } from '../wailsjs/go/main/App.js';
+  import { ListCases, ListTemplates, StartCase, StopCase, RemoveCase, CreateCase, CreateAndRunCase, GetConfig, GetCaseOutputs, GetTemplateVariables, SaveProxyConfig, FetchRegistryTemplates, PullTemplate, GetMCPStatus, StartMCPServer, StopMCPServer } from '../wailsjs/go/main/App.js';
 
   let cases = [];
   let templates = [];
@@ -26,6 +26,11 @@
   let registryError = '';
   let registrySearch = '';
   let pullingTemplates = {};
+
+  // MCP state
+  let mcpStatus = { running: false, mode: '', address: '', protocolVersion: '' };
+  let mcpForm = { mode: 'sse', address: 'localhost:8080' };
+  let mcpLoading = false;
 
   const stateConfig = {
     'running': { label: '运行中', color: 'text-emerald-600', bg: 'bg-emerald-50', dot: 'bg-emerald-500' },
@@ -286,6 +291,39 @@
       }
     }
   }
+
+  // MCP functions
+  async function loadMCPStatus() {
+    try {
+      mcpStatus = await GetMCPStatus();
+    } catch (e) {
+      console.error('Failed to load MCP status:', e);
+    }
+  }
+
+  async function handleStartMCP() {
+    mcpLoading = true;
+    try {
+      await StartMCPServer(mcpForm.mode, mcpForm.address);
+      await loadMCPStatus();
+    } catch (e) {
+      error = e.message || String(e);
+    } finally {
+      mcpLoading = false;
+    }
+  }
+
+  async function handleStopMCP() {
+    mcpLoading = true;
+    try {
+      await StopMCPServer();
+      await loadMCPStatus();
+    } catch (e) {
+      error = e.message || String(e);
+    } finally {
+      mcpLoading = false;
+    }
+  }
 </script>
 
 <div class="h-screen flex bg-[#fafbfc]">
@@ -343,6 +381,16 @@
           </svg>
           仓库
         </button>
+        <button 
+          class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-all
+            {activeTab === 'ai' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}"
+          on:click={() => { activeTab = 'ai'; loadMCPStatus(); }}
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+          </svg>
+          AI 集成
+        </button>
       </div>
     </nav>
 
@@ -356,11 +404,11 @@
     <!-- Header -->
     <header class="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-6">
       <h1 class="text-[15px] font-medium text-gray-900">
-        {#if activeTab === 'dashboard'}场景管理{:else if activeTab === 'console'}控制台{:else if activeTab === 'registry'}模板仓库{:else}设置{/if}
+        {#if activeTab === 'dashboard'}场景管理{:else if activeTab === 'console'}控制台{:else if activeTab === 'registry'}模板仓库{:else if activeTab === 'ai'}AI 集成{:else}设置{/if}
       </h1>
       <button 
         class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-50 text-gray-400 hover:text-gray-600 transition-colors"
-        on:click={() => { refreshData(); if (activeTab === 'registry') loadRegistryTemplates(); }}
+        on:click={() => { refreshData(); if (activeTab === 'registry') loadRegistryTemplates(); if (activeTab === 'ai') loadMCPStatus(); }}
       >
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
@@ -793,6 +841,157 @@
               {/each}
             </div>
           {/if}
+        </div>
+
+      {:else if activeTab === 'ai'}
+        <div class="max-w-2xl space-y-5">
+          <!-- MCP Status Card -->
+          <div class="bg-white rounded-xl border border-gray-100 p-5">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+                  <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 class="text-[14px] font-semibold text-gray-900">MCP 服务器</h2>
+                  <p class="text-[12px] text-gray-500">Model Context Protocol 服务</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                {#if mcpStatus.running}
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-600 text-[12px] font-medium rounded-full">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    运行中
+                  </span>
+                {:else}
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 text-gray-500 text-[12px] font-medium rounded-full">
+                    <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                    已停止
+                  </span>
+                {/if}
+              </div>
+            </div>
+
+            {#if mcpStatus.running}
+              <!-- Running status info -->
+              <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                <div class="grid grid-cols-2 gap-4 text-[12px]">
+                  <div>
+                    <span class="text-gray-500">传输模式</span>
+                    <p class="font-medium text-gray-900 mt-0.5">{mcpStatus.mode === 'sse' ? 'SSE (HTTP)' : 'STDIO'}</p>
+                  </div>
+                  <div>
+                    <span class="text-gray-500">监听地址</span>
+                    <p class="font-mono font-medium text-gray-900 mt-0.5">{mcpStatus.address || '-'}</p>
+                  </div>
+                  <div>
+                    <span class="text-gray-500">协议版本</span>
+                    <p class="font-medium text-gray-900 mt-0.5">{mcpStatus.protocolVersion}</p>
+                  </div>
+                  <div>
+                    <span class="text-gray-500">消息端点</span>
+                    <p class="font-mono font-medium text-gray-900 mt-0.5 text-[11px]">http://{mcpStatus.address}/message</p>
+                  </div>
+                </div>
+              </div>
+              <button 
+                class="w-full h-10 bg-red-500 text-white text-[13px] font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                on:click={handleStopMCP}
+                disabled={mcpLoading}
+              >
+                {mcpLoading ? '停止中...' : '停止服务器'}
+              </button>
+            {:else}
+              <!-- Configuration form -->
+              <div class="space-y-4 mb-4">
+                <div>
+                  <label class="block text-[12px] font-medium text-gray-500 mb-1.5">传输模式</label>
+                  <div class="flex gap-2">
+                    <button 
+                      class="flex-1 h-10 px-4 text-[13px] font-medium rounded-lg border transition-colors
+                        {mcpForm.mode === 'sse' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}"
+                      on:click={() => mcpForm.mode = 'sse'}
+                    >
+                      SSE (HTTP)
+                    </button>
+                    <button 
+                      class="flex-1 h-10 px-4 text-[13px] font-medium rounded-lg border transition-colors
+                        {mcpForm.mode === 'stdio' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}"
+                      on:click={() => mcpForm.mode = 'stdio'}
+                    >
+                      STDIO
+                    </button>
+                  </div>
+                </div>
+                {#if mcpForm.mode === 'sse'}
+                  <div>
+                    <label class="block text-[12px] font-medium text-gray-500 mb-1.5">监听地址</label>
+                    <input 
+                      type="text" 
+                      placeholder="localhost:8080" 
+                      class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
+                      bind:value={mcpForm.address} 
+                    />
+                  </div>
+                {/if}
+              </div>
+              <button 
+                class="w-full h-10 bg-gray-900 text-white text-[13px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+                on:click={handleStartMCP}
+                disabled={mcpLoading}
+              >
+                {mcpLoading ? '启动中...' : '启动服务器'}
+              </button>
+            {/if}
+          </div>
+
+          <!-- MCP Info Card -->
+          <div class="bg-white rounded-xl border border-gray-100 p-5">
+            <h3 class="text-[14px] font-semibold text-gray-900 mb-3">关于 MCP</h3>
+            <p class="text-[12px] text-gray-600 leading-relaxed mb-4">
+              Model Context Protocol (MCP) 是一种开放协议，允许 AI 助手与外部工具和数据源进行交互。
+              启用 MCP 服务器后，您可以通过 Claude、Cursor 等支持 MCP 的 AI 工具直接管理 RedC 基础设施。
+            </p>
+            <div class="bg-gray-50 rounded-lg p-4">
+              <div class="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-2">可用工具</div>
+              <div class="grid grid-cols-2 gap-2 text-[12px]">
+                <div class="flex items-center gap-2 text-gray-700">
+                  <span class="w-1 h-1 rounded-full bg-gray-400"></span>
+                  list_templates
+                </div>
+                <div class="flex items-center gap-2 text-gray-700">
+                  <span class="w-1 h-1 rounded-full bg-gray-400"></span>
+                  list_cases
+                </div>
+                <div class="flex items-center gap-2 text-gray-700">
+                  <span class="w-1 h-1 rounded-full bg-gray-400"></span>
+                  plan_case
+                </div>
+                <div class="flex items-center gap-2 text-gray-700">
+                  <span class="w-1 h-1 rounded-full bg-gray-400"></span>
+                  start_case
+                </div>
+                <div class="flex items-center gap-2 text-gray-700">
+                  <span class="w-1 h-1 rounded-full bg-gray-400"></span>
+                  stop_case
+                </div>
+                <div class="flex items-center gap-2 text-gray-700">
+                  <span class="w-1 h-1 rounded-full bg-gray-400"></span>
+                  kill_case
+                </div>
+                <div class="flex items-center gap-2 text-gray-700">
+                  <span class="w-1 h-1 rounded-full bg-gray-400"></span>
+                  get_case_status
+                </div>
+                <div class="flex items-center gap-2 text-gray-700">
+                  <span class="w-1 h-1 rounded-full bg-gray-400"></span>
+                  exec_command
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       {/if}
     </main>
