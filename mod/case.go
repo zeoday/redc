@@ -181,6 +181,14 @@ func (c *Case) TfApply() error {
 	if c.State == StateRunning {
 		return fmt.Errorf("场景正在运行中！")
 	}
+	
+	// 重新生成 plan 以确保与当前 state 一致
+	gologger.Info().Msgf("正在刷新场景计划...")
+	if err = TfPlan(c.Path, c.Parameter...); err != nil {
+		c.StatusChange(StateError)
+		return fmt.Errorf("场景计划刷新失败: %w", err)
+	}
+	
 	if err = TfApply(c.Path, c.Parameter...); err != nil {
 		c.StatusChange(StateError)
 		// 启动失败立即销毁
@@ -323,7 +331,9 @@ func (c *Case) Remove() error {
 	if err != nil {
 		return fmt.Errorf("删除场景文件失败！%s", err.Error())
 	}
-	err = c.removeHandle()
+	if err = c.removeHandle(); err != nil {
+		return fmt.Errorf("删除数据库记录失败: %v", err)
+	}
 	gologger.Info().Msgf("场景删除成功")
 	return nil
 }

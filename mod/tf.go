@@ -44,11 +44,10 @@ func TfInit2(Path string) error {
 	if err := TfInit(Path); err != nil {
 		gologger.Debug().Msgf("初始化失败！: %v", err)
 		// 无法初始化,删除 case 文件夹
-		err = os.RemoveAll(Path)
-		if err != nil {
-			return fmt.Errorf("删除文件夹失败！")
+		if removeErr := os.RemoveAll(Path); removeErr != nil {
+			gologger.Error().Msgf("删除文件夹失败: %v", removeErr)
 		}
-		return err
+		return err // 返回原始的初始化错误
 	}
 	return nil
 }
@@ -89,7 +88,11 @@ func TfApply(Path string, opts ...string) error {
 	}
 	o := ToApply(opts)
 	o = append(o, tfexec.DirOrPlan(RedcPlanPath))
-	err = te.Apply(ctx, ToApply(opts)...)
+	
+	// Add stdout/stderr wrapper if needed for debugging
+	// But NewTerraformExecutor already handles it via options or default os.Stdout
+	
+	err = te.Apply(ctx, o...)
 	if err != nil {
 		gologger.Debug().Msgf("场景启动失败: %s", err.Error())
 		return err
@@ -136,6 +139,10 @@ func TfDestroy(Path string, opts []string) error {
 	te, err := NewTerraformExecutor(Path)
 	if err != nil {
 		gologger.Error().Msgf("场景销毁失败,terraform未找到或配置错误: %v", err)
+		return err // Add return here!
+	}
+	if te == nil {
+		return fmt.Errorf("TerraformExecutor is nil")
 	}
 	err = te.Destroy(ctx, ToDestroy(opts)...)
 	if err != nil {
