@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	redc "red-cloud/mod"
 	"red-cloud/mod/gologger"
@@ -254,6 +255,28 @@ func (s *MCPServer) getTools() []Tool {
 			},
 		},
 		{
+			Name:        "pull_template",
+			Description: "Download a template from the registry (redc pull)",
+			InputSchema: ToolSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"template": {
+						Type:        "string",
+						Description: "Template name (e.g., 'aliyun/ecs' or 'aliyun/ecs:1.0.1')",
+					},
+					"registry_url": {
+						Type:        "string",
+						Description: "Registry base URL (optional, default: https://redc.wgpsec.org)",
+					},
+					"force": {
+						Type:        "boolean",
+						Description: "Force re-download even if template exists (optional)",
+					},
+				},
+				Required: []string{"template"},
+			},
+		},
+		{
 			Name:        "list_cases",
 			Description: "List all running cases in the current project",
 			InputSchema: ToolSchema{
@@ -460,6 +483,15 @@ func (s *MCPServer) executeTool(name string, args map[string]interface{}) (ToolR
 	case "list_templates":
 		return s.toolListTemplates()
 
+	case "pull_template":
+		template, ok := args["template"].(string)
+		if !ok {
+			return ToolResult{}, fmt.Errorf("missing or invalid 'template' parameter")
+		}
+		registryURL, _ := args["registry_url"].(string)
+		force, _ := args["force"].(bool)
+		return s.toolPullTemplate(template, registryURL, force)
+
 	case "list_cases":
 		return s.toolListCases()
 
@@ -526,6 +558,37 @@ func (s *MCPServer) toolListTemplates() (ToolResult, error) {
 	output := "Available templates:\n"
 	for _, dir := range dirs {
 		output += fmt.Sprintf("- %s\n", dir)
+	}
+
+	return ToolResult{
+		Content: []ContentItem{{
+			Type: "text",
+			Text: output,
+		}},
+	}, nil
+}
+
+func (s *MCPServer) toolPullTemplate(template string, registryURL string, force bool) (ToolResult, error) {
+	if strings.TrimSpace(template) == "" {
+		return ToolResult{}, fmt.Errorf("template cannot be empty")
+	}
+	if strings.TrimSpace(registryURL) == "" {
+		registryURL = "https://redc.wgpsec.org"
+	}
+
+	opts := redc.PullOptions{
+		RegistryURL: registryURL,
+		Force:       force,
+		Timeout:     120 * time.Second,
+	}
+
+	if err := redc.Pull(context.Background(), template, opts); err != nil {
+		return ToolResult{}, fmt.Errorf("failed to pull template: %v", err)
+	}
+
+	output := fmt.Sprintf("Template pulled successfully:\n- Template: %s\n- Registry: %s\n", template, registryURL)
+	if force {
+		output += "- Force: true\n"
 	}
 
 	return ToolResult{
