@@ -382,11 +382,10 @@ func loadCFSettings() cfSettings {
 	var conf cfSettings
 	gologger.Info().Msg("chang_dns: loadCFSettings begin")
 
-	cfgPath := filepath.Join(RedcPath, "config.yaml")
-	if RedcPath == "" {
-		if home, err := os.UserHomeDir(); err == nil {
-			cfgPath = filepath.Join(home, "redc", "config.yaml")
-		}
+	cfgPath, err := GetConfigPath(ActiveConfigPath)
+	if err != nil {
+		gologger.Info().Msgf("chang_dns: loadCFSettings path err=%v", err)
+		return conf
 	}
 	gologger.Info().Msgf("chang_dns: loadCFSettings path=%s", cfgPath)
 

@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { EventsOn, EventsOff, BrowserOpenURL } from '../wailsjs/runtime/runtime.js';
-  import { ListCases, ListTemplates, StartCase, StopCase, RemoveCase, CreateCase, CreateAndRunCase, GetConfig, GetCaseOutputs, GetTemplateVariables, SaveProxyConfig, FetchRegistryTemplates, PullTemplate, RemoveTemplate, GetMCPStatus, StartMCPServer, StopMCPServer, GetProvidersConfig, SaveProvidersConfig, SetDebugLogging } from '../wailsjs/go/main/App.js';
+  import { ListCases, ListTemplates, StartCase, StopCase, RemoveCase, CreateCase, CreateAndRunCase, GetConfig, GetCaseOutputs, GetTemplateVariables, SaveProxyConfig, FetchRegistryTemplates, PullTemplate, RemoveTemplate, GetMCPStatus, StartMCPServer, StopMCPServer, GetProvidersConfig, SaveProvidersConfig, SetDebugLogging, ListProfiles, GetActiveProfile, SetActiveProfile, CreateProfile, UpdateProfile, DeleteProfile } from '../wailsjs/go/main/App.js';
 
   let cases = [];
   let templates = [];
@@ -43,6 +43,12 @@
   let editingProvider = null;
   let editFields = {};
   let customConfigPath = '';
+  let profiles = [];
+  let activeProfileId = '';
+  let profileForm = { name: '', configPath: '', templateDir: '' };
+  let profileLoading = false;
+  let profileSaving = false;
+  let profileError = '';
 
   // Local templates state
   let localTemplates = [];
@@ -91,6 +97,11 @@
       currentConfig: '当前配置', securityTip: '安全提示：', securityInfo: '凭据以脱敏形式显示，编辑时需重新输入完整值。空字段不会覆盖已有配置。',
       edit: '编辑', cancel: '取消', save: '保存', notSet: '未设置', enterNew: '输入新值覆盖', clickLoad: '点击"加载配置"查看凭据',
       confirmDelete: '确认删除', cannotUndo: '此操作不可撤销', confirmDeleteScene: '确定要删除场景', region: '区域', credentialsJson: '凭据 JSON',
+      profile: '凭据配置', profileName: 'Profile 名称', templateDir: '模板目录', profileManage: 'Profile 管理', activeProfile: '当前 Profile',
+      createProfile: '新建 Profile', saveProfile: '保存 Profile', deleteProfile: '删除 Profile', selectProfile: '选择 Profile...',
+      profileHint: 'Profile 将对应独立配置文件与模板目录',
+      profileNameRequired: 'Profile 名称不能为空',
+      profileCredentialsFrom: '凭据读取自', profileTemplateFrom: '模板目录来自', profileSwitchHint: '切换 Profile 会同时切换凭据与模板目录',
       selectTemplateErr: '请选择一个模板',
       // Local templates i18n
       version: '版本', author: '作者', module: '模块', description: '描述', viewParams: '查看参数',
@@ -129,6 +140,11 @@
       currentConfig: 'Current config', securityTip: 'Security Notice:', securityInfo: 'Credentials are displayed in masked form. Re-enter full values when editing. Empty fields won\'t overwrite existing config.',
       edit: 'Edit', cancel: 'Cancel', save: 'Save', notSet: 'Not set', enterNew: 'Enter new value', clickLoad: 'Click "Load Config" to view credentials',
       confirmDelete: 'Confirm Delete', cannotUndo: 'This cannot be undone', confirmDeleteScene: 'Are you sure you want to delete scene', region: 'Region', credentialsJson: 'Credentials JSON',
+      profile: 'Profiles', profileName: 'Profile Name', templateDir: 'Template Directory', profileManage: 'Profile Management', activeProfile: 'Active Profile',
+      createProfile: 'Create Profile', saveProfile: 'Save Profile', deleteProfile: 'Delete Profile', selectProfile: 'Select profile...',
+      profileHint: 'Each profile maps to its own config file and template directory',
+      profileNameRequired: 'Profile name is required',
+      profileCredentialsFrom: 'Credentials loaded from', profileTemplateFrom: 'Template directory from', profileSwitchHint: 'Switching profile will change credentials and template directory',
       selectTemplateErr: 'Please select a template',
       // Local templates i18n
       version: 'Version', author: 'Author', module: 'Module', description: 'Description', viewParams: 'View Params',
@@ -583,6 +599,114 @@
     }
   }
 
+  async function loadProfiles() {
+    profileLoading = true;
+    profileError = '';
+    try {
+      const [list, active] = await Promise.all([
+        ListProfiles(),
+        GetActiveProfile()
+      ]);
+      profiles = list || [];
+      if (active && active.id) {
+        activeProfileId = active.id;
+        profileForm = {
+          name: active.name || '',
+          configPath: active.configPath || '',
+          templateDir: active.templateDir || ''
+        };
+        customConfigPath = profileForm.configPath;
+      }
+    } catch (e) {
+      profileError = e.message || String(e);
+    } finally {
+      profileLoading = false;
+    }
+  }
+
+  async function handleProfileChange(id) {
+    if (!id) return;
+    profileLoading = true;
+    profileError = '';
+    try {
+      const active = await SetActiveProfile(id);
+      activeProfileId = active.id;
+      profileForm = {
+        name: active.name || '',
+        configPath: active.configPath || '',
+        templateDir: active.templateDir || ''
+      };
+      customConfigPath = profileForm.configPath;
+      await loadProvidersConfig();
+    } catch (e) {
+      profileError = e.message || String(e);
+    } finally {
+      profileLoading = false;
+    }
+  }
+
+  async function handleCreateProfile() {
+    if (!profileForm.name) {
+      profileError = t.profileNameRequired;
+      return;
+    }
+    profileSaving = true;
+    profileError = '';
+    try {
+      const created = await CreateProfile(profileForm.name, profileForm.configPath, profileForm.templateDir);
+      profiles = await ListProfiles();
+      await handleProfileChange(created.id);
+    } catch (e) {
+      profileError = e.message || String(e);
+    } finally {
+      profileSaving = false;
+    }
+  }
+
+  async function handleSaveProfile() {
+    if (!activeProfileId) return;
+    if (!profileForm.name) {
+      profileError = t.profileNameRequired;
+      return;
+    }
+    profileSaving = true;
+    profileError = '';
+    try {
+      const updated = await UpdateProfile(activeProfileId, profileForm.name, profileForm.configPath, profileForm.templateDir);
+      profiles = await ListProfiles();
+      activeProfileId = updated.id;
+      profileForm = {
+        name: updated.name || '',
+        configPath: updated.configPath || '',
+        templateDir: updated.templateDir || ''
+      };
+      customConfigPath = profileForm.configPath;
+      await SetActiveProfile(activeProfileId);
+      await loadProvidersConfig();
+    } catch (e) {
+      profileError = e.message || String(e);
+    } finally {
+      profileSaving = false;
+    }
+  }
+
+  async function handleDeleteProfile() {
+    if (!activeProfileId) return;
+    profileSaving = true;
+    profileError = '';
+    try {
+      await DeleteProfile(activeProfileId);
+      await loadProfiles();
+      if (activeProfileId) {
+        await handleProfileChange(activeProfileId);
+      }
+    } catch (e) {
+      profileError = e.message || String(e);
+    } finally {
+      profileSaving = false;
+    }
+  }
+
   function startEditProvider(provider) {
     editingProvider = provider.name;
     editFields = {};
@@ -762,7 +886,7 @@
         <button 
           class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-all
             {activeTab === 'credentials' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}"
-          on:click={() => { activeTab = 'credentials'; loadProvidersConfig(); }}
+          on:click={() => { activeTab = 'credentials'; loadProfiles(); loadProvidersConfig(); }}
         >
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
@@ -834,7 +958,7 @@
       </h1>
       <button 
         class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-50 text-gray-400 hover:text-gray-600 transition-colors"
-        on:click={() => { refreshData(); if (activeTab === 'registry') loadRegistryTemplates(); if (activeTab === 'localTemplates') loadLocalTemplates(); if (activeTab === 'ai') loadMCPStatus(); if (activeTab === 'credentials') loadProvidersConfig(); }}
+        on:click={() => { refreshData(); if (activeTab === 'registry') loadRegistryTemplates(); if (activeTab === 'localTemplates') loadLocalTemplates(); if (activeTab === 'ai') loadMCPStatus(); if (activeTab === 'credentials') { loadProfiles(); loadProvidersConfig(); } }}
       >
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
@@ -1463,31 +1587,110 @@
 
       {:else if activeTab === 'credentials'}
         <div class="max-w-3xl space-y-5">
-          <!-- Config Path -->
+          <!-- Profile مدیریت -->
           <div class="bg-white rounded-xl border border-gray-100 p-5">
-            <div class="flex items-center gap-4">
-              <div class="flex-1">
-                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.configPath}</label>
-                <input 
-                  type="text" 
-                  placeholder={t.defaultPath}
-                  class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
-                  bind:value={customConfigPath} 
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-[14px] font-semibold text-gray-900">{t.profileManage}</h3>
+                <p class="text-[12px] text-gray-500">{t.profileHint}</p>
+              </div>
+              <div class="text-[12px] text-gray-500">
+                {t.activeProfile}: <span class="font-medium text-gray-700">{profiles.find(p => p.id === activeProfileId)?.name || '-'}</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.profile}</label>
+                <select
+                  class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
+                  bind:value={activeProfileId}
+                  on:change={(e) => handleProfileChange(e.target.value)}
+                >
+                  <option value="" disabled>{t.selectProfile}</option>
+                  {#each profiles as p}
+                    <option value={p.id}>{p.name}</option>
+                  {/each}
+                </select>
+              </div>
+              <div>
+                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.profileName}</label>
+                <input
+                  type="text"
+                  class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
+                  bind:value={profileForm.name}
                 />
               </div>
-              <button 
-                class="h-10 px-5 bg-gray-900 text-white text-[13px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 mt-5"
+              <div class="md:col-span-2">
+                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.configPath}</label>
+                <input
+                  type="text"
+                  placeholder={t.defaultPath}
+                  class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
+                  bind:value={profileForm.configPath}
+                  on:input={() => { customConfigPath = profileForm.configPath; }}
+                />
+              </div>
+              <div class="md:col-span-2">
+                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.templateDir}</label>
+                <input
+                  type="text"
+                  placeholder={t.defaultPath}
+                  class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
+                  bind:value={profileForm.templateDir}
+                />
+              </div>
+            </div>
+
+            {#if profileError}
+              <div class="mt-3 text-[12px] text-red-600">{profileError}</div>
+            {/if}
+
+            <div class="mt-4 flex flex-wrap gap-2">
+              <button
+                class="h-9 px-4 bg-gray-900 text-white text-[12px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+                on:click={handleCreateProfile}
+                disabled={profileSaving}
+              >
+                {t.createProfile}
+              </button>
+              <button
+                class="h-9 px-4 bg-emerald-500 text-white text-[12px] font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                on:click={handleSaveProfile}
+                disabled={profileSaving || !activeProfileId}
+              >
+                {t.saveProfile}
+              </button>
+              <button
+                class="h-9 px-4 bg-red-50 text-red-600 text-[12px] font-medium rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
+                on:click={handleDeleteProfile}
+                disabled={profileSaving || !activeProfileId}
+              >
+                {t.deleteProfile}
+              </button>
+              <button
+                class="h-9 px-4 bg-gray-100 text-gray-700 text-[12px] font-medium rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
                 on:click={loadProvidersConfig}
                 disabled={credentialsLoading}
               >
                 {credentialsLoading ? t.loading : t.loadConfig}
               </button>
             </div>
+
             {#if providersConfig.configPath}
               <div class="mt-3 text-[12px] text-gray-500">
                 {t.currentConfig}: <span class="font-mono">{providersConfig.configPath}</span>
               </div>
             {/if}
+            <div class="mt-2 text-[12px] text-gray-500">
+              {t.profileCredentialsFrom}: <span class="font-mono">{profileForm.configPath || providersConfig.configPath || '-'}</span>
+            </div>
+            <div class="text-[12px] text-gray-500">
+              {t.profileTemplateFrom}: <span class="font-mono">{profileForm.templateDir || '-'}</span>
+            </div>
+            <div class="text-[11px] text-gray-400 mt-1">
+              {t.profileSwitchHint}
+            </div>
           </div>
 
           <!-- Security Notice -->

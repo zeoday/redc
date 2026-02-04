@@ -56,6 +56,13 @@ func (a *App) startup(ctx context.Context) {
 		runtime.LogErrorf(ctx, a.initError)
 		return
 	}
+	if profile, err := redc.GetActiveProfile(); err == nil {
+		if _, err := redc.SetActiveProfile(profile.ID); err != nil {
+			runtime.LogInfof(ctx, "Profile 初始化失败: %v", err)
+		}
+	} else {
+		runtime.LogInfof(ctx, "Profile 初始化失败: %v", err)
+	}
 
 	runtime.LogInfof(ctx, "配置加载成功 - RedcPath: %s, ProjectPath: %s, TemplateDir: %s", 
 		redc.RedcPath, redc.ProjectPath, redc.TemplateDir)
@@ -469,6 +476,36 @@ func (a *App) SaveProvidersConfig(providerName string, fields map[string]string,
 
 	a.emitLog(fmt.Sprintf("凭据配置已更新: %s", providerName))
 	return nil
+}
+
+// ListProfiles returns all available profiles
+func (a *App) ListProfiles() ([]redc.ProfileInfo, error) {
+	return redc.ListProfiles()
+}
+
+// GetActiveProfile returns the active profile
+func (a *App) GetActiveProfile() (redc.ProfileInfo, error) {
+	return redc.GetActiveProfile()
+}
+
+// SetActiveProfile switches the active profile
+func (a *App) SetActiveProfile(profileID string) (redc.ProfileInfo, error) {
+	return redc.SetActiveProfile(profileID)
+}
+
+// CreateProfile creates a new profile
+func (a *App) CreateProfile(name string, configPath string, templateDir string) (redc.ProfileInfo, error) {
+	return redc.CreateProfile(name, configPath, templateDir)
+}
+
+// UpdateProfile updates an existing profile
+func (a *App) UpdateProfile(profileID string, name string, configPath string, templateDir string) (redc.ProfileInfo, error) {
+	return redc.UpdateProfile(profileID, name, configPath, templateDir)
+}
+
+// DeleteProfile removes a profile
+func (a *App) DeleteProfile(profileID string) error {
+	return redc.DeleteProfile(profileID)
 }
 
 // ListCases returns all cases for the current project
