@@ -30,7 +30,7 @@
 
 ---
 
-## 📚 Documentation
+## Documentation
 
 - **[User Guide](README.md)** - Complete installation and usage guide
 - **[AI Operations Skills](.claude/skills/useage/SKILL.md)** - Comprehensive guide for AI agents and automation tools
@@ -52,7 +52,53 @@ Redc is not just a machine provisioning tool, but an automated cloud resource sc
 
 ---
 
-## Installation and Configuration
+## GUI Development & Debugging
+
+The redc GUI is built with Wails + Svelte + Vite.
+
+![gui](./img/gui_en.png)
+
+### Prerequisites
+
+1. Install Go (recommended 1.21+)
+2. Install Node.js (recommended 18+)
+3. Install Wails CLI
+
+```bash
+go install github.com/wailsapp/wails/v2/cmd/wails@latest
+```
+
+### Start Dev Mode
+
+From the project root:
+
+```bash
+wails dev
+```
+
+Troubleshooting:
+
+- Frontend deps missing: run `npm install` in [frontend/](frontend/)
+- HMR issues: delete [frontend/node_modules](frontend/node_modules) and reinstall
+
+---
+
+## GUI Build & Release
+
+From the project root:
+
+```bash
+wails build
+```
+
+Artifacts are output to [build/bin](build/bin).
+
+For platform/arch options, see Wails docs:
+https://wails.io/docs/guides/building/
+
+---
+
+## CLI Installation and Configuration
 
 ### redc Engine Installation
 #### Download Binary Package
