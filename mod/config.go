@@ -13,6 +13,7 @@ import (
 var commonCachePath = "./tf-plugin-cache" // Provider 插件缓存目录
 var RedcPath = ""
 var ProjectPath = "redc-taskresult"
+var ActiveConfigPath = ""
 
 const ProjectFile = "project.json"
 const RedcPlanPath = "case.tfplan"
@@ -98,11 +99,13 @@ func LoadConfig(path string) error {
 
 	var data []byte
 	var conf Config
+	var loadedPath string
 	for _, p := range searchPaths {
 		if p == "" {
 			continue
 		}
 		if data, err = os.ReadFile(p); err == nil {
+			loadedPath = p
 			break // 读取成功，跳出循环
 		}
 	}
@@ -120,6 +123,7 @@ func LoadConfig(path string) error {
 		if err := os.WriteFile(defaultConfigPath, defaultData, 0644); err != nil {
 			return fmt.Errorf("创建配置文件失败: %v", err)
 		}
+		ActiveConfigPath = defaultConfigPath
 		return nil
 	}
 
@@ -129,7 +133,23 @@ func LoadConfig(path string) error {
 
 	// 批量配置环境变量
 	bindEnv(conf)
+	if loadedPath != "" {
+		ActiveConfigPath = loadedPath
+	}
 
+	return nil
+}
+
+// ApplyConfig reads config from path and applies environment variables
+func ApplyConfig(customPath string) error {
+	conf, configPath, err := ReadConfig(customPath)
+	if err != nil {
+		return err
+	}
+	bindEnv(*conf)
+	if configPath != "" {
+		ActiveConfigPath = configPath
+	}
 	return nil
 }
 

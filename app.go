@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -17,9 +18,11 @@ import (
 	redc "red-cloud/mod"
 	"red-cloud/mod/gologger"
 	"red-cloud/mod/mcp"
+	"red-cloud/mod/compose"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"github.com/projectdiscovery/gologger/levels"
+	tfjson "github.com/hashicorp/terraform-json"
 )
 
 // App struct
@@ -55,6 +58,13 @@ func (a *App) startup(ctx context.Context) {
 		a.initError = fmt.Sprintf("配置加载失败: %v", err)
 		runtime.LogErrorf(ctx, a.initError)
 		return
+	}
+	if profile, err := redc.GetActiveProfile(); err == nil {
+		if _, err := redc.SetActiveProfile(profile.ID); err != nil {
+			runtime.LogInfof(ctx, "Profile 初始化失败: %v", err)
+		}
+	} else {
+		runtime.LogInfof(ctx, "Profile 初始化失败: %v", err)
 	}
 
 	runtime.LogInfof(ctx, "配置加载成功 - RedcPath: %s, ProjectPath: %s, TemplateDir: %s", 
@@ -471,6 +481,36 @@ func (a *App) SaveProvidersConfig(providerName string, fields map[string]string,
 	return nil
 }
 
+// ListProfiles returns all available profiles
+func (a *App) ListProfiles() ([]redc.ProfileInfo, error) {
+	return redc.ListProfiles()
+}
+
+// GetActiveProfile returns the active profile
+func (a *App) GetActiveProfile() (redc.ProfileInfo, error) {
+	return redc.GetActiveProfile()
+}
+
+// SetActiveProfile switches the active profile
+func (a *App) SetActiveProfile(profileID string) (redc.ProfileInfo, error) {
+	return redc.SetActiveProfile(profileID)
+}
+
+// CreateProfile creates a new profile
+func (a *App) CreateProfile(name string, configPath string, templateDir string) (redc.ProfileInfo, error) {
+	return redc.CreateProfile(name, configPath, templateDir)
+}
+
+// UpdateProfile updates an existing profile
+func (a *App) UpdateProfile(profileID string, name string, configPath string, templateDir string) (redc.ProfileInfo, error) {
+	return redc.UpdateProfile(profileID, name, configPath, templateDir)
+}
+
+// DeleteProfile removes a profile
+func (a *App) DeleteProfile(profileID string) error {
+	return redc.DeleteProfile(profileID)
+}
+
 // ListCases returns all cases for the current project
 func (a *App) ListCases() ([]CaseInfo, error) {
 	a.mu.Lock()
@@ -503,6 +543,198 @@ func (a *App) ListCases() ([]CaseInfo, error) {
 	return result, nil
 }
 
+// GetResourceSummary aggregates terraform resources by type across all cases
+func (a *App) GetResourceSummary() ([]ResourceSummary, error) {
+	a.mu.Lock()
+	project := a.project
+	a.mu.Unlock()
+
+	if project == nil {
+		if a.initError != "" {
+			return nil, fmt.Errorf(a.initError)
+		}
+		return nil, fmt.Errorf("项目未加载")
+	}
+
+	cases, err := redc.LoadProjectCases(project.ProjectName)
+	if err != nil {
+		return nil, err
+	}
+
+	counts := make(map[string]int)
+	for _, c := range cases {
+		if c.State != redc.StateRunning {
+			continue
+		}
+		if c.Path == "" {
+			continue
+		}
+		state, err := redc.TfStatus(c.Path)
+		if err != nil || state == nil || state.Values == nil {
+			continue
+		}
+		addModuleResources(counts, state.Values.RootModule)
+	}
+
+	result := make([]ResourceSummary, 0, len(counts))
+	for typ, count := range counts {
+		result = append(result, ResourceSummary{Type: typ, Count: count})
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].Type < result[j].Type })
+	return result, nil
+}
+
+func addModuleResources(counts map[string]int, module *tfjson.StateModule) {
+	if module == nil {
+		return
+	}
+	for _, res := range module.Resources {
+		if res.Type != "" {
+			counts[res.Type]++
+		}
+	}
+	for _, child := range module.ChildModules {
+		addModuleResources(counts, child)
+	}
+}
+
+// ComposePreview parses a compose file and returns services summary
+func (a *App) ComposePreview(filePath string, profiles []string) (ComposeSummary, error) {
+	a.mu.Lock()
+	project := a.project
+	a.mu.Unlock()
+
+	if project == nil {
+		if a.initError != "" {
+			return ComposeSummary{}, fmt.Errorf(a.initError)
+		}
+		return ComposeSummary{}, fmt.Errorf("项目未加载")
+	}
+
+	if strings.TrimSpace(filePath) == "" {
+		filePath = "redc-compose.yaml"
+	}
+
+	ctx, err := compose.NewComposeContext(compose.ComposeOptions{
+		File:     filePath,
+		Profiles: profiles,
+		Project:  project,
+	})
+	if err != nil {
+		return ComposeSummary{}, err
+	}
+
+	services := make([]ComposeServiceSummary, 0, len(ctx.SortedSvcKeys))
+	for _, name := range ctx.SortedSvcKeys {
+		svc := ctx.RuntimeSvcs[name]
+		services = append(services, ComposeServiceSummary{
+			Name:      svc.Name,
+			RawName:   svc.RawName,
+			Template:  svc.Spec.Image,
+			Provider:  formatComposeProvider(svc.Spec.Provider),
+			Profiles:  svc.Spec.Profiles,
+			DependsOn: svc.Spec.DependsOn,
+			Replicas:  svc.Spec.Deploy.Replicas,
+		})
+	}
+
+	return ComposeSummary{
+		File:     filePath,
+		Services: services,
+		Total:    len(services),
+	}, nil
+}
+
+// ComposeUp starts compose deployment asynchronously
+func (a *App) ComposeUp(filePath string, profiles []string) error {
+	a.mu.Lock()
+	project := a.project
+	a.mu.Unlock()
+
+	if project == nil {
+		if a.initError != "" {
+			return fmt.Errorf(a.initError)
+		}
+		return fmt.Errorf("项目未加载")
+	}
+
+	if strings.TrimSpace(filePath) == "" {
+		filePath = "redc-compose.yaml"
+	}
+
+	opts := compose.ComposeOptions{
+		File:     filePath,
+		Profiles: profiles,
+		Project:  project,
+	}
+
+	a.emitLog(fmt.Sprintf("开始执行 compose up: %s", filePath))
+	go func() {
+		defer a.emitRefresh()
+		if err := compose.RunComposeUp(opts); err != nil {
+			a.emitLog(fmt.Sprintf("compose up 失败: %v", err))
+			return
+		}
+		a.emitLog("compose up 完成")
+	}()
+	return nil
+}
+
+// ComposeDown destroys compose deployment asynchronously
+func (a *App) ComposeDown(filePath string, profiles []string) error {
+	a.mu.Lock()
+	project := a.project
+	a.mu.Unlock()
+
+	if project == nil {
+		if a.initError != "" {
+			return fmt.Errorf(a.initError)
+		}
+		return fmt.Errorf("项目未加载")
+	}
+
+	if strings.TrimSpace(filePath) == "" {
+		filePath = "redc-compose.yaml"
+	}
+
+	opts := compose.ComposeOptions{
+		File:     filePath,
+		Profiles: profiles,
+		Project:  project,
+	}
+
+	a.emitLog(fmt.Sprintf("开始执行 compose down: %s", filePath))
+	go func() {
+		defer a.emitRefresh()
+		if err := compose.RunComposeDown(opts); err != nil {
+			a.emitLog(fmt.Sprintf("compose down 失败: %v", err))
+			return
+		}
+		a.emitLog("compose down 完成")
+	}()
+	return nil
+}
+
+func formatComposeProvider(provider interface{}) string {
+	if provider == nil {
+		return ""
+	}
+	switch v := provider.(type) {
+	case string:
+		return v
+	case []string:
+		return strings.Join(v, ",")
+	case []interface{}:
+		items := make([]string, 0, len(v))
+		for _, item := range v {
+			items = append(items, fmt.Sprintf("%v", item))
+		}
+		return strings.Join(items, ",")
+	default:
+		return fmt.Sprintf("%v", provider)
+	}
+}
+
 // TemplateInfo represents template information for frontend display
 type TemplateInfo struct {
 	Name        string `json:"name"`
@@ -510,6 +742,99 @@ type TemplateInfo struct {
 	Version     string `json:"version"`
 	User        string `json:"user"`
 	Module      string `json:"module"`
+}
+
+// ResourceSummary represents aggregated resource counts by type
+type ResourceSummary struct {
+	Type  string `json:"type"`
+	Count int    `json:"count"`
+}
+
+// BalanceInfo represents account balance result
+type BalanceInfo struct {
+	Provider  string `json:"provider"`
+	Amount    string `json:"amount"`
+	Currency  string `json:"currency"`
+	UpdatedAt string `json:"updatedAt"`
+	Error     string `json:"error"`
+}
+
+// ComposeServiceSummary represents a compose service preview
+type ComposeServiceSummary struct {
+	Name      string   `json:"name"`
+	RawName   string   `json:"rawName"`
+	Template  string   `json:"template"`
+	Provider  string   `json:"provider"`
+	Profiles  []string `json:"profiles"`
+	DependsOn []string `json:"dependsOn"`
+	Replicas  int      `json:"replicas"`
+}
+
+// ComposeSummary represents a compose file preview
+type ComposeSummary struct {
+	File     string                  `json:"file"`
+	Services []ComposeServiceSummary `json:"services"`
+	Total    int                     `json:"total"`
+}
+
+// GetBalances returns account balances for selected providers (manual trigger)
+func (a *App) GetBalances(providers []string) ([]BalanceInfo, error) {
+	if len(providers) == 0 {
+		providers = []string{"aliyun", "tencentcloud", "volcengine", "huaweicloud"}
+	}
+
+	conf, _, err := redc.ReadConfig(redc.ActiveConfigPath)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]BalanceInfo, 0, len(providers))
+	for _, p := range providers {
+		result := BalanceInfo{
+			Provider:  p,
+			Amount:    "-",
+			Currency:  "-",
+			UpdatedAt: time.Now().Format("2006-01-02 15:04:05"),
+		}
+		switch p {
+		case "aliyun":
+			amount, currency, err := redc.QueryAliyunBalance(conf.Providers.Alicloud.AccessKey, conf.Providers.Alicloud.SecretKey, conf.Providers.Alicloud.Region)
+			if err != nil {
+				result.Error = err.Error()
+			} else {
+				result.Amount = amount
+				result.Currency = currency
+			}
+		case "tencentcloud":
+			amount, currency, err := redc.QueryTencentBalance(conf.Providers.Tencentcloud.SecretId, conf.Providers.Tencentcloud.SecretKey, conf.Providers.Tencentcloud.Region)
+			if err != nil {
+				result.Error = err.Error()
+			} else {
+				result.Amount = amount
+				result.Currency = currency
+			}
+		case "volcengine":
+			amount, currency, err := redc.QueryVolcengineBalance(conf.Providers.Volcengine.AccessKey, conf.Providers.Volcengine.SecretKey, conf.Providers.Volcengine.Region)
+			if err != nil {
+				result.Error = err.Error()
+			} else {
+				result.Amount = amount
+				result.Currency = currency
+			}
+		case "huaweicloud":
+			amount, currency, err := redc.QueryHuaweiBalance(conf.Providers.Huaweicloud.AccessKey, conf.Providers.Huaweicloud.SecretKey, conf.Providers.Huaweicloud.Region)
+			if err != nil {
+				result.Error = err.Error()
+			} else {
+				result.Amount = amount
+				result.Currency = currency
+			}
+		default:
+			result.Error = "不支持的云厂商"
+		}
+		results = append(results, result)
+	}
+	return results, nil
 }
 
 // ListTemplates returns available templates
@@ -570,7 +895,6 @@ func (a *App) GetTemplateVariables(templateName string) ([]TemplateVariable, err
 		for name, value := range defaults {
 			if v, ok := variables[name]; ok {
 				v.DefaultValue = value
-				v.Required = false
 			}
 		}
 	}
@@ -578,6 +902,7 @@ func (a *App) GetTemplateVariables(templateName string) ([]TemplateVariable, err
 	// Convert map to slice
 	result := make([]TemplateVariable, 0, len(variables))
 	for _, v := range variables {
+		v.Required = true
 		result = append(result, *v)
 	}
 	return result, nil
@@ -638,8 +963,8 @@ func parseVariablesTf(filePath string) ([]*TemplateVariable, error) {
 		
 		// Parse default
 		if matches := defaultRegex.FindStringSubmatch(line); len(matches) > 1 {
-			currentVar.DefaultValue = strings.Trim(strings.TrimSpace(matches[1]), `"`)
-			currentVar.Required = false
+			defaultRaw := strings.TrimSpace(matches[1])
+			currentVar.DefaultValue = strings.Trim(defaultRaw, `"`)
 		}
 		
 		// End of variable block
@@ -684,6 +1009,7 @@ func parseTfvars(filePath string) (map[string]string, error) {
 	
 	return defaults, scanner.Err()
 }
+
 
 // StartCase starts a case by ID
 func (a *App) StartCase(caseID string) error {
@@ -1105,6 +1431,61 @@ func (a *App) PullTemplate(templateName string, force bool) error {
 		a.emitLog(fmt.Sprintf("模板拉取成功: %s", templateName))
 	}()
 
+	return nil
+}
+
+// CopyTemplate creates an editable local copy of a template
+func (a *App) CopyTemplate(sourceName string, targetName string) error {
+	if err := redc.CopyTemplate(sourceName, targetName); err != nil {
+		a.emitLog(fmt.Sprintf("模板复制失败: %v", err))
+		return err
+	}
+	a.emitLog(fmt.Sprintf("模板复制成功: %s -> %s", sourceName, targetName))
+	a.emitRefresh()
+	return nil
+}
+
+// GetTemplateFiles reads editable files from a template directory
+func (a *App) GetTemplateFiles(templateName string) (map[string]string, error) {
+	path, err := redc.GetTemplatePath(templateName)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+	files := make(map[string]string)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if name == "case.json" || name == "terraform.tfvars" || strings.HasSuffix(name, ".tf") {
+			data, err := os.ReadFile(filepath.Join(path, name))
+			if err != nil {
+				return nil, err
+			}
+			files[name] = string(data)
+		}
+	}
+	return files, nil
+}
+
+// SaveTemplateFiles writes editable files to a template directory
+func (a *App) SaveTemplateFiles(templateName string, files map[string]string) error {
+	path, err := redc.GetTemplatePath(templateName)
+	if err != nil {
+		return err
+	}
+	for name, content := range files {
+		if name == "case.json" || name == "terraform.tfvars" || strings.HasSuffix(name, ".tf") {
+			if err := os.WriteFile(filepath.Join(path, name), []byte(content), 0644); err != nil {
+				return err
+			}
+		}
+	}
+	a.emitLog(fmt.Sprintf("模板保存成功: %s", templateName))
 	return nil
 }
 

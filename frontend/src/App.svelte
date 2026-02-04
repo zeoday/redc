@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { EventsOn, EventsOff, BrowserOpenURL } from '../wailsjs/runtime/runtime.js';
-  import { ListCases, ListTemplates, StartCase, StopCase, RemoveCase, CreateCase, CreateAndRunCase, GetConfig, GetCaseOutputs, GetTemplateVariables, SaveProxyConfig, FetchRegistryTemplates, PullTemplate, RemoveTemplate, GetMCPStatus, StartMCPServer, StopMCPServer, GetProvidersConfig, SaveProvidersConfig, SetDebugLogging } from '../wailsjs/go/main/App.js';
+  import { ListCases, ListTemplates, StartCase, StopCase, RemoveCase, CreateCase, CreateAndRunCase, GetConfig, GetCaseOutputs, GetTemplateVariables, SaveProxyConfig, FetchRegistryTemplates, PullTemplate, RemoveTemplate, CopyTemplate, GetTemplateFiles, SaveTemplateFiles, GetMCPStatus, StartMCPServer, StopMCPServer, GetProvidersConfig, SaveProvidersConfig, SetDebugLogging, ListProfiles, GetActiveProfile, SetActiveProfile, CreateProfile, UpdateProfile, DeleteProfile, GetResourceSummary, GetBalances, ComposePreview, ComposeUp, ComposeDown } from '../wailsjs/go/main/App.js';
 
   let cases = [];
   let templates = [];
@@ -43,6 +43,12 @@
   let editingProvider = null;
   let editFields = {};
   let customConfigPath = '';
+  let profiles = [];
+  let activeProfileId = '';
+  let profileForm = { name: '', configPath: '', templateDir: '' };
+  let profileLoading = false;
+  let profileSaving = false;
+  let profileError = '';
 
   // Local templates state
   let localTemplates = [];
@@ -53,6 +59,26 @@
   let localTemplateVarsLoading = false;
   let deleteTemplateConfirm = { show: false, name: '' };
   let deletingTemplate = {};
+  let cloneTemplateModal = { show: false, source: '', target: '' };
+  let templateEditor = { show: false, name: '', files: {}, active: '', saving: false, error: '' };
+
+  // Resources state
+  let resourceSummary = [];
+  let resourcesLoading = false;
+  let resourcesError = '';
+  let balanceResults = [];
+  let balanceLoading = false;
+  let balanceError = '';
+  let balanceCooldown = 0;
+  let balanceCooldownTimer = null;
+
+  // Compose state
+  let composeFilePath = 'redc-compose.yaml';
+  let composeProfiles = '';
+  let composeSummary = null;
+  let composeLoading = false;
+  let composeActionLoading = false;
+  let composeError = '';
 
   // Create status state
   let createStatus = 'idle';
@@ -65,7 +91,7 @@
   const i18n = {
     zh: {
       dashboard: '仪表盘', console: '控制台', settings: '设置', credentials: '凭据管理', registry: '模板仓库', ai: 'AI 集成', localTemplates: '本地模板',
-      sceneManage: '场景管理', templateRepo: '模板仓库', aiIntegration: 'AI 集成', localTmplManage: '本地模板管理',
+      sceneManage: '场景管理', templateRepo: '模板仓库', aiIntegration: 'AI 集成', localTmplManage: '本地模板',
       template: '模板', selectTemplate: '选择模板...', name: '名称', optional: '可选',
       create: '创建', createAndRun: '创建并运行', templateParams: '模板参数',
       creating: '正在创建中...', initializing: '初始化中...', createSuccess: '创建成功', createFailed: '创建失败',
@@ -82,6 +108,13 @@
       update: '更新', pull: '拉取', pulling: '拉取中...', noMatch: '未找到匹配的模板', clickRefresh: '点击"刷新仓库"加载模板列表',
       pullSuccess: '拉取成功', pullFailed: '拉取失败',
       mcpServer: 'MCP 服务器', mcpDesc: 'Model Context Protocol 服务',
+      resources: '云资源', compose: '编排管理',
+      resourceSummary: '资源汇总', resourceType: '资源类型', resourceCount: '数量',
+      balancePlaceholder: '余额功能暂未接入云厂商账单 API',
+      balanceQuery: '查询余额', balanceCooldown: '冷却中', balanceProvider: '云厂商', balanceAmount: '余额', balanceCurrency: '币种', balanceUpdatedAt: '更新时间',
+      composeFile: 'Compose 文件', composeProfiles: 'Profiles（逗号分隔）', previewCompose: '预览编排',
+      composeUp: '启动编排', composeDown: '销毁编排', composePreview: '编排预览',
+      serviceName: '服务', serviceTemplate: '模板', serviceProvider: '云厂商', serviceDepends: '依赖', serviceReplicas: '副本',
       transportMode: '传输模式', listenAddr: '监听地址', protocolVersion: '协议版本', msgEndpoint: '消息端点',
       stopServer: '停止服务器', startServer: '启动服务器', stoppingServer: '停止中...', startingServer: '启动中...',
       aboutMcp: '关于 MCP', mcpInfo: 'Model Context Protocol (MCP) 是一种开放协议，允许 AI 助手与外部工具和数据源进行交互。启用 MCP 服务器后，您可以通过 Claude、Cursor 等支持 MCP 的 AI 工具直接管理 RedC 基础设施。',
@@ -91,9 +124,17 @@
       currentConfig: '当前配置', securityTip: '安全提示：', securityInfo: '凭据以脱敏形式显示，编辑时需重新输入完整值。空字段不会覆盖已有配置。',
       edit: '编辑', cancel: '取消', save: '保存', notSet: '未设置', enterNew: '输入新值覆盖', clickLoad: '点击"加载配置"查看凭据',
       confirmDelete: '确认删除', cannotUndo: '此操作不可撤销', confirmDeleteScene: '确定要删除场景', region: '区域', credentialsJson: '凭据 JSON',
+      profile: '凭据配置', profileName: 'Profile 名称', templateDir: '模板目录', profileManage: 'Profile 管理', activeProfile: '当前 Profile',
+      createProfile: '新建 Profile', saveProfile: '保存 Profile', deleteProfile: '删除 Profile', selectProfile: '选择 Profile...',
+      profileHint: 'Profile 将对应独立配置文件与模板目录',
+      profileNameRequired: 'Profile 名称不能为空',
+      profileCredentialsFrom: '凭据读取自', profileTemplateFrom: '模板目录来自', profileSwitchHint: '切换 Profile 会同时切换凭据与模板目录',
       selectTemplateErr: '请选择一个模板',
       // Local templates i18n
       version: '版本', author: '作者', module: '模块', description: '描述', viewParams: '查看参数',
+      cloneTemplate: '复制模板',
+      editTemplate: '编辑模板', templateFiles: '模板文件', saveTemplate: '保存模板',
+      cloneTitle: '复制模板', cloneName: '新模板名称', cloneHint: '复制后可独立编辑',
       noLocalTemplates: '暂无本地模板', goToRegistry: '前往模板仓库拉取',
       confirmDeleteTemplate: '确定要删除模板', deleteWarning: '删除后需要重新从仓库拉取才能使用',
       deleting: '删除中...', refresh: '刷新', close: '关闭',
@@ -120,6 +161,13 @@
       update: 'Update', pull: 'Pull', pulling: 'Pulling...', noMatch: 'No matching templates', clickRefresh: 'Click "Refresh Registry" to load templates',
       pullSuccess: 'Pull success', pullFailed: 'Pull failed',
       mcpServer: 'MCP Server', mcpDesc: 'Model Context Protocol Service',
+      resources: 'Cloud Resources', compose: 'Compose',
+      resourceSummary: 'Resource Summary', resourceType: 'Resource Type', resourceCount: 'Count',
+      balancePlaceholder: 'Balance is not integrated with cloud billing APIs yet',
+      balanceQuery: 'Query Balance', balanceCooldown: 'Cooling down', balanceProvider: 'Provider', balanceAmount: 'Balance', balanceCurrency: 'Currency', balanceUpdatedAt: 'Updated At',
+      composeFile: 'Compose File', composeProfiles: 'Profiles (comma-separated)', previewCompose: 'Preview Compose',
+      composeUp: 'Compose Up', composeDown: 'Compose Down', composePreview: 'Compose Preview',
+      serviceName: 'Service', serviceTemplate: 'Template', serviceProvider: 'Provider', serviceDepends: 'Depends', serviceReplicas: 'Replicas',
       transportMode: 'Transport Mode', listenAddr: 'Listen Address', protocolVersion: 'Protocol Version', msgEndpoint: 'Message Endpoint',
       stopServer: 'Stop Server', startServer: 'Start Server', stoppingServer: 'Stopping...', startingServer: 'Starting...',
       aboutMcp: 'About MCP', mcpInfo: 'Model Context Protocol (MCP) is an open protocol that allows AI assistants to interact with external tools and data sources. With MCP server enabled, you can manage RedC infrastructure directly via Claude, Cursor and other MCP-compatible AI tools.',
@@ -129,9 +177,17 @@
       currentConfig: 'Current config', securityTip: 'Security Notice:', securityInfo: 'Credentials are displayed in masked form. Re-enter full values when editing. Empty fields won\'t overwrite existing config.',
       edit: 'Edit', cancel: 'Cancel', save: 'Save', notSet: 'Not set', enterNew: 'Enter new value', clickLoad: 'Click "Load Config" to view credentials',
       confirmDelete: 'Confirm Delete', cannotUndo: 'This cannot be undone', confirmDeleteScene: 'Are you sure you want to delete scene', region: 'Region', credentialsJson: 'Credentials JSON',
+      profile: 'Profiles', profileName: 'Profile Name', templateDir: 'Template Directory', profileManage: 'Profile Management', activeProfile: 'Active Profile',
+      createProfile: 'Create Profile', saveProfile: 'Save Profile', deleteProfile: 'Delete Profile', selectProfile: 'Select profile...',
+      profileHint: 'Each profile maps to its own config file and template directory',
+      profileNameRequired: 'Profile name is required',
+      profileCredentialsFrom: 'Credentials loaded from', profileTemplateFrom: 'Template directory from', profileSwitchHint: 'Switching profile will change credentials and template directory',
       selectTemplateErr: 'Please select a template',
       // Local templates i18n
       version: 'Version', author: 'Author', module: 'Module', description: 'Description', viewParams: 'View Params',
+      cloneTemplate: 'Clone',
+      editTemplate: 'Edit Template', templateFiles: 'Template Files', saveTemplate: 'Save Template',
+      cloneTitle: 'Clone Template', cloneName: 'New Template Name', cloneHint: 'The copy is editable',
       noLocalTemplates: 'No local templates', goToRegistry: 'Go to registry to pull',
       confirmDeleteTemplate: 'Are you sure you want to delete template', deleteWarning: 'You need to pull from registry again to use it',
       deleting: 'Deleting...', refresh: 'Refresh', close: 'Close',
@@ -167,6 +223,30 @@
   function stripAnsi(value) {
     if (!value) return '';
     return value.replace(/\x1B\[[0-9;]*m/g, '');
+  }
+
+  function normalizeVersion(value) {
+    if (!value) return '';
+    return String(value).trim().replace(/^v/i, '');
+  }
+
+  function compareVersions(a, b) {
+    const va = normalizeVersion(a).split('.').map(part => parseInt(part, 10));
+    const vb = normalizeVersion(b).split('.').map(part => parseInt(part, 10));
+    const maxLen = Math.max(va.length, vb.length);
+    for (let i = 0; i < maxLen; i += 1) {
+      const na = Number.isFinite(va[i]) ? va[i] : 0;
+      const nb = Number.isFinite(vb[i]) ? vb[i] : 0;
+      if (na > nb) return 1;
+      if (na < nb) return -1;
+    }
+    return 0;
+  }
+
+  function hasUpdate(tmpl) {
+    if (!tmpl || !tmpl.installed) return false;
+    if (!tmpl.latest || !tmpl.localVersion) return false;
+    return compareVersions(tmpl.latest, tmpl.localVersion) > 0;
   }
 
   function setCreateStatus(status, message, detail = '') {
@@ -240,6 +320,10 @@
     if (registryNoticeTimer) {
       clearTimeout(registryNoticeTimer);
       registryNoticeTimer = null;
+    }
+    if (balanceCooldownTimer) {
+      clearInterval(balanceCooldownTimer);
+      balanceCooldownTimer = null;
     }
   });
 
@@ -525,6 +609,7 @@
   async function handleStartMCP() {
     mcpLoading = true;
     try {
+      mcpForm.mode = 'sse';
       await StartMCPServer(mcpForm.mode, mcpForm.address);
       await loadMCPStatus();
     } catch (e) {
@@ -546,6 +631,90 @@
     }
   }
 
+  // Resources functions
+  async function loadResourceSummary() {
+    resourcesLoading = true;
+    resourcesError = '';
+    try {
+      resourceSummary = await GetResourceSummary() || [];
+    } catch (e) {
+      resourcesError = e.message || String(e);
+      resourceSummary = [];
+    } finally {
+      resourcesLoading = false;
+    }
+  }
+
+  async function queryBalances() {
+    if (balanceCooldown > 0) return;
+    balanceLoading = true;
+    balanceError = '';
+    try {
+      balanceResults = await GetBalances(['aliyun', 'tencentcloud', 'volcengine', 'huaweicloud']) || [];
+      balanceCooldown = 5;
+      if (balanceCooldownTimer) {
+        clearInterval(balanceCooldownTimer);
+      }
+      balanceCooldownTimer = setInterval(() => {
+        balanceCooldown = Math.max(0, balanceCooldown - 1);
+        if (balanceCooldown === 0 && balanceCooldownTimer) {
+          clearInterval(balanceCooldownTimer);
+          balanceCooldownTimer = null;
+        }
+      }, 1000);
+    } catch (e) {
+      balanceError = e.message || String(e);
+    } finally {
+      balanceLoading = false;
+    }
+  }
+
+  // Compose functions
+  function parseComposeProfiles(value) {
+    if (!value) return [];
+    return value
+      .split(',')
+      .map(v => v.trim())
+      .filter(Boolean);
+  }
+
+  async function previewCompose() {
+    composeLoading = true;
+    composeError = '';
+    try {
+      composeSummary = await ComposePreview(composeFilePath, parseComposeProfiles(composeProfiles));
+    } catch (e) {
+      composeError = e.message || String(e);
+      composeSummary = null;
+    } finally {
+      composeLoading = false;
+    }
+  }
+
+  async function handleComposeUp() {
+    composeActionLoading = true;
+    composeError = '';
+    try {
+      await ComposeUp(composeFilePath, parseComposeProfiles(composeProfiles));
+    } catch (e) {
+      composeError = e.message || String(e);
+    } finally {
+      composeActionLoading = false;
+    }
+  }
+
+  async function handleComposeDown() {
+    composeActionLoading = true;
+    composeError = '';
+    try {
+      await ComposeDown(composeFilePath, parseComposeProfiles(composeProfiles));
+    } catch (e) {
+      composeError = e.message || String(e);
+    } finally {
+      composeActionLoading = false;
+    }
+  }
+
   // Credentials functions
   async function loadProvidersConfig() {
     credentialsLoading = true;
@@ -555,6 +724,114 @@
       error = e.message || String(e);
     } finally {
       credentialsLoading = false;
+    }
+  }
+
+  async function loadProfiles() {
+    profileLoading = true;
+    profileError = '';
+    try {
+      const [list, active] = await Promise.all([
+        ListProfiles(),
+        GetActiveProfile()
+      ]);
+      profiles = list || [];
+      if (active && active.id) {
+        activeProfileId = active.id;
+        profileForm = {
+          name: active.name || '',
+          configPath: active.configPath || '',
+          templateDir: active.templateDir || ''
+        };
+        customConfigPath = profileForm.configPath;
+      }
+    } catch (e) {
+      profileError = e.message || String(e);
+    } finally {
+      profileLoading = false;
+    }
+  }
+
+  async function handleProfileChange(id) {
+    if (!id) return;
+    profileLoading = true;
+    profileError = '';
+    try {
+      const active = await SetActiveProfile(id);
+      activeProfileId = active.id;
+      profileForm = {
+        name: active.name || '',
+        configPath: active.configPath || '',
+        templateDir: active.templateDir || ''
+      };
+      customConfigPath = profileForm.configPath;
+      await loadProvidersConfig();
+    } catch (e) {
+      profileError = e.message || String(e);
+    } finally {
+      profileLoading = false;
+    }
+  }
+
+  async function handleCreateProfile() {
+    if (!profileForm.name) {
+      profileError = t.profileNameRequired;
+      return;
+    }
+    profileSaving = true;
+    profileError = '';
+    try {
+      const created = await CreateProfile(profileForm.name, profileForm.configPath, profileForm.templateDir);
+      profiles = await ListProfiles();
+      await handleProfileChange(created.id);
+    } catch (e) {
+      profileError = e.message || String(e);
+    } finally {
+      profileSaving = false;
+    }
+  }
+
+  async function handleSaveProfile() {
+    if (!activeProfileId) return;
+    if (!profileForm.name) {
+      profileError = t.profileNameRequired;
+      return;
+    }
+    profileSaving = true;
+    profileError = '';
+    try {
+      const updated = await UpdateProfile(activeProfileId, profileForm.name, profileForm.configPath, profileForm.templateDir);
+      profiles = await ListProfiles();
+      activeProfileId = updated.id;
+      profileForm = {
+        name: updated.name || '',
+        configPath: updated.configPath || '',
+        templateDir: updated.templateDir || ''
+      };
+      customConfigPath = profileForm.configPath;
+      await SetActiveProfile(activeProfileId);
+      await loadProvidersConfig();
+    } catch (e) {
+      profileError = e.message || String(e);
+    } finally {
+      profileSaving = false;
+    }
+  }
+
+  async function handleDeleteProfile() {
+    if (!activeProfileId) return;
+    profileSaving = true;
+    profileError = '';
+    try {
+      await DeleteProfile(activeProfileId);
+      await loadProfiles();
+      if (activeProfileId) {
+        await handleProfileChange(activeProfileId);
+      }
+    } catch (e) {
+      profileError = e.message || String(e);
+    } finally {
+      profileSaving = false;
     }
   }
 
@@ -679,6 +956,57 @@
     }
   }
 
+  async function handleCloneTemplate(tmpl) {
+    cloneTemplateModal = { show: true, source: tmpl.name, target: `${tmpl.name}-copy` };
+  }
+
+  function cancelCloneTemplate() {
+    cloneTemplateModal = { show: false, source: '', target: '' };
+  }
+
+  async function confirmCloneTemplate() {
+    const targetName = cloneTemplateModal.target.trim();
+    const sourceName = cloneTemplateModal.source;
+    cloneTemplateModal = { show: false, source: '', target: '' };
+    if (!targetName) return;
+    try {
+      await CopyTemplate(sourceName, targetName);
+      await loadLocalTemplates();
+    } catch (e) {
+      error = e.message || String(e);
+    }
+  }
+
+  async function openTemplateEditor(tmpl) {
+    templateEditor = { show: true, name: tmpl.name, files: {}, active: '', saving: false, error: '' };
+    try {
+      const files = await GetTemplateFiles(tmpl.name);
+      const names = Object.keys(files || {});
+      templateEditor = {
+        ...templateEditor,
+        files: files || {},
+        active: names.length > 0 ? names[0] : '',
+      };
+    } catch (e) {
+      templateEditor = { ...templateEditor, error: e.message || String(e) };
+    }
+  }
+
+  function closeTemplateEditor() {
+    templateEditor = { show: false, name: '', files: {}, active: '', saving: false, error: '' };
+  }
+
+  async function saveTemplateEditor() {
+    if (!templateEditor.name) return;
+    templateEditor = { ...templateEditor, saving: true, error: '' };
+    try {
+      await SaveTemplateFiles(templateEditor.name, templateEditor.files);
+      templateEditor = { ...templateEditor, saving: false };
+    } catch (e) {
+      templateEditor = { ...templateEditor, saving: false, error: e.message || String(e) };
+    }
+  }
+
   $: filteredLocalTemplates = localTemplates
     .filter(t => 
       !localTemplatesSearch || 
@@ -725,6 +1053,27 @@
         </button>
         <button 
           class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-all
+            {activeTab === 'resources' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}"
+          on:click={() => { activeTab = 'resources'; loadResourceSummary(); }}
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5l9 4.5 9-4.5M3 12l9 4.5 9-4.5M3 16.5l9 4.5 9-4.5" />
+          </svg>
+          {t.resources}
+        </button>
+        <button 
+          class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-all
+            {activeTab === 'compose' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}"
+          on:click={() => { activeTab = 'compose'; previewCompose(); }}
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h12A2.25 2.25 0 0120.25 6v12A2.25 2.25 0 0118 20.25H6A2.25 2.25 0 013.75 18V6z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 8h8M8 12h8M8 16h5" />
+          </svg>
+          {t.compose}
+        </button>
+        <button 
+          class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-all
             {activeTab === 'settings' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}"
           on:click={() => activeTab = 'settings'}
         >
@@ -737,7 +1086,7 @@
         <button 
           class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-all
             {activeTab === 'credentials' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}"
-          on:click={() => { activeTab = 'credentials'; loadProvidersConfig(); }}
+          on:click={() => { activeTab = 'credentials'; loadProfiles(); loadProvidersConfig(); }}
         >
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
@@ -805,11 +1154,11 @@
     <!-- Header -->
     <header class="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-6">
       <h1 class="text-[15px] font-medium text-gray-900">
-        {#if activeTab === 'dashboard'}{t.sceneManage}{:else if activeTab === 'console'}{t.console}{:else if activeTab === 'registry'}{t.templateRepo}{:else if activeTab === 'localTemplates'}{t.localTmplManage}{:else if activeTab === 'ai'}{t.aiIntegration}{:else if activeTab === 'credentials'}{t.credentials}{:else}{t.settings}{/if}
+        {#if activeTab === 'dashboard'}{t.sceneManage}{:else if activeTab === 'console'}{t.console}{:else if activeTab === 'resources'}{t.resources}{:else if activeTab === 'compose'}{t.compose}{:else if activeTab === 'registry'}{t.templateRepo}{:else if activeTab === 'localTemplates'}{t.localTmplManage}{:else if activeTab === 'ai'}{t.aiIntegration}{:else if activeTab === 'credentials'}{t.credentials}{:else}{t.settings}{/if}
       </h1>
       <button 
         class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-50 text-gray-400 hover:text-gray-600 transition-colors"
-        on:click={() => { refreshData(); if (activeTab === 'registry') loadRegistryTemplates(); if (activeTab === 'localTemplates') loadLocalTemplates(); if (activeTab === 'ai') loadMCPStatus(); if (activeTab === 'credentials') loadProvidersConfig(); }}
+        on:click={() => { refreshData(); if (activeTab === 'registry') loadRegistryTemplates(); if (activeTab === 'localTemplates') loadLocalTemplates(); if (activeTab === 'ai') loadMCPStatus(); if (activeTab === 'credentials') { loadProfiles(); loadProvidersConfig(); } if (activeTab === 'resources') loadResourceSummary(); if (activeTab === 'compose') previewCompose(); }}
       >
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
@@ -1081,6 +1430,196 @@
           </div>
         </div>
 
+      {:else if activeTab === 'resources'}
+        <div class="max-w-3xl space-y-5">
+          <div class="bg-white rounded-xl border border-gray-100 p-5">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-[14px] font-semibold text-gray-900">{t.resourceSummary}</h3>
+                <p class="text-[12px] text-gray-500"></p>
+              </div>
+              <button
+                class="h-9 px-4 bg-gray-900 text-white text-[12px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+                on:click={loadResourceSummary}
+                disabled={resourcesLoading}
+              >
+                {resourcesLoading ? t.loading : t.refresh}
+              </button>
+            </div>
+
+            {#if resourcesError}
+              <div class="text-[12px] text-red-500">{resourcesError}</div>
+            {:else if resourcesLoading}
+              <div class="flex items-center justify-center h-24">
+                <div class="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin"></div>
+              </div>
+            {:else}
+              <div class="border border-gray-100 rounded-lg overflow-hidden">
+                <table class="w-full text-[12px]">
+                  <thead>
+                    <tr class="bg-gray-50 border-b border-gray-100">
+                      <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.resourceType}</th>
+                      <th class="text-right px-4 py-2.5 font-semibold text-gray-600">{t.resourceCount}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {#each resourceSummary as r}
+                      <tr class="border-b border-gray-50">
+                        <td class="px-4 py-3 text-gray-700">{r.type}</td>
+                        <td class="px-4 py-3 text-right text-gray-700">{r.count}</td>
+                      </tr>
+                    {:else}
+                      <tr>
+                        <td colspan="2" class="py-12 text-center text-[12px] text-gray-400">{t.noScene}</td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            {/if}
+          </div>
+
+          <div class="bg-white rounded-xl border border-gray-100 p-5">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-[14px] font-semibold text-gray-900">{t.balanceQuery}</h3>
+                <p class="text-[12px] text-gray-500">{t.profileSwitchHint}</p>
+              </div>
+              <button
+                class="h-9 px-4 bg-blue-600 text-white text-[12px] font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                on:click={queryBalances}
+                disabled={balanceLoading || balanceCooldown > 0}
+              >
+                {balanceLoading ? t.loading : balanceCooldown > 0 ? `${t.balanceCooldown} ${balanceCooldown}s` : t.balanceQuery}
+              </button>
+            </div>
+
+            {#if balanceError}
+              <div class="text-[12px] text-red-500">{balanceError}</div>
+            {:else}
+              <div class="border border-gray-100 rounded-lg overflow-hidden">
+                <table class="w-full text-[12px]">
+                  <thead>
+                    <tr class="bg-gray-50 border-b border-gray-100">
+                      <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.balanceProvider}</th>
+                      <th class="text-right px-4 py-2.5 font-semibold text-gray-600">{t.balanceAmount}</th>
+                      <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.balanceCurrency}</th>
+                      <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.balanceUpdatedAt}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {#each balanceResults as b}
+                      <tr class="border-b border-gray-50">
+                        <td class="px-4 py-3 text-gray-700">{b.provider}</td>
+                        <td class="px-4 py-3 text-right text-gray-700">{b.amount}</td>
+                        <td class="px-4 py-3 text-gray-700">{b.currency}</td>
+                        <td class="px-4 py-3 text-gray-500">{b.updatedAt}</td>
+                      </tr>
+                      {#if b.error}
+                        <tr class="border-b border-gray-50">
+                          <td colspan="4" class="px-4 pb-3 text-[11px] text-amber-600">{b.error}</td>
+                        </tr>
+                      {/if}
+                    {:else}
+                      <tr>
+                        <td colspan="4" class="py-12 text-center text-[12px] text-gray-400">{t.balancePlaceholder}</td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            {/if}
+          </div>
+        </div>
+
+      {:else if activeTab === 'compose'}
+        <div class="max-w-4xl space-y-5">
+          <div class="bg-white rounded-xl border border-gray-100 p-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.composeFile}</label>
+                <input
+                  type="text"
+                  placeholder="redc-compose.yaml"
+                  class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
+                  bind:value={composeFilePath}
+                />
+              </div>
+              <div>
+                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.composeProfiles}</label>
+                <input
+                  type="text"
+                  placeholder="prod,dev"
+                  class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
+                  bind:value={composeProfiles}
+                />
+              </div>
+            </div>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <button
+                class="h-9 px-4 bg-gray-900 text-white text-[12px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+                on:click={previewCompose}
+                disabled={composeLoading}
+              >
+                {composeLoading ? t.loading : t.previewCompose}
+              </button>
+              <button
+                class="h-9 px-4 bg-emerald-500 text-white text-[12px] font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                on:click={handleComposeUp}
+                disabled={composeActionLoading}
+              >
+                {composeActionLoading ? t.processing : t.composeUp}
+              </button>
+              <button
+                class="h-9 px-4 bg-red-500 text-white text-[12px] font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                on:click={handleComposeDown}
+                disabled={composeActionLoading}
+              >
+                {composeActionLoading ? t.processing : t.composeDown}
+              </button>
+            </div>
+            {#if composeError}
+              <div class="mt-3 text-[12px] text-red-500">{composeError}</div>
+            {/if}
+          </div>
+
+          <div class="bg-white rounded-xl border border-gray-100 p-5">
+            <div class="text-[14px] font-semibold text-gray-900 mb-4">{t.composePreview}</div>
+            {#if composeLoading}
+              <div class="flex items-center justify-center h-24">
+                <div class="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin"></div>
+              </div>
+            {:else if composeSummary && composeSummary.services && composeSummary.services.length > 0}
+              <div class="border border-gray-100 rounded-lg overflow-hidden">
+                <table class="w-full text-[12px]">
+                  <thead>
+                    <tr class="bg-gray-50 border-b border-gray-100">
+                      <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.serviceName}</th>
+                      <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.serviceTemplate}</th>
+                      <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.serviceProvider}</th>
+                      <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.serviceDepends}</th>
+                      <th class="text-right px-4 py-2.5 font-semibold text-gray-600">{t.serviceReplicas}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {#each composeSummary.services as svc}
+                      <tr class="border-b border-gray-50">
+                        <td class="px-4 py-3 text-gray-700">{svc.name}</td>
+                        <td class="px-4 py-3 text-gray-700">{svc.template}</td>
+                        <td class="px-4 py-3 text-gray-700">{svc.provider || '-'}</td>
+                        <td class="px-4 py-3 text-gray-700">{(svc.dependsOn && svc.dependsOn.length > 0) ? svc.dependsOn.join(', ') : '-'}</td>
+                        <td class="px-4 py-3 text-right text-gray-700">{svc.replicas || 1}</td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            {:else}
+              <div class="py-12 text-center text-[12px] text-gray-400">{t.noScene}</div>
+            {/if}
+          </div>
+        </div>
+
       {:else if activeTab === 'settings'}
         <div class="max-w-xl space-y-4">
           <!-- 基本信息 -->
@@ -1270,12 +1809,12 @@
                         <span class="w-3 h-3 border-2 border-amber-200 border-t-amber-600 rounded-full animate-spin"></span>
                         {t.pulling}
                       </span>
-                    {:else if tmpl.installed}
+                    {:else if tmpl.installed && hasUpdate(tmpl)}
                       <button 
                         class="px-3 py-1.5 text-[12px] font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                         on:click={() => handlePullTemplate(tmpl.name, true)}
                       >{t.update}</button>
-                    {:else}
+                    {:else if !tmpl.installed}
                       <button 
                         class="px-3 py-1.5 text-[12px] font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
                         on:click={() => handlePullTemplate(tmpl.name, false)}
@@ -1338,82 +1877,55 @@
                 <div class="grid grid-cols-2 gap-4 text-[12px]">
                   <div>
                     <span class="text-gray-500">{t.transportMode}</span>
-                    <p class="font-medium text-gray-900 mt-0.5">{mcpStatus.mode === 'sse' ? 'SSE (HTTP)' : 'STDIO'}</p>
+                    <p class="font-medium text-gray-900 mt-0.5">SSE (HTTP)</p>
                   </div>
-                  {#if mcpStatus.mode === 'sse'}
-                    <div>
-                      <span class="text-gray-500">{t.listenAddr}</span>
-                      <p class="font-mono font-medium text-gray-900 mt-0.5">{mcpStatus.address || '-'}</p>
-                    </div>
-                    <div>
-                      <span class="text-gray-500">{t.protocolVersion}</span>
-                      <p class="font-medium text-gray-900 mt-0.5">{mcpStatus.protocolVersion}</p>
-                    </div>
-                    <div>
-                      <span class="text-gray-500">{t.msgEndpoint}</span>
-                      <p class="font-mono font-medium text-gray-900 mt-0.5 text-[11px]">http://{mcpStatus.address}/message</p>
-                    </div>
-                  {:else}
-                    <div class="col-span-2 text-[12px] text-gray-500">{t.stdioHint}</div>
-                  {/if}
+                  <div>
+                    <span class="text-gray-500">{t.listenAddr}</span>
+                    <p class="font-mono font-medium text-gray-900 mt-0.5">{mcpStatus.address || '-'}</p>
+                  </div>
+                  <div>
+                    <span class="text-gray-500">{t.protocolVersion}</span>
+                    <p class="font-medium text-gray-900 mt-0.5">{mcpStatus.protocolVersion}</p>
+                  </div>
+                  <div>
+                    <span class="text-gray-500">{t.msgEndpoint}</span>
+                    <p class="font-mono font-medium text-gray-900 mt-0.5 text-[11px]">http://{mcpStatus.address}/message</p>
+                  </div>
                 </div>
               </div>
-              {#if mcpStatus.mode === 'sse'}
-                <button 
-                  class="w-full h-10 bg-red-500 text-white text-[13px] font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
-                  on:click={handleStopMCP}
-                  disabled={mcpLoading}
-                >
-                  {mcpLoading ? t.stoppingServer : t.stopServer}
-                </button>
-              {/if}
+              <button 
+                class="w-full h-10 bg-red-500 text-white text-[13px] font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                on:click={handleStopMCP}
+                disabled={mcpLoading}
+              >
+                {mcpLoading ? t.stoppingServer : t.stopServer}
+              </button>
             {:else}
               <!-- Configuration form -->
               <div class="space-y-4 mb-4">
                 <div>
                   <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.transportMode}</label>
-                  <div class="flex gap-2">
-                    <button 
-                      class="flex-1 h-10 px-4 text-[13px] font-medium rounded-lg border transition-colors
-                        {mcpForm.mode === 'sse' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}"
-                      on:click={() => mcpForm.mode = 'sse'}
-                    >
-                      SSE (HTTP)
-                    </button>
-                    <button 
-                      class="flex-1 h-10 px-4 text-[13px] font-medium rounded-lg border transition-colors
-                        {mcpForm.mode === 'stdio' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}"
-                      on:click={() => mcpForm.mode = 'stdio'}
-                    >
-                      STDIO
-                    </button>
+                  <div class="inline-flex items-center h-10 px-4 text-[13px] font-medium rounded-lg border bg-gray-900 text-white border-gray-900">
+                    SSE (HTTP)
                   </div>
                 </div>
-                {#if mcpForm.mode === 'sse'}
-                  <div>
-                    <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.listenAddr}</label>
-                    <input 
-                      type="text" 
-                      placeholder="localhost:8080" 
-                      class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
-                      bind:value={mcpForm.address} 
-                    />
-                  </div>
-                {:else}
-                  <div class="text-[12px] text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
-                    {t.stdioHint}
-                  </div>
-                {/if}
+                <div>
+                  <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.listenAddr}</label>
+                  <input 
+                    type="text" 
+                    placeholder="localhost:8080" 
+                    class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
+                    bind:value={mcpForm.address} 
+                  />
+                </div>
               </div>
-              {#if mcpForm.mode === 'sse'}
-                <button 
-                  class="w-full h-10 bg-gray-900 text-white text-[13px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
-                  on:click={handleStartMCP}
-                  disabled={mcpLoading}
-                >
-                  {mcpLoading ? t.startingServer : t.startServer}
-                </button>
-              {/if}
+              <button 
+                class="w-full h-10 bg-gray-900 text-white text-[13px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+                on:click={handleStartMCP}
+                disabled={mcpLoading}
+              >
+                {mcpLoading ? t.startingServer : t.startServer}
+              </button>
             {/if}
           </div>
 
@@ -1465,31 +1977,110 @@
 
       {:else if activeTab === 'credentials'}
         <div class="max-w-3xl space-y-5">
-          <!-- Config Path -->
+          <!-- Profile مدیریت -->
           <div class="bg-white rounded-xl border border-gray-100 p-5">
-            <div class="flex items-center gap-4">
-              <div class="flex-1">
-                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.configPath}</label>
-                <input 
-                  type="text" 
-                  placeholder={t.defaultPath}
-                  class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
-                  bind:value={customConfigPath} 
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-[14px] font-semibold text-gray-900">{t.profileManage}</h3>
+                <p class="text-[12px] text-gray-500">{t.profileHint}</p>
+              </div>
+              <div class="text-[12px] text-gray-500">
+                {t.activeProfile}: <span class="font-medium text-gray-700">{profiles.find(p => p.id === activeProfileId)?.name || '-'}</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.profile}</label>
+                <select
+                  class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
+                  bind:value={activeProfileId}
+                  on:change={(e) => handleProfileChange(e.target.value)}
+                >
+                  <option value="" disabled>{t.selectProfile}</option>
+                  {#each profiles as p}
+                    <option value={p.id}>{p.name}</option>
+                  {/each}
+                </select>
+              </div>
+              <div>
+                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.profileName}</label>
+                <input
+                  type="text"
+                  class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
+                  bind:value={profileForm.name}
                 />
               </div>
-              <button 
-                class="h-10 px-5 bg-gray-900 text-white text-[13px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 mt-5"
+              <div class="md:col-span-2">
+                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.configPath}</label>
+                <input
+                  type="text"
+                  placeholder={t.defaultPath}
+                  class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
+                  bind:value={profileForm.configPath}
+                  on:input={() => { customConfigPath = profileForm.configPath; }}
+                />
+              </div>
+              <div class="md:col-span-2">
+                <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.templateDir}</label>
+                <input
+                  type="text"
+                  placeholder={t.defaultPath}
+                  class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
+                  bind:value={profileForm.templateDir}
+                />
+              </div>
+            </div>
+
+            {#if profileError}
+              <div class="mt-3 text-[12px] text-red-600">{profileError}</div>
+            {/if}
+
+            <div class="mt-4 flex flex-wrap gap-2">
+              <button
+                class="h-9 px-4 bg-gray-900 text-white text-[12px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+                on:click={handleCreateProfile}
+                disabled={profileSaving}
+              >
+                {t.createProfile}
+              </button>
+              <button
+                class="h-9 px-4 bg-emerald-500 text-white text-[12px] font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                on:click={handleSaveProfile}
+                disabled={profileSaving || !activeProfileId}
+              >
+                {t.saveProfile}
+              </button>
+              <button
+                class="h-9 px-4 bg-red-50 text-red-600 text-[12px] font-medium rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
+                on:click={handleDeleteProfile}
+                disabled={profileSaving || !activeProfileId}
+              >
+                {t.deleteProfile}
+              </button>
+              <button
+                class="h-9 px-4 bg-gray-100 text-gray-700 text-[12px] font-medium rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
                 on:click={loadProvidersConfig}
                 disabled={credentialsLoading}
               >
                 {credentialsLoading ? t.loading : t.loadConfig}
               </button>
             </div>
+
             {#if providersConfig.configPath}
               <div class="mt-3 text-[12px] text-gray-500">
                 {t.currentConfig}: <span class="font-mono">{providersConfig.configPath}</span>
               </div>
             {/if}
+            <div class="mt-2 text-[12px] text-gray-500">
+              {t.profileCredentialsFrom}: <span class="font-mono">{profileForm.configPath || providersConfig.configPath || '-'}</span>
+            </div>
+            <div class="text-[12px] text-gray-500">
+              {t.profileTemplateFrom}: <span class="font-mono">{profileForm.templateDir || '-'}</span>
+            </div>
+            <div class="text-[11px] text-gray-400 mt-1">
+              {t.profileSwitchHint}
+            </div>
           </div>
 
           <!-- Security Notice -->
@@ -1618,10 +2209,10 @@
                   <tr class="border-b border-gray-100">
                     <th class="text-left px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-[140px]">{t.name}</th>
                     <th class="text-left px-3 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-[60px]">{t.version}</th>
-                    <th class="text-left px-3 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-[70px]">{t.author}</th>
-                    <th class="text-left px-3 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-[100px]">{t.module}</th>
-                    <th class="text-left px-3 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{t.description}</th>
-                    <th class="text-right px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-[130px]">{t.actions}</th>
+                    <th class="text-left px-3 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-[140px]">{t.author}</th>
+                    <th class="text-left px-3 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-[180px]">{t.module}</th>
+                    <th class="text-left px-3 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-[320px]">{t.description}</th>
+                    <th class="text-right pl-4 pr-6 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-[220px]">{t.actions}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1634,32 +2225,44 @@
                         <span class="text-[13px] text-gray-600">{tmpl.version || '-'}</span>
                       </td>
                       <td class="px-3 py-3.5">
-                        <span class="text-[13px] text-gray-600 truncate block">{tmpl.user || '-'}</span>
+                        <span class="text-[13px] text-gray-600 break-words whitespace-normal block" title={tmpl.user || '-'}>{tmpl.user || '-'}</span>
                       </td>
                       <td class="px-3 py-3.5">
                         {#if tmpl.module}
-                          <span class="px-2 py-0.5 bg-blue-50 text-blue-600 text-[11px] font-medium rounded-full truncate block max-w-full">{tmpl.module}</span>
+                          <span class="px-2 py-0.5 bg-blue-50 text-blue-600 text-[11px] font-medium rounded-full inline-block break-words whitespace-normal max-w-full" title={tmpl.module}>{tmpl.module}</span>
                         {:else}
                           <span class="text-[13px] text-gray-400">-</span>
                         {/if}
                       </td>
-                      <td class="px-3 py-3.5">
-                        <span class="text-[12px] text-gray-500 break-words" title={tmpl.description}>{tmpl.description || '-'}</span>
+                      <td class="px-3 py-3.5 w-[320px]">
+                        <span class="text-[12px] text-gray-500 break-words whitespace-normal" title={tmpl.description}>{tmpl.description || '-'}</span>
                       </td>
-                      <td class="px-4 py-3.5 text-right">
-                        <div class="inline-flex items-center gap-1 flex-nowrap">
-                          <button 
-                            class="px-2.5 py-1 text-[12px] font-medium text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors whitespace-nowrap"
-                            on:click={() => showTemplateDetail(tmpl)}
-                          >{t.viewParams}</button>
-                          {#if deletingTemplate[tmpl.name]}
-                            <span class="px-2.5 py-1 text-[12px] font-medium text-amber-600 whitespace-nowrap">{t.deleting}</span>
-                          {:else}
+                      <td class="pl-4 pr-6 py-3.5 text-right w-[220px]">
+                        <div class="flex flex-col gap-2 items-end">
+                          <div class="flex items-center gap-3">
                             <button 
-                              class="px-2.5 py-1 text-[12px] font-medium text-red-700 bg-red-50 rounded-md hover:bg-red-100 transition-colors whitespace-nowrap"
-                              on:click={() => showDeleteTemplateConfirm(tmpl.name)}
-                            >{t.delete}</button>
-                          {/if}
+                              class="w-[90px] px-2.5 py-1 text-[12px] font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                              on:click={() => handleCloneTemplate(tmpl)}
+                            >{t.cloneTemplate}</button>
+                            <button 
+                              class="w-[90px] px-2.5 py-1 text-[12px] font-medium text-indigo-700 bg-indigo-50 rounded-md hover:bg-indigo-100 transition-colors"
+                              on:click={() => openTemplateEditor(tmpl)}
+                            >{t.editTemplate}</button>
+                          </div>
+                          <div class="flex items-center gap-3">
+                            <button 
+                              class="w-[90px] px-2.5 py-1 text-[12px] font-medium text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+                              on:click={() => showTemplateDetail(tmpl)}
+                            >{t.viewParams}</button>
+                            {#if deletingTemplate[tmpl.name]}
+                              <span class="w-[90px] px-2.5 py-1 text-[12px] font-medium text-amber-600">{t.deleting}</span>
+                            {:else}
+                              <button 
+                                class="w-[90px] px-2.5 py-1 text-[12px] font-medium text-red-700 bg-red-50 rounded-md hover:bg-red-100 transition-colors"
+                                on:click={() => showDeleteTemplateConfirm(tmpl.name)}
+                              >{t.delete}</button>
+                            {/if}
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -1757,10 +2360,47 @@
   </div>
 {/if}
 
+<!-- Clone Template Modal -->
+{#if cloneTemplateModal.show}
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" on:click={cancelCloneTemplate}>
+    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden" on:click|stopPropagation>
+      <div class="px-6 py-5">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
+            <svg class="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16h8M8 12h8m-6 8h6a2 2 0 002-2V8a2 2 0 00-2-2h-2l-2-2H8a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-[15px] font-semibold text-gray-900">{t.cloneTitle}</h3>
+            <p class="text-[13px] text-gray-500">{t.cloneHint}</p>
+          </div>
+        </div>
+        <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.cloneName}</label>
+        <input
+          type="text"
+          class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
+          bind:value={cloneTemplateModal.target}
+        />
+      </div>
+      <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2">
+        <button 
+          class="px-4 py-2 text-[13px] font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          on:click={cancelCloneTemplate}
+        >{t.cancel}</button>
+        <button 
+          class="px-4 py-2 text-[13px] font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+          on:click={confirmCloneTemplate}
+        >{t.cloneTemplate}</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <!-- Template Detail Drawer -->
 {#if localTemplateDetail}
   <div class="fixed inset-0 bg-black/50 flex justify-end z-50" on:click={closeTemplateDetail}>
-    <div class="w-full max-w-lg bg-white h-full overflow-auto shadow-xl" on:click|stopPropagation>
+    <div class="w-full max-w-2xl bg-white h-full overflow-auto shadow-xl" on:click|stopPropagation>
       <div class="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
         <div>
           <h2 class="text-[16px] font-semibold text-gray-900">{localTemplateDetail.name}</h2>
@@ -1814,8 +2454,8 @@
               {t.noParams}
             </div>
           {:else}
-            <div class="border border-gray-100 rounded-lg overflow-hidden">
-              <table class="w-full text-[12px]">
+            <div class="border border-gray-100 rounded-lg overflow-x-auto">
+              <table class="w-full text-[12px] min-w-[520px]">
                 <thead>
                   <tr class="bg-gray-50 border-b border-gray-100">
                     <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.paramName}</th>
@@ -1845,15 +2485,15 @@
                       </td>
                       <td class="px-4 py-3 text-center">
                         {#if v.required}
-                          <span class="inline-flex items-center justify-center w-5 h-5 bg-red-100 text-red-600 rounded-full">
-                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </span>
-                        {:else}
                           <span class="inline-flex items-center justify-center w-5 h-5 bg-emerald-100 text-emerald-600 rounded-full">
                             <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </span>
+                        {:else}
+                          <span class="inline-flex items-center justify-center w-5 h-5 bg-gray-100 text-gray-400 rounded-full">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14" />
                             </svg>
                           </span>
                         {/if}
@@ -1863,6 +2503,55 @@
                 </tbody>
               </table>
             </div>
+          {/if}
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Template Editor Modal -->
+{#if templateEditor.show}
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" on:click={closeTemplateEditor}>
+    <div class="bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 overflow-hidden" on:click|stopPropagation>
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div>
+          <h3 class="text-[15px] font-semibold text-gray-900">{t.editTemplate}</h3>
+          <p class="text-[12px] text-gray-500">{templateEditor.name}</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            class="px-3 py-1.5 text-[12px] font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+            on:click={closeTemplateEditor}
+          >{t.close}</button>
+          <button
+            class="px-3 py-1.5 text-[12px] font-medium text-white bg-emerald-500 rounded-md hover:bg-emerald-600 transition-colors disabled:opacity-50"
+            on:click={saveTemplateEditor}
+            disabled={templateEditor.saving}
+          >{templateEditor.saving ? t.saving : t.saveTemplate}</button>
+        </div>
+      </div>
+      <div class="flex h-[520px]">
+        <div class="w-52 border-r border-gray-100 overflow-auto">
+          <div class="px-4 py-3 text-[12px] font-semibold text-gray-600">{t.templateFiles}</div>
+          {#each Object.keys(templateEditor.files) as fname}
+            <button
+              class="w-full text-left px-4 py-2 text-[12px] transition-colors {templateEditor.active === fname ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}"
+              on:click={() => templateEditor = { ...templateEditor, active: fname }}
+            >{fname}</button>
+          {/each}
+        </div>
+        <div class="flex-1 p-4">
+          {#if templateEditor.error}
+            <div class="text-[12px] text-red-500 mb-2">{templateEditor.error}</div>
+          {/if}
+          {#if templateEditor.active}
+            <textarea
+              class="w-full h-full text-[12px] font-mono bg-gray-50 border border-gray-100 rounded-lg p-3 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
+              bind:value={templateEditor.files[templateEditor.active]}
+            ></textarea>
+          {:else}
+            <div class="text-[12px] text-gray-400">{t.noParams}</div>
           {/if}
         </div>
       </div>

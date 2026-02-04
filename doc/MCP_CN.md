@@ -21,13 +21,14 @@ redc MCP 服务器提供以下能力：
 ### 工具（操作）
 
 1. **list_templates** - 列出所有可用的 redc 模板/镜像
-2. **list_cases** - 列出当前项目中的所有场景
-3. **plan_case** - 从模板规划新场景（类似 terraform plan - 预览资源而不实际创建）
-4. **start_case** - 通过 ID 启动场景（这将实际创建并启动基础设施）
-5. **stop_case** - 通过 ID 停止运行中的场景
-6. **kill_case** - 通过 ID 销毁场景
-7. **get_case_status** - 获取特定场景的状态
-8. **exec_command** - 在场景上执行命令
+2. **pull_template** - 从仓库下载模板（redc pull）
+3. **list_cases** - 列出当前项目中的所有场景
+4. **plan_case** - 从模板规划新场景（类似 terraform plan - 预览资源而不实际创建）
+5. **start_case** - 通过 ID 启动场景（这将实际创建并启动基础设施）
+6. **stop_case** - 通过 ID 停止运行中的场景
+7. **kill_case** - 通过 ID 销毁场景
+8. **get_case_status** - 获取特定场景的状态
+9. **exec_command** - 在场景上执行命令
 
 ### 资源
 
@@ -120,6 +121,24 @@ SSE 服务器提供三个端点：
 
 ### 列出可用工具
 
+
+### 拉取模板
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "pull_template",
+    "arguments": {
+      "template": "aliyun/ecs",
+      "registry_url": "https://redc.wgpsec.org",
+      "force": false
+    }
+  }
+}
+```
 ```json
 {
   "jsonrpc": "2.0",
