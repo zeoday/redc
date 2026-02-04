@@ -5,7 +5,10 @@ before:
     - go mod tidy
     - go generate ./...
 builds:
-  - env:
+  - id: cli
+    main: ./cmd/cli
+    binary: redc
+    env:
       - CGO_ENABLED=0
     goos:
       - darwin
@@ -18,8 +21,10 @@ builds:
       - -s -w
       - -X github.com/wgpsec/redc/mod.Version={{.Version}}
 archives:
-  - name_template: "{{ .ProjectName }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
-    id: homebrew
+  - id: homebrew
+    builds:
+      - cli
+    name_template: "{{ .ProjectName }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
 #      - LICENSE
