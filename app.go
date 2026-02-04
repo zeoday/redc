@@ -750,6 +750,15 @@ type ResourceSummary struct {
 	Count int    `json:"count"`
 }
 
+// BalanceInfo represents account balance result
+type BalanceInfo struct {
+	Provider  string `json:"provider"`
+	Amount    string `json:"amount"`
+	Currency  string `json:"currency"`
+	UpdatedAt string `json:"updatedAt"`
+	Error     string `json:"error"`
+}
+
 // ComposeServiceSummary represents a compose service preview
 type ComposeServiceSummary struct {
 	Name      string   `json:"name"`
@@ -766,6 +775,66 @@ type ComposeSummary struct {
 	File     string                  `json:"file"`
 	Services []ComposeServiceSummary `json:"services"`
 	Total    int                     `json:"total"`
+}
+
+// GetBalances returns account balances for selected providers (manual trigger)
+func (a *App) GetBalances(providers []string) ([]BalanceInfo, error) {
+	if len(providers) == 0 {
+		providers = []string{"aliyun", "tencentcloud", "volcengine", "huaweicloud"}
+	}
+
+	conf, _, err := redc.ReadConfig(redc.ActiveConfigPath)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]BalanceInfo, 0, len(providers))
+	for _, p := range providers {
+		result := BalanceInfo{
+			Provider:  p,
+			Amount:    "-",
+			Currency:  "-",
+			UpdatedAt: time.Now().Format("2006-01-02 15:04:05"),
+		}
+		switch p {
+		case "aliyun":
+			amount, currency, err := redc.QueryAliyunBalance(conf.Providers.Alicloud.AccessKey, conf.Providers.Alicloud.SecretKey, conf.Providers.Alicloud.Region)
+			if err != nil {
+				result.Error = err.Error()
+			} else {
+				result.Amount = amount
+				result.Currency = currency
+			}
+		case "tencentcloud":
+			amount, currency, err := redc.QueryTencentBalance(conf.Providers.Tencentcloud.SecretId, conf.Providers.Tencentcloud.SecretKey, conf.Providers.Tencentcloud.Region)
+			if err != nil {
+				result.Error = err.Error()
+			} else {
+				result.Amount = amount
+				result.Currency = currency
+			}
+		case "volcengine":
+			amount, currency, err := redc.QueryVolcengineBalance(conf.Providers.Volcengine.AccessKey, conf.Providers.Volcengine.SecretKey, conf.Providers.Volcengine.Region)
+			if err != nil {
+				result.Error = err.Error()
+			} else {
+				result.Amount = amount
+				result.Currency = currency
+			}
+		case "huaweicloud":
+			amount, currency, err := redc.QueryHuaweiBalance(conf.Providers.Huaweicloud.AccessKey, conf.Providers.Huaweicloud.SecretKey, conf.Providers.Huaweicloud.Region)
+			if err != nil {
+				result.Error = err.Error()
+			} else {
+				result.Amount = amount
+				result.Currency = currency
+			}
+		default:
+			result.Error = "不支持的云厂商"
+		}
+		results = append(results, result)
+	}
+	return results, nil
 }
 
 // ListTemplates returns available templates

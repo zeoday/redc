@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { EventsOn, EventsOff, BrowserOpenURL } from '../wailsjs/runtime/runtime.js';
-  import { ListCases, ListTemplates, StartCase, StopCase, RemoveCase, CreateCase, CreateAndRunCase, GetConfig, GetCaseOutputs, GetTemplateVariables, SaveProxyConfig, FetchRegistryTemplates, PullTemplate, RemoveTemplate, GetMCPStatus, StartMCPServer, StopMCPServer, GetProvidersConfig, SaveProvidersConfig, SetDebugLogging, ListProfiles, GetActiveProfile, SetActiveProfile, CreateProfile, UpdateProfile, DeleteProfile, GetResourceSummary, ComposePreview, ComposeUp, ComposeDown } from '../wailsjs/go/main/App.js';
+  import { ListCases, ListTemplates, StartCase, StopCase, RemoveCase, CreateCase, CreateAndRunCase, GetConfig, GetCaseOutputs, GetTemplateVariables, SaveProxyConfig, FetchRegistryTemplates, PullTemplate, RemoveTemplate, GetMCPStatus, StartMCPServer, StopMCPServer, GetProvidersConfig, SaveProvidersConfig, SetDebugLogging, ListProfiles, GetActiveProfile, SetActiveProfile, CreateProfile, UpdateProfile, DeleteProfile, GetResourceSummary, GetBalances, ComposePreview, ComposeUp, ComposeDown } from '../wailsjs/go/main/App.js';
 
   let cases = [];
   let templates = [];
@@ -64,6 +64,11 @@
   let resourceSummary = [];
   let resourcesLoading = false;
   let resourcesError = '';
+  let balanceResults = [];
+  let balanceLoading = false;
+  let balanceError = '';
+  let balanceCooldown = 0;
+  let balanceCooldownTimer = null;
 
   // Compose state
   let composeFilePath = 'redc-compose.yaml';
@@ -104,6 +109,7 @@
       resources: '云资源', compose: '编排管理',
       resourceSummary: '资源汇总', resourceType: '资源类型', resourceCount: '数量',
       balancePlaceholder: '余额功能暂未接入云厂商账单 API',
+      balanceQuery: '查询余额', balanceCooldown: '冷却中', balanceProvider: '云厂商', balanceAmount: '余额', balanceCurrency: '币种', balanceUpdatedAt: '更新时间',
       composeFile: 'Compose 文件', composeProfiles: 'Profiles（逗号分隔）', previewCompose: '预览编排',
       composeUp: '启动编排', composeDown: '销毁编排', composePreview: '编排预览',
       serviceName: '服务', serviceTemplate: '模板', serviceProvider: '云厂商', serviceDepends: '依赖', serviceReplicas: '副本',
@@ -153,6 +159,7 @@
       resources: 'Cloud Resources', compose: 'Compose',
       resourceSummary: 'Resource Summary', resourceType: 'Resource Type', resourceCount: 'Count',
       balancePlaceholder: 'Balance is not integrated with cloud billing APIs yet',
+      balanceQuery: 'Query Balance', balanceCooldown: 'Cooling down', balanceProvider: 'Provider', balanceAmount: 'Balance', balanceCurrency: 'Currency', balanceUpdatedAt: 'Updated At',
       composeFile: 'Compose File', composeProfiles: 'Profiles (comma-separated)', previewCompose: 'Preview Compose',
       composeUp: 'Compose Up', composeDown: 'Compose Down', composePreview: 'Compose Preview',
       serviceName: 'Service', serviceTemplate: 'Template', serviceProvider: 'Provider', serviceDepends: 'Depends', serviceReplicas: 'Replicas',
@@ -305,6 +312,10 @@
     if (registryNoticeTimer) {
       clearTimeout(registryNoticeTimer);
       registryNoticeTimer = null;
+    }
+    if (balanceCooldownTimer) {
+      clearInterval(balanceCooldownTimer);
+      balanceCooldownTimer = null;
     }
   });
 
@@ -623,6 +634,30 @@
       resourceSummary = [];
     } finally {
       resourcesLoading = false;
+    }
+  }
+
+  async function queryBalances() {
+    if (balanceCooldown > 0) return;
+    balanceLoading = true;
+    balanceError = '';
+    try {
+      balanceResults = await GetBalances(['aliyun', 'tencentcloud', 'volcengine', 'huaweicloud']) || [];
+      balanceCooldown = 5;
+      if (balanceCooldownTimer) {
+        clearInterval(balanceCooldownTimer);
+      }
+      balanceCooldownTimer = setInterval(() => {
+        balanceCooldown = Math.max(0, balanceCooldown - 1);
+        if (balanceCooldown === 0 && balanceCooldownTimer) {
+          clearInterval(balanceCooldownTimer);
+          balanceCooldownTimer = null;
+        }
+      }, 1000);
+    } catch (e) {
+      balanceError = e.message || String(e);
+    } finally {
+      balanceLoading = false;
     }
   }
 
@@ -1342,7 +1377,7 @@
             <div class="flex items-center justify-between mb-4">
               <div>
                 <h3 class="text-[14px] font-semibold text-gray-900">{t.resourceSummary}</h3>
-                <p class="text-[12px] text-gray-500">{t.balancePlaceholder}</p>
+                <p class="text-[12px] text-gray-500"></p>
               </div>
               <button
                 class="h-9 px-4 bg-gray-900 text-white text-[12px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
@@ -1377,6 +1412,58 @@
                     {:else}
                       <tr>
                         <td colspan="2" class="py-12 text-center text-[12px] text-gray-400">{t.noScene}</td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            {/if}
+          </div>
+
+          <div class="bg-white rounded-xl border border-gray-100 p-5">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-[14px] font-semibold text-gray-900">{t.balanceQuery}</h3>
+                <p class="text-[12px] text-gray-500">{t.profileSwitchHint}</p>
+              </div>
+              <button
+                class="h-9 px-4 bg-blue-600 text-white text-[12px] font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                on:click={queryBalances}
+                disabled={balanceLoading || balanceCooldown > 0}
+              >
+                {balanceLoading ? t.loading : balanceCooldown > 0 ? `${t.balanceCooldown} ${balanceCooldown}s` : t.balanceQuery}
+              </button>
+            </div>
+
+            {#if balanceError}
+              <div class="text-[12px] text-red-500">{balanceError}</div>
+            {:else}
+              <div class="border border-gray-100 rounded-lg overflow-hidden">
+                <table class="w-full text-[12px]">
+                  <thead>
+                    <tr class="bg-gray-50 border-b border-gray-100">
+                      <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.balanceProvider}</th>
+                      <th class="text-right px-4 py-2.5 font-semibold text-gray-600">{t.balanceAmount}</th>
+                      <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.balanceCurrency}</th>
+                      <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.balanceUpdatedAt}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {#each balanceResults as b}
+                      <tr class="border-b border-gray-50">
+                        <td class="px-4 py-3 text-gray-700">{b.provider}</td>
+                        <td class="px-4 py-3 text-right text-gray-700">{b.amount}</td>
+                        <td class="px-4 py-3 text-gray-700">{b.currency}</td>
+                        <td class="px-4 py-3 text-gray-500">{b.updatedAt}</td>
+                      </tr>
+                      {#if b.error}
+                        <tr class="border-b border-gray-50">
+                          <td colspan="4" class="px-4 pb-3 text-[11px] text-amber-600">{b.error}</td>
+                        </tr>
+                      {/if}
+                    {:else}
+                      <tr>
+                        <td colspan="4" class="py-12 text-center text-[12px] text-gray-400">{t.balancePlaceholder}</td>
                       </tr>
                     {/each}
                   </tbody>
