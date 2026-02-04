@@ -563,6 +563,9 @@ func (a *App) GetResourceSummary() ([]ResourceSummary, error) {
 
 	counts := make(map[string]int)
 	for _, c := range cases {
+		if c.State != redc.StateRunning {
+			continue
+		}
 		if c.Path == "" {
 			continue
 		}
