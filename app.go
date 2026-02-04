@@ -569,8 +569,10 @@ func (a *App) GetTemplateVariables(templateName string) ([]TemplateVariable, err
 		}
 		for name, value := range defaults {
 			if v, ok := variables[name]; ok {
-				v.DefaultValue = value
-				v.Required = false
+				if hasMeaningfulDefault(value) {
+					v.DefaultValue = value
+					v.Required = false
+				}
 			}
 		}
 	}
@@ -638,8 +640,11 @@ func parseVariablesTf(filePath string) ([]*TemplateVariable, error) {
 		
 		// Parse default
 		if matches := defaultRegex.FindStringSubmatch(line); len(matches) > 1 {
-			currentVar.DefaultValue = strings.Trim(strings.TrimSpace(matches[1]), `"`)
-			currentVar.Required = false
+			defaultRaw := strings.TrimSpace(matches[1])
+			currentVar.DefaultValue = strings.Trim(defaultRaw, `"`)
+			if hasMeaningfulDefault(defaultRaw) {
+				currentVar.Required = false
+			}
 		}
 		
 		// End of variable block
@@ -683,6 +688,21 @@ func parseTfvars(filePath string) (map[string]string, error) {
 	}
 	
 	return defaults, scanner.Err()
+}
+
+func hasMeaningfulDefault(value string) bool {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return false
+	}
+	lower := strings.ToLower(trimmed)
+	if lower == "null" || lower == "nil" {
+		return false
+	}
+	if trimmed == `""` || trimmed == "''" {
+		return false
+	}
+	return true
 }
 
 // StartCase starts a case by ID

@@ -65,7 +65,7 @@
   const i18n = {
     zh: {
       dashboard: '仪表盘', console: '控制台', settings: '设置', credentials: '凭据管理', registry: '模板仓库', ai: 'AI 集成', localTemplates: '本地模板',
-      sceneManage: '场景管理', templateRepo: '模板仓库', aiIntegration: 'AI 集成', localTmplManage: '本地模板管理',
+      sceneManage: '场景管理', templateRepo: '模板仓库', aiIntegration: 'AI 集成', localTmplManage: '本地模板',
       template: '模板', selectTemplate: '选择模板...', name: '名称', optional: '可选',
       create: '创建', createAndRun: '创建并运行', templateParams: '模板参数',
       creating: '正在创建中...', initializing: '初始化中...', createSuccess: '创建成功', createFailed: '创建失败',
@@ -1636,16 +1636,16 @@
             </div>
           {:else}
             <!-- Template Table -->
-            <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div class="bg-white rounded-xl border border-gray-100 overflow-hidden pr-6">
               <table class="w-full table-fixed">
                 <thead>
                   <tr class="border-b border-gray-100">
                     <th class="text-left px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-[140px]">{t.name}</th>
                     <th class="text-left px-3 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-[60px]">{t.version}</th>
-                    <th class="text-left px-3 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-[70px]">{t.author}</th>
-                    <th class="text-left px-3 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-[100px]">{t.module}</th>
+                    <th class="text-left px-3 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-[140px]">{t.author}</th>
+                    <th class="text-left px-3 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-[180px]">{t.module}</th>
                     <th class="text-left px-3 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{t.description}</th>
-                    <th class="text-right px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-[130px]">{t.actions}</th>
+                    <th class="text-right pl-4 pr-10 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-[130px]">{t.actions}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1658,11 +1658,11 @@
                         <span class="text-[13px] text-gray-600">{tmpl.version || '-'}</span>
                       </td>
                       <td class="px-3 py-3.5">
-                        <span class="text-[13px] text-gray-600 truncate block">{tmpl.user || '-'}</span>
+                        <span class="text-[13px] text-gray-600 break-words whitespace-normal block" title={tmpl.user || '-'}>{tmpl.user || '-'}</span>
                       </td>
                       <td class="px-3 py-3.5">
                         {#if tmpl.module}
-                          <span class="px-2 py-0.5 bg-blue-50 text-blue-600 text-[11px] font-medium rounded-full truncate block max-w-full">{tmpl.module}</span>
+                          <span class="px-2 py-0.5 bg-blue-50 text-blue-600 text-[11px] font-medium rounded-full inline-block break-words whitespace-normal max-w-full" title={tmpl.module}>{tmpl.module}</span>
                         {:else}
                           <span class="text-[13px] text-gray-400">-</span>
                         {/if}
@@ -1670,7 +1670,7 @@
                       <td class="px-3 py-3.5">
                         <span class="text-[12px] text-gray-500 break-words" title={tmpl.description}>{tmpl.description || '-'}</span>
                       </td>
-                      <td class="px-4 py-3.5 text-right">
+                      <td class="pl-4 pr-10 py-3.5 text-right">
                         <div class="inline-flex items-center gap-1 flex-nowrap">
                           <button 
                             class="px-2.5 py-1 text-[12px] font-medium text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors whitespace-nowrap"
