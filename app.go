@@ -569,10 +569,7 @@ func (a *App) GetTemplateVariables(templateName string) ([]TemplateVariable, err
 		}
 		for name, value := range defaults {
 			if v, ok := variables[name]; ok {
-				if hasMeaningfulDefault(value) {
-					v.DefaultValue = value
-					v.Required = false
-				}
+				v.DefaultValue = value
 			}
 		}
 	}
@@ -580,6 +577,7 @@ func (a *App) GetTemplateVariables(templateName string) ([]TemplateVariable, err
 	// Convert map to slice
 	result := make([]TemplateVariable, 0, len(variables))
 	for _, v := range variables {
+		v.Required = true
 		result = append(result, *v)
 	}
 	return result, nil
@@ -642,9 +640,6 @@ func parseVariablesTf(filePath string) ([]*TemplateVariable, error) {
 		if matches := defaultRegex.FindStringSubmatch(line); len(matches) > 1 {
 			defaultRaw := strings.TrimSpace(matches[1])
 			currentVar.DefaultValue = strings.Trim(defaultRaw, `"`)
-			if hasMeaningfulDefault(defaultRaw) {
-				currentVar.Required = false
-			}
 		}
 		
 		// End of variable block
@@ -690,20 +685,6 @@ func parseTfvars(filePath string) (map[string]string, error) {
 	return defaults, scanner.Err()
 }
 
-func hasMeaningfulDefault(value string) bool {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return false
-	}
-	lower := strings.ToLower(trimmed)
-	if lower == "null" || lower == "nil" {
-		return false
-	}
-	if trimmed == `""` || trimmed == "''" {
-		return false
-	}
-	return true
-}
 
 // StartCase starts a case by ID
 func (a *App) StartCase(caseID string) error {

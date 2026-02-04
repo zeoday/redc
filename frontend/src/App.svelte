@@ -549,6 +549,7 @@
   async function handleStartMCP() {
     mcpLoading = true;
     try {
+      mcpForm.mode = 'sse';
       await StartMCPServer(mcpForm.mode, mcpForm.address);
       await loadMCPStatus();
     } catch (e) {
@@ -1362,82 +1363,55 @@
                 <div class="grid grid-cols-2 gap-4 text-[12px]">
                   <div>
                     <span class="text-gray-500">{t.transportMode}</span>
-                    <p class="font-medium text-gray-900 mt-0.5">{mcpStatus.mode === 'sse' ? 'SSE (HTTP)' : 'STDIO'}</p>
+                    <p class="font-medium text-gray-900 mt-0.5">SSE (HTTP)</p>
                   </div>
-                  {#if mcpStatus.mode === 'sse'}
-                    <div>
-                      <span class="text-gray-500">{t.listenAddr}</span>
-                      <p class="font-mono font-medium text-gray-900 mt-0.5">{mcpStatus.address || '-'}</p>
-                    </div>
-                    <div>
-                      <span class="text-gray-500">{t.protocolVersion}</span>
-                      <p class="font-medium text-gray-900 mt-0.5">{mcpStatus.protocolVersion}</p>
-                    </div>
-                    <div>
-                      <span class="text-gray-500">{t.msgEndpoint}</span>
-                      <p class="font-mono font-medium text-gray-900 mt-0.5 text-[11px]">http://{mcpStatus.address}/message</p>
-                    </div>
-                  {:else}
-                    <div class="col-span-2 text-[12px] text-gray-500">{t.stdioHint}</div>
-                  {/if}
+                  <div>
+                    <span class="text-gray-500">{t.listenAddr}</span>
+                    <p class="font-mono font-medium text-gray-900 mt-0.5">{mcpStatus.address || '-'}</p>
+                  </div>
+                  <div>
+                    <span class="text-gray-500">{t.protocolVersion}</span>
+                    <p class="font-medium text-gray-900 mt-0.5">{mcpStatus.protocolVersion}</p>
+                  </div>
+                  <div>
+                    <span class="text-gray-500">{t.msgEndpoint}</span>
+                    <p class="font-mono font-medium text-gray-900 mt-0.5 text-[11px]">http://{mcpStatus.address}/message</p>
+                  </div>
                 </div>
               </div>
-              {#if mcpStatus.mode === 'sse'}
-                <button 
-                  class="w-full h-10 bg-red-500 text-white text-[13px] font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
-                  on:click={handleStopMCP}
-                  disabled={mcpLoading}
-                >
-                  {mcpLoading ? t.stoppingServer : t.stopServer}
-                </button>
-              {/if}
+              <button 
+                class="w-full h-10 bg-red-500 text-white text-[13px] font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                on:click={handleStopMCP}
+                disabled={mcpLoading}
+              >
+                {mcpLoading ? t.stoppingServer : t.stopServer}
+              </button>
             {:else}
               <!-- Configuration form -->
               <div class="space-y-4 mb-4">
                 <div>
                   <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.transportMode}</label>
-                  <div class="flex gap-2">
-                    <button 
-                      class="flex-1 h-10 px-4 text-[13px] font-medium rounded-lg border transition-colors
-                        {mcpForm.mode === 'sse' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}"
-                      on:click={() => mcpForm.mode = 'sse'}
-                    >
-                      SSE (HTTP)
-                    </button>
-                    <button 
-                      class="flex-1 h-10 px-4 text-[13px] font-medium rounded-lg border transition-colors
-                        {mcpForm.mode === 'stdio' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}"
-                      on:click={() => mcpForm.mode = 'stdio'}
-                    >
-                      STDIO
-                    </button>
+                  <div class="inline-flex items-center h-10 px-4 text-[13px] font-medium rounded-lg border bg-gray-900 text-white border-gray-900">
+                    SSE (HTTP)
                   </div>
                 </div>
-                {#if mcpForm.mode === 'sse'}
-                  <div>
-                    <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.listenAddr}</label>
-                    <input 
-                      type="text" 
-                      placeholder="localhost:8080" 
-                      class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
-                      bind:value={mcpForm.address} 
-                    />
-                  </div>
-                {:else}
-                  <div class="text-[12px] text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
-                    {t.stdioHint}
-                  </div>
-                {/if}
+                <div>
+                  <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.listenAddr}</label>
+                  <input 
+                    type="text" 
+                    placeholder="localhost:8080" 
+                    class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
+                    bind:value={mcpForm.address} 
+                  />
+                </div>
               </div>
-              {#if mcpForm.mode === 'sse'}
-                <button 
-                  class="w-full h-10 bg-gray-900 text-white text-[13px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
-                  on:click={handleStartMCP}
-                  disabled={mcpLoading}
-                >
-                  {mcpLoading ? t.startingServer : t.startServer}
-                </button>
-              {/if}
+              <button 
+                class="w-full h-10 bg-gray-900 text-white text-[13px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+                on:click={handleStartMCP}
+                disabled={mcpLoading}
+              >
+                {mcpLoading ? t.startingServer : t.startServer}
+              </button>
             {/if}
           </div>
 
@@ -1784,7 +1758,7 @@
 <!-- Template Detail Drawer -->
 {#if localTemplateDetail}
   <div class="fixed inset-0 bg-black/50 flex justify-end z-50" on:click={closeTemplateDetail}>
-    <div class="w-full max-w-lg bg-white h-full overflow-auto shadow-xl" on:click|stopPropagation>
+    <div class="w-full max-w-2xl bg-white h-full overflow-auto shadow-xl" on:click|stopPropagation>
       <div class="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
         <div>
           <h2 class="text-[16px] font-semibold text-gray-900">{localTemplateDetail.name}</h2>
@@ -1838,8 +1812,8 @@
               {t.noParams}
             </div>
           {:else}
-            <div class="border border-gray-100 rounded-lg overflow-hidden">
-              <table class="w-full text-[12px]">
+            <div class="border border-gray-100 rounded-lg overflow-x-auto">
+              <table class="w-full text-[12px] min-w-[520px]">
                 <thead>
                   <tr class="bg-gray-50 border-b border-gray-100">
                     <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.paramName}</th>
@@ -1869,15 +1843,15 @@
                       </td>
                       <td class="px-4 py-3 text-center">
                         {#if v.required}
-                          <span class="inline-flex items-center justify-center w-5 h-5 bg-red-100 text-red-600 rounded-full">
-                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </span>
-                        {:else}
                           <span class="inline-flex items-center justify-center w-5 h-5 bg-emerald-100 text-emerald-600 rounded-full">
                             <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </span>
+                        {:else}
+                          <span class="inline-flex items-center justify-center w-5 h-5 bg-gray-100 text-gray-400 rounded-full">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14" />
                             </svg>
                           </span>
                         {/if}
