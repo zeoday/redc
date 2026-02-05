@@ -21,14 +21,15 @@ The redc MCP server exposes the following capabilities:
 ### Tools (Actions)
 
 1. **list_templates** - List all available redc templates/images
-2. **pull_template** - Download a template from the registry (redc pull)
-3. **list_cases** - List all running cases in the current project
-4. **plan_case** - Plan a new case from a template (like terraform plan - preview resources without creating them)
-5. **start_case** - Start a case by ID (this actually creates and starts the infrastructure)
-6. **stop_case** - Stop a running case by ID
-7. **kill_case** - Kill (destroy) a case by ID
-8. **get_case_status** - Get the status of a specific case
-9. **exec_command** - Execute a command on a case
+2. **search_templates** - Search for templates in the official registry by keywords (provider, name, description, etc.)
+3. **pull_template** - Download a template from the registry (redc pull)
+4. **list_cases** - List all running cases in the current project
+5. **plan_case** - Plan a new case from a template (like terraform plan - preview resources without creating them)
+6. **start_case** - Start a case by ID (this actually creates and starts the infrastructure)
+7. **stop_case** - Stop a running case by ID
+8. **kill_case** - Kill (destroy) a case by ID
+9. **get_case_status** - Get the status of a specific case
+10. **exec_command** - Execute a command on a case
 
 ### Resources
 
@@ -121,6 +122,23 @@ Response:
 
 ### List Available Tools
 
+
+### Search Templates
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "search_templates",
+    "arguments": {
+      "query": "aliyun ecs",
+      "registry_url": "https://redc.wgpsec.org"
+    }
+  }
+}
+```
 
 ### Pull a Template
 

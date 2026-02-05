@@ -255,6 +255,24 @@ func (s *MCPServer) getTools() []Tool {
 			},
 		},
 		{
+			Name:        "search_templates",
+			Description: "Search for templates in the official registry by keywords (provider, name, description, etc.)",
+			InputSchema: ToolSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"query": {
+						Type:        "string",
+						Description: "Search query (e.g., 'aliyun', 'ecs', 'network', 'huawei/vpc')",
+					},
+					"registry_url": {
+						Type:        "string",
+						Description: "Registry base URL (optional, default: https://redc.wgpsec.org)",
+					},
+				},
+				Required: []string{"query"},
+			},
+		},
+		{
 			Name:        "pull_template",
 			Description: "Download a template from the registry (redc pull)",
 			InputSchema: ToolSchema{
@@ -483,6 +501,14 @@ func (s *MCPServer) executeTool(name string, args map[string]interface{}) (ToolR
 	case "list_templates":
 		return s.toolListTemplates()
 
+	case "search_templates":
+		query, ok := args["query"].(string)
+		if !ok {
+			return ToolResult{}, fmt.Errorf("missing or invalid 'query' parameter")
+		}
+		registryURL, _ := args["registry_url"].(string)
+		return s.toolSearchTemplates(query, registryURL)
+
 	case "pull_template":
 		template, ok := args["template"].(string)
 		if !ok {
@@ -559,6 +585,61 @@ func (s *MCPServer) toolListTemplates() (ToolResult, error) {
 	for _, dir := range dirs {
 		output += fmt.Sprintf("- %s\n", dir)
 	}
+
+	return ToolResult{
+		Content: []ContentItem{{
+			Type: "text",
+			Text: output,
+		}},
+	}, nil
+}
+
+func (s *MCPServer) toolSearchTemplates(query string, registryURL string) (ToolResult, error) {
+	if strings.TrimSpace(query) == "" {
+		return ToolResult{}, fmt.Errorf("query cannot be empty")
+	}
+	if strings.TrimSpace(registryURL) == "" {
+		registryURL = "https://redc.wgpsec.org"
+	}
+
+	opts := redc.PullOptions{
+		RegistryURL: registryURL,
+		Timeout:     30 * time.Second,
+	}
+
+	results, err := redc.Search(context.Background(), query, opts)
+	if err != nil {
+		return ToolResult{}, fmt.Errorf("failed to search templates: %v", err)
+	}
+
+	if len(results) == 0 {
+		return ToolResult{
+			Content: []ContentItem{{
+				Type: "text",
+				Text: fmt.Sprintf("No templates found for query: '%s'\n\nTry searching with different keywords like:\n- Provider names: 'aliyun', 'tencent', 'huawei', 'aws'\n- Resource types: 'ecs', 'vpc', 'network', 'database'\n- Full paths: 'aliyun/ecs', 'tencent/cvm'", query),
+			}},
+		}, nil
+	}
+
+	output := fmt.Sprintf("Found %d template(s) for query '%s':\n\n", len(results), query)
+	for i, result := range results {
+		output += fmt.Sprintf("%d. %s\n", i+1, result.Key)
+		output += fmt.Sprintf("   Version: %s\n", result.Version)
+		output += fmt.Sprintf("   Provider: %s\n", result.Provider)
+		if result.Author != "" {
+			output += fmt.Sprintf("   Author: %s\n", result.Author)
+		}
+		if result.Description != "" {
+			desc := result.Description
+			if len(desc) > 100 {
+				desc = desc[:100] + "..."
+			}
+			output += fmt.Sprintf("   Description: %s\n", desc)
+		}
+		output += "\n"
+	}
+
+	output += "To pull a template, use the 'pull_template' tool with the template name (e.g., 'aliyun/ecs').\n"
 
 	return ToolResult{
 		Content: []ContentItem{{
