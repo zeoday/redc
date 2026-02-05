@@ -154,6 +154,8 @@
       terraformMirror: 'Terraform 镜像加速', mirrorEnabled: '启用镜像', mirrorConfigPath: '配置文件路径',
       mirrorConfigHint: '留空使用默认路径', mirrorSetEnv: '设置 TF_CLI_CONFIG_FILE', mirrorSave: '保存镜像配置',
       mirrorAliyunPreset: '一键使用阿里云镜像', mirrorTencentPreset: '一键使用腾讯云镜像', mirrorVolcPreset: '一键使用火山云镜像',
+      mirrorLimitTitle: '提示',
+      mirrorLimitDesc: '部分 HashiCorp 官方 Provider（如 hashicorp/random）不在国内镜像中，大陆直连 registry 可能失败。该问题需通过代理或可用网络解决，镜像加速无法覆盖。',
       mirrorDetected: '检测到 Terraform 初始化网络异常', mirrorDetectedDesc: '可尝试启用国内镜像加速',
       mirrorApplyAliyun: '一键启用阿里云镜像', mirrorGoSettings: '前往设置', mirrorConfigFromEnv: '当前路径来自 TF_CLI_CONFIG_FILE',
       mirrorFixTitle: '一键修复（清理缓存 + 重新 init）',
@@ -219,6 +221,8 @@
       terraformMirror: 'Terraform Mirror', mirrorEnabled: 'Enable mirror', mirrorConfigPath: 'Config file path',
       mirrorConfigHint: 'Leave empty to use default path', mirrorSetEnv: 'Set TF_CLI_CONFIG_FILE', mirrorSave: 'Save mirror config',
       mirrorAliyunPreset: 'Use Alibaba Cloud mirror', mirrorTencentPreset: 'Use Tencent Cloud mirror', mirrorVolcPreset: 'Use Volcengine mirror',
+      mirrorLimitTitle: 'Note',
+      mirrorLimitDesc: 'Some HashiCorp official providers (e.g., hashicorp/random) are not available in CN mirrors. Direct access to the registry may fail in mainland China. This requires a proxy or reachable network; mirrors cannot cover it.',
       mirrorDetected: 'Terraform init network issue detected', mirrorDetectedDesc: 'Try enabling a local mirror',
       mirrorApplyAliyun: 'Enable Alibaba Cloud mirror', mirrorGoSettings: 'Open settings', mirrorConfigFromEnv: 'Path is from TF_CLI_CONFIG_FILE',
       mirrorFixTitle: 'One-click fix (clear cache + re-init)',
@@ -1948,6 +1952,10 @@
                 {:else if terraformMirror.managed}
                   <span class="text-[12px] text-emerald-600">OK</span>
                 {/if}
+              </div>
+              <div class="mt-2 text-[11px] text-gray-500 leading-relaxed">
+                <span class="font-medium text-gray-600">{t.mirrorLimitTitle}</span>
+                <span class="ml-1">{t.mirrorLimitDesc}</span>
               </div>
             </div>
           </div>
