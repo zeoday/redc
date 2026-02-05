@@ -2584,28 +2584,28 @@
                       <td class="px-3 py-3.5 w-[320px]">
                         <span class="text-[12px] text-gray-500 break-words whitespace-normal" title={tmpl.description}>{tmpl.description || '-'}</span>
                       </td>
-                      <td class="pl-4 pr-6 py-3.5 text-right w-[220px]">
+                      <td class="pl-4 pr-6 py-3.5 text-right w-[240px]">
                         <div class="flex flex-col gap-2 items-end">
-                          <div class="flex items-center gap-3">
+                          <div class="flex items-center gap-2">
                             <button 
-                              class="w-[90px] px-2.5 py-1 text-[12px] font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                              class="min-w-[100px] px-2.5 py-1 text-[12px] font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors whitespace-nowrap"
                               on:click={() => handleCloneTemplate(tmpl)}
                             >{t.cloneTemplate}</button>
                             <button 
-                              class="w-[90px] px-2.5 py-1 text-[12px] font-medium text-indigo-700 bg-indigo-50 rounded-md hover:bg-indigo-100 transition-colors"
+                              class="min-w-[100px] px-2.5 py-1 text-[12px] font-medium text-indigo-700 bg-indigo-50 rounded-md hover:bg-indigo-100 transition-colors whitespace-nowrap"
                               on:click={() => openTemplateEditor(tmpl)}
                             >{t.editTemplate}</button>
                           </div>
-                          <div class="flex items-center gap-3">
+                          <div class="flex items-center gap-2">
                             <button 
-                              class="w-[90px] px-2.5 py-1 text-[12px] font-medium text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+                              class="min-w-[100px] px-2.5 py-1 text-[12px] font-medium text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors whitespace-nowrap"
                               on:click={() => showTemplateDetail(tmpl)}
                             >{t.viewParams}</button>
                             {#if deletingTemplate[tmpl.name]}
-                              <span class="w-[90px] px-2.5 py-1 text-[12px] font-medium text-amber-600">{t.deleting}</span>
+                              <span class="min-w-[100px] px-2.5 py-1 text-[12px] font-medium text-amber-600 text-center">{t.deleting}</span>
                             {:else}
                               <button 
-                                class="w-[90px] px-2.5 py-1 text-[12px] font-medium text-red-700 bg-red-50 rounded-md hover:bg-red-100 transition-colors"
+                                class="min-w-[100px] px-2.5 py-1 text-[12px] font-medium text-red-700 bg-red-50 rounded-md hover:bg-red-100 transition-colors whitespace-nowrap"
                                 on:click={() => showDeleteTemplateConfirm(tmpl.name)}
                               >{t.delete}</button>
                             {/if}
