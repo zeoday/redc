@@ -2291,6 +2291,14 @@
                 </div>
                 <div class="flex items-center gap-2 text-gray-700">
                   <span class="w-1 h-1 rounded-full bg-gray-400"></span>
+                  search_templates
+                </div>
+                <div class="flex items-center gap-2 text-gray-700">
+                  <span class="w-1 h-1 rounded-full bg-gray-400"></span>
+                  pull_template
+                </div>
+                <div class="flex items-center gap-2 text-gray-700">
+                  <span class="w-1 h-1 rounded-full bg-gray-400"></span>
                   list_cases
                 </div>
                 <div class="flex items-center gap-2 text-gray-700">
