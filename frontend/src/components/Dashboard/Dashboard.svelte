@@ -652,7 +652,7 @@
                 {/if}
                 {#if c.state !== 'starting' && c.state !== 'stopping' && c.state !== 'removing'}
                   <button 
-                    class="px-2.5 py-1 text-[12px] font-medium text-gray-600 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors"
+                    class="px-2.5 py-1 text-[12px] font-medium text-red-700 bg-red-50 rounded-md hover:bg-red-100 transition-colors"
                     on:click={() => showDeleteConfirm(c.id, c.name)}
                   >{t.delete}</button>
                 {/if}
