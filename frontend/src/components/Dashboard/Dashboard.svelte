@@ -541,13 +541,13 @@
       <div class="px-5 py-3 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
         <div class="flex items-center gap-3">
           <span class="text-[13px] font-medium text-blue-900">
-            {t.selected || '已选择'} {selectedCases.size} {t.items || '项'}
+            {t.selected} {selectedCases.size} {t.items}
           </span>
           <button
             class="text-[12px] text-blue-600 hover:text-blue-800 underline"
             on:click={() => { selectedCases.clear(); selectedCases = selectedCases; }}
           >
-            {t.clearSelection || '清除选择'}
+            {t.clearSelection}
           </button>
         </div>
         <div class="flex items-center gap-2">
@@ -556,21 +556,21 @@
             on:click={handleBatchStart}
             disabled={batchOperating}
           >
-            {t.batchStart || '批量启动'}
+            {t.batchStart}
           </button>
           <button
             class="px-3 py-1.5 text-[12px] font-medium text-amber-700 bg-amber-50 rounded-md hover:bg-amber-100 transition-colors disabled:opacity-50"
             on:click={showBatchStopConfirm}
             disabled={batchOperating}
           >
-            {t.batchStop || '批量停止'}
+            {t.batchStop}
           </button>
           <button
             class="px-3 py-1.5 text-[12px] font-medium text-red-700 bg-red-50 rounded-md hover:bg-red-100 transition-colors disabled:opacity-50"
             on:click={showBatchDeleteConfirm}
             disabled={batchOperating}
           >
-            {t.batchDelete || '批量删除'}
+            {t.batchDelete}
           </button>
         </div>
       </div>
@@ -765,12 +765,12 @@
             </svg>
           </div>
           <div>
-            <h3 class="text-[15px] font-semibold text-gray-900">{t.confirmBatchDelete || '确认批量删除'}</h3>
+            <h3 class="text-[15px] font-semibold text-gray-900">{t.confirmBatchDelete}</h3>
             <p class="text-[13px] text-gray-500">{t.cannotUndo}</p>
           </div>
         </div>
         <p class="text-[13px] text-gray-600">
-          {t.confirmBatchDeleteMessage || '确认删除选中的'} <span class="font-medium text-gray-900">{batchDeleteConfirm.count}</span> {t.scenes || '个场景'}?
+          {t.confirmBatchDeleteMessage} <span class="font-medium text-gray-900">{batchDeleteConfirm.count}</span> {t.scenes}?
         </p>
       </div>
       <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2">
@@ -799,12 +799,12 @@
             </svg>
           </div>
           <div>
-            <h3 class="text-[15px] font-semibold text-gray-900">{t.confirmBatchStop || '确认批量停止'}</h3>
-            <p class="text-[13px] text-gray-500">{t.stopWarning || '停止场景将停止所有运行中的资源'}</p>
+            <h3 class="text-[15px] font-semibold text-gray-900">{t.confirmBatchStop}</h3>
+            <p class="text-[13px] text-gray-500">{t.stopWarning}</p>
           </div>
         </div>
         <p class="text-[13px] text-gray-600">
-          {t.confirmBatchStopMessage || '确认停止选中的'} <span class="font-medium text-gray-900">{batchStopConfirm.count}</span> {t.scenes || '个场景'}?
+          {t.confirmBatchStopMessage} <span class="font-medium text-gray-900">{batchStopConfirm.count}</span> {t.scenes}?
         </p>
       </div>
       <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2">
@@ -833,12 +833,12 @@
             </svg>
           </div>
           <div>
-            <h3 class="text-[15px] font-semibold text-gray-900">{t.confirmStop || '确认关闭'}</h3>
-            <p class="text-[13px] text-gray-500">{t.stopWarning || '关闭场景将停止所有运行中的资源'}</p>
+            <h3 class="text-[15px] font-semibold text-gray-900">{t.confirmStop}</h3>
+            <p class="text-[13px] text-gray-500">{t.stopWarning}</p>
           </div>
         </div>
         <p class="text-[13px] text-gray-600">
-          {t.confirmStopScene || '确认关闭场景'} <span class="font-medium text-gray-900">"{stopConfirm.caseName}"</span>?
+          {t.confirmStopScene} <span class="font-medium text-gray-900">"{stopConfirm.caseName}"</span>?
         </p>
       </div>
       <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2">
