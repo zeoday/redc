@@ -19,6 +19,7 @@
   let profileSaving = false;
   let profileError = '';
   let error = '';
+  let saveConfirm = { show: false, providerName: '' };
 
   async function loadProvidersConfig() {
     credentialsLoading = true;
@@ -156,6 +157,20 @@
   function cancelEditProvider() {
     editingProvider = null;
     editFields = {};
+  }
+
+  function showSaveConfirm(providerName) {
+    saveConfirm = { show: true, providerName };
+  }
+
+  function cancelSave() {
+    saveConfirm = { show: false, providerName: '' };
+  }
+
+  async function confirmSave() {
+    const providerName = saveConfirm.providerName;
+    saveConfirm = { show: false, providerName: '' };
+    await saveProviderCredentials(providerName);
   }
 
   async function saveProviderCredentials(providerName) {
@@ -349,7 +364,7 @@
                 >{t.cancel}</button>
                 <button 
                   class="px-3 py-1 text-[12px] font-medium text-white bg-emerald-500 rounded-md hover:bg-emerald-600 transition-colors disabled:opacity-50"
-                  on:click={() => saveProviderCredentials(provider.name)}
+                  on:click={() => showSaveConfirm(provider.name)}
                   disabled={credentialsSaving[provider.name]}
                 >
                   {credentialsSaving[provider.name] ? t.saving : t.save}
@@ -421,3 +436,37 @@
     </div>
   {/if}
 </div>
+
+<!-- Save Credentials Confirmation Modal -->
+{#if saveConfirm.show}
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" on:click={cancelSave}>
+    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden" on:click|stopPropagation>
+      <div class="px-6 py-5">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+            <svg class="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-[15px] font-semibold text-gray-900">{t.confirmSave || '确认保存'}</h3>
+            <p class="text-[13px] text-gray-500">{t.saveWarning || '凭据将被加密保存到配置文件'}</p>
+          </div>
+        </div>
+        <p class="text-[13px] text-gray-600">
+          {t.confirmSaveCredentials || '确认保存'} <span class="font-medium text-gray-900">"{saveConfirm.providerName}"</span> {t.credentials || '的凭据'}?
+        </p>
+      </div>
+      <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2">
+        <button 
+          class="px-4 py-2 text-[13px] font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          on:click={cancelSave}
+        >{t.cancel}</button>
+        <button 
+          class="px-4 py-2 text-[13px] font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
+          on:click={confirmSave}
+        >{t.save}</button>
+      </div>
+    </div>
+  </div>
+{/if}

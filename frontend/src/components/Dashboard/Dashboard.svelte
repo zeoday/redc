@@ -12,6 +12,7 @@
   let expandedCase = null;
   let caseOutputs = {};
   let deleteConfirm = { show: false, caseId: null, caseName: '' };
+  let stopConfirm = { show: false, caseId: null, caseName: '' };
   let templateVariables = [];
   let variableValues = {};
   let error = '';
@@ -213,6 +214,20 @@
       error = e.message || String(e);
       await refresh();
     }
+  }
+  
+  function showStopConfirm(caseId, caseName) {
+    stopConfirm = { show: true, caseId, caseName };
+  }
+  
+  function cancelStop() {
+    stopConfirm = { show: false, caseId: null, caseName: '' };
+  }
+  
+  async function confirmStop() {
+    const caseId = stopConfirm.caseId;
+    stopConfirm = { show: false, caseId: null, caseName: '' };
+    await handleStop(caseId);
   }
   
   function showDeleteConfirm(caseId, caseName) {
@@ -471,7 +486,7 @@
                 {:else}
                   <button 
                     class="px-2.5 py-1 text-[12px] font-medium text-amber-700 bg-amber-50 rounded-md hover:bg-amber-100 transition-colors"
-                    on:click={() => handleStop(c.id)}
+                    on:click={() => showStopConfirm(c.id, c.name)}
                   >{t.stop}</button>
                 {/if}
                 {#if c.state !== 'starting' && c.state !== 'stopping' && c.state !== 'removing'}
@@ -572,6 +587,40 @@
           class="px-4 py-2 text-[13px] font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
           on:click={confirmDelete}
         >{t.delete}</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Stop Confirmation Modal -->
+{#if stopConfirm.show}
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" on:click={cancelStop}>
+    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden" on:click|stopPropagation>
+      <div class="px-6 py-5">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+            <svg class="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-[15px] font-semibold text-gray-900">{t.confirmStop || '确认关闭'}</h3>
+            <p class="text-[13px] text-gray-500">{t.stopWarning || '关闭场景将停止所有运行中的资源'}</p>
+          </div>
+        </div>
+        <p class="text-[13px] text-gray-600">
+          {t.confirmStopScene || '确认关闭场景'} <span class="font-medium text-gray-900">"{stopConfirm.caseName}"</span>?
+        </p>
+      </div>
+      <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2">
+        <button 
+          class="px-4 py-2 text-[13px] font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          on:click={cancelStop}
+        >{t.cancel}</button>
+        <button 
+          class="px-4 py-2 text-[13px] font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 transition-colors"
+          on:click={confirmStop}
+        >{t.stop}</button>
       </div>
     </div>
   </div>
