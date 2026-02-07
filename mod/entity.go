@@ -3,12 +3,15 @@ package mod
 import "github.com/hashicorp/terraform-exec/tfexec"
 
 const (
-	StateRunning string = "running"
-	StateStopped string = "stopped"
-	StateError   string = "error"
-	StateCreated string = "created"
-	StatePending string = "pending"
-	StateUnknown string = "unknown"
+	StateRunning  string = "running"
+	StateStopped  string = "stopped"
+	StateError    string = "error"
+	StateCreated  string = "created"
+	StatePending  string = "pending"
+	StateUnknown  string = "unknown"
+	StateStarting string = "starting" // 正在启动
+	StateStopping string = "stopping" // 正在停止
+	StateRemoving string = "removing" // 正在删除
 )
 
 // RedcProject 项目结构体

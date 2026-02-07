@@ -17,6 +17,12 @@
   let variableValues = {};
   let error = '';
   
+  // Batch operation state
+  let selectedCases = new Set();
+  let batchOperating = false;
+  let batchDeleteConfirm = { show: false, count: 0 };
+  let batchStopConfirm = { show: false, count: 0 };
+  
   // Create status state
   let createStatus = 'idle';
   let createStatusMessage = '';
@@ -31,6 +37,10 @@
   let copiedKey = null;
   
   $: createBusy = createStatus === 'creating' || createStatus === 'initializing';
+  
+  $: allSelected = cases.length > 0 && selectedCases.size === cases.length;
+  $: someSelected = selectedCases.size > 0 && selectedCases.size < cases.length;
+  $: hasSelection = selectedCases.size > 0;
   
   $: stateConfig = {
     'running': { label: t.running, color: 'text-emerald-600', bg: 'bg-emerald-50', dot: 'bg-emerald-500' },
@@ -287,6 +297,100 @@
     }
   }
 
+  // ============================================================================
+  // Batch Operation Functions
+  // ============================================================================
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      selectedCases.clear();
+    } else {
+      cases.forEach(c => selectedCases.add(c.id));
+    }
+    selectedCases = selectedCases; // Trigger reactivity
+  }
+
+  function toggleSelectCase(caseId) {
+    if (selectedCases.has(caseId)) {
+      selectedCases.delete(caseId);
+    } else {
+      selectedCases.add(caseId);
+    }
+    selectedCases = selectedCases; // Trigger reactivity
+  }
+
+  function showBatchDeleteConfirm() {
+    batchDeleteConfirm = { show: true, count: selectedCases.size };
+  }
+
+  function cancelBatchDelete() {
+    batchDeleteConfirm = { show: false, count: 0 };
+  }
+
+  async function confirmBatchDelete() {
+    batchDeleteConfirm = { show: false, count: 0 };
+    batchOperating = true;
+    
+    const caseIds = Array.from(selectedCases);
+    
+    try {
+      // Execute deletions in parallel
+      await Promise.all(caseIds.map(caseId => RemoveCase(caseId)));
+      selectedCases.clear();
+      selectedCases = selectedCases;
+    } catch (e) {
+      error = e.message || String(e);
+    } finally {
+      batchOperating = false;
+      await refresh();
+    }
+  }
+
+  function showBatchStopConfirm() {
+    batchStopConfirm = { show: true, count: selectedCases.size };
+  }
+
+  function cancelBatchStop() {
+    batchStopConfirm = { show: false, count: 0 };
+  }
+
+  async function confirmBatchStop() {
+    batchStopConfirm = { show: false, count: 0 };
+    batchOperating = true;
+    
+    const caseIds = Array.from(selectedCases);
+    
+    try {
+      // Execute stops in parallel
+      await Promise.all(caseIds.map(caseId => StopCase(caseId)));
+      selectedCases.clear();
+      selectedCases = selectedCases;
+    } catch (e) {
+      error = e.message || String(e);
+    } finally {
+      batchOperating = false;
+      await refresh();
+    }
+  }
+
+  async function handleBatchStart() {
+    batchOperating = true;
+    
+    const caseIds = Array.from(selectedCases);
+    
+    try {
+      // Execute starts in parallel
+      await Promise.all(caseIds.map(caseId => StartCase(caseId)));
+      selectedCases.clear();
+      selectedCases = selectedCases;
+    } catch (e) {
+      error = e.message || String(e);
+    } finally {
+      batchOperating = false;
+      await refresh();
+    }
+  }
+
 </script>
 
 <div class="space-y-5">
@@ -432,9 +536,58 @@
 
   <!-- Table -->
   <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+    <!-- Batch Operations Bar -->
+    {#if hasSelection}
+      <div class="px-5 py-3 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="text-[13px] font-medium text-blue-900">
+            {t.selected || '已选择'} {selectedCases.size} {t.items || '项'}
+          </span>
+          <button
+            class="text-[12px] text-blue-600 hover:text-blue-800 underline"
+            on:click={() => { selectedCases.clear(); selectedCases = selectedCases; }}
+          >
+            {t.clearSelection || '清除选择'}
+          </button>
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            class="px-3 py-1.5 text-[12px] font-medium text-emerald-700 bg-emerald-50 rounded-md hover:bg-emerald-100 transition-colors disabled:opacity-50"
+            on:click={handleBatchStart}
+            disabled={batchOperating}
+          >
+            {t.batchStart || '批量启动'}
+          </button>
+          <button
+            class="px-3 py-1.5 text-[12px] font-medium text-amber-700 bg-amber-50 rounded-md hover:bg-amber-100 transition-colors disabled:opacity-50"
+            on:click={showBatchStopConfirm}
+            disabled={batchOperating}
+          >
+            {t.batchStop || '批量停止'}
+          </button>
+          <button
+            class="px-3 py-1.5 text-[12px] font-medium text-red-700 bg-red-50 rounded-md hover:bg-red-100 transition-colors disabled:opacity-50"
+            on:click={showBatchDeleteConfirm}
+            disabled={batchOperating}
+          >
+            {t.batchDelete || '批量删除'}
+          </button>
+        </div>
+      </div>
+    {/if}
+    
     <table class="w-full">
       <thead>
         <tr class="border-b border-gray-100">
+          <th class="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-12">
+            <input
+              type="checkbox"
+              class="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 cursor-pointer"
+              checked={allSelected}
+              indeterminate={someSelected}
+              on:change={toggleSelectAll}
+            />
+          </th>
           <th class="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{t.id}</th>
           <th class="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{t.name}</th>
           <th class="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{t.type}</th>
@@ -449,6 +602,14 @@
             class="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer"
             on:click={() => toggleCaseExpand(c.id, c.state)}
           >
+            <td class="px-5 py-3.5" on:click|stopPropagation>
+              <input
+                type="checkbox"
+                class="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 cursor-pointer"
+                checked={selectedCases.has(c.id)}
+                on:change={() => toggleSelectCase(c.id)}
+              />
+            </td>
             <td class="px-5 py-3.5">
               <div class="flex items-center gap-2">
                 <svg class="w-4 h-4 text-gray-400 transition-transform {expandedCase === c.id ? 'rotate-90' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -501,7 +662,7 @@
           <!-- Expanded row for outputs -->
           {#if expandedCase === c.id}
             <tr class="bg-slate-50">
-              <td colspan="6" class="px-5 py-4">
+              <td colspan="7" class="px-5 py-4">
                 <div class="pl-6">
                   {#if c.state === 'running'}
                     {#if caseOutputs[c.id]}
@@ -543,7 +704,7 @@
           {/if}
         {:else}
           <tr>
-            <td colspan="6" class="py-16">
+            <td colspan="7" class="py-16">
               <div class="flex flex-col items-center text-gray-400">
                 <svg class="w-10 h-10 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
@@ -587,6 +748,74 @@
           class="px-4 py-2 text-[13px] font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
           on:click={confirmDelete}
         >{t.delete}</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Batch Delete Confirmation Modal -->
+{#if batchDeleteConfirm.show}
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" on:click={cancelBatchDelete}>
+    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden" on:click|stopPropagation>
+      <div class="px-6 py-5">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+            <svg class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-[15px] font-semibold text-gray-900">{t.confirmBatchDelete || '确认批量删除'}</h3>
+            <p class="text-[13px] text-gray-500">{t.cannotUndo}</p>
+          </div>
+        </div>
+        <p class="text-[13px] text-gray-600">
+          {t.confirmBatchDeleteMessage || '确认删除选中的'} <span class="font-medium text-gray-900">{batchDeleteConfirm.count}</span> {t.scenes || '个场景'}?
+        </p>
+      </div>
+      <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2">
+        <button 
+          class="px-4 py-2 text-[13px] font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          on:click={cancelBatchDelete}
+        >{t.cancel}</button>
+        <button 
+          class="px-4 py-2 text-[13px] font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+          on:click={confirmBatchDelete}
+        >{t.delete}</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Batch Stop Confirmation Modal -->
+{#if batchStopConfirm.show}
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" on:click={cancelBatchStop}>
+    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden" on:click|stopPropagation>
+      <div class="px-6 py-5">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+            <svg class="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-[15px] font-semibold text-gray-900">{t.confirmBatchStop || '确认批量停止'}</h3>
+            <p class="text-[13px] text-gray-500">{t.stopWarning || '停止场景将停止所有运行中的资源'}</p>
+          </div>
+        </div>
+        <p class="text-[13px] text-gray-600">
+          {t.confirmBatchStopMessage || '确认停止选中的'} <span class="font-medium text-gray-900">{batchStopConfirm.count}</span> {t.scenes || '个场景'}?
+        </p>
+      </div>
+      <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2">
+        <button 
+          class="px-4 py-2 text-[13px] font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          on:click={cancelBatchStop}
+        >{t.cancel}</button>
+        <button 
+          class="px-4 py-2 text-[13px] font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 transition-colors"
+          on:click={confirmBatchStop}
+        >{t.stop}</button>
       </div>
     </div>
   </div>

@@ -258,6 +258,9 @@ func (c *Case) TfApply() error {
 		return fmt.Errorf("场景正在运行中！")
 	}
 	
+	// 设置为正在启动状态
+	c.StatusChange(StateStarting)
+	
 	// 重新生成 plan 以确保与当前 state 一致
 	gologger.Info().Msgf("正在刷新场景计划...")
 	if err = TfPlan(c.Path, c.Parameter...); err != nil {
@@ -392,9 +395,14 @@ func (c *Case) StatusChange(s string) {
 
 func (c *Case) TfDestroy() error {
 	gologger.Info().Msgf("正在销毁场景「%s(%s)」...", c.Name, c.GetId())
+	
+	// 设置为正在停止状态
+	c.StatusChange(StateStopping)
+	
 	err := TfDestroy(c.Path, c.Parameter)
 	if err != nil {
 		gologger.Error().Msgf("场景销毁失败！%s", err.Error())
+		c.StatusChange(StateError)
 		return err
 	}
 	c.StatusChange(StateStopped)
@@ -404,11 +412,17 @@ func (c *Case) Remove() error {
 	if c.State == StateRunning {
 		return fmt.Errorf("场景正在运行中，请先停止场景后删除！")
 	}
+	
+	// 设置为正在删除状态
+	c.StatusChange(StateRemoving)
+	
 	err := os.RemoveAll(c.Path)
 	if err != nil {
+		c.StatusChange(StateError)
 		return fmt.Errorf("删除场景文件失败！%s", err.Error())
 	}
 	if err = c.removeHandle(); err != nil {
+		c.StatusChange(StateError)
 		return fmt.Errorf("删除数据库记录失败: %v", err)
 	}
 	gologger.Info().Msgf("场景删除成功")
