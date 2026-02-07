@@ -212,7 +212,7 @@
   }
 </script>
 
-<div class="max-w-3xl space-y-5">
+<div class="max-w-3xl lg:max-w-5xl xl:max-w-full space-y-5">
   <!-- Profile Management -->
   <div class="bg-white rounded-xl border border-gray-100 p-5">
     <div class="flex items-center justify-between mb-4">
