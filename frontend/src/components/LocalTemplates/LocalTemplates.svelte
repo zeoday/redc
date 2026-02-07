@@ -1,22 +1,51 @@
 <script>
   import { onMount } from 'svelte';
   import { ListTemplates, GetTemplateVariables, RemoveTemplate, CopyTemplate, GetTemplateFiles, SaveTemplateFiles } from '../../../wailsjs/go/main/App.js';
+  import CodeEditor from '../CodeEditor/CodeEditor.svelte';
 
+  // Translation object passed from parent component
   export let t;
 
-  // Local templates state
+  // ============================================================================
+  // State Management
+  // ============================================================================
+  
+  // Local templates list and loading state
   let localTemplates = [];
   let localTemplatesLoading = false;
   let localTemplatesSearch = '';
+  
+  // Template detail drawer state
   let localTemplateDetail = null;
   let localTemplateVars = [];
   let localTemplateVarsLoading = false;
+  
+  // Delete confirmation modal state
   let deleteTemplateConfirm = { show: false, name: '' };
   let deletingTemplate = {};
+  
+  // Clone template modal state
   let cloneTemplateModal = { show: false, source: '', target: '' };
+  
+  // Template editor modal state
+  // - show: Whether the editor modal is visible
+  // - name: The template name being edited
+  // - files: Object mapping filename to content { [filename]: content }
+  // - active: Currently selected filename in the editor
+  // - saving: Whether a save operation is in progress
+  // - error: Error message to display (if any)
   let templateEditor = { show: false, name: '', files: {}, active: '', saving: false, error: '' };
+  
+  // Global error message
   let error = '';
 
+  // ============================================================================
+  // Template List Functions
+  // ============================================================================
+
+  /**
+   * Load the list of local templates from the backend
+   */
   async function loadLocalTemplates() {
     localTemplatesLoading = true;
     try {
@@ -29,6 +58,14 @@
     }
   }
 
+  // ============================================================================
+  // Template Detail Functions
+  // ============================================================================
+
+  /**
+   * Show template detail drawer with variables
+   * @param {Object} tmpl - The template object to show details for
+   */
   async function showTemplateDetail(tmpl) {
     localTemplateDetail = tmpl;
     localTemplateVars = [];
@@ -44,24 +81,41 @@
     }
   }
 
+  /**
+   * Close the template detail drawer
+   */
   function closeTemplateDetail() {
     localTemplateDetail = null;
     localTemplateVars = [];
   }
 
+  // ============================================================================
+  // Delete Template Functions
+  // ============================================================================
+
+  /**
+   * Show delete confirmation modal
+   * @param {string} name - The template name to delete
+   */
   function showDeleteTemplateConfirm(name) {
     deleteTemplateConfirm = { show: true, name };
   }
 
+  /**
+   * Cancel delete operation and close confirmation modal
+   */
   function cancelDeleteTemplate() {
     deleteTemplateConfirm = { show: false, name: '' };
   }
 
+  /**
+   * Confirm and execute template deletion
+   */
   async function confirmDeleteTemplate() {
     const name = deleteTemplateConfirm.name;
     deleteTemplateConfirm = { show: false, name: '' };
     deletingTemplate[name] = true;
-    deletingTemplate = deletingTemplate;
+    deletingTemplate = deletingTemplate; // Trigger reactivity
     try {
       await RemoveTemplate(name);
       await loadLocalTemplates();
@@ -69,18 +123,32 @@
       error = e.message || String(e);
     } finally {
       deletingTemplate[name] = false;
-      deletingTemplate = deletingTemplate;
+      deletingTemplate = deletingTemplate; // Trigger reactivity
     }
   }
 
+  // ============================================================================
+  // Clone Template Functions
+  // ============================================================================
+
+  /**
+   * Show clone template modal
+   * @param {Object} tmpl - The template object to clone
+   */
   async function handleCloneTemplate(tmpl) {
     cloneTemplateModal = { show: true, source: tmpl.name, target: `${tmpl.name}-copy` };
   }
 
+  /**
+   * Cancel clone operation and close modal
+   */
   function cancelCloneTemplate() {
     cloneTemplateModal = { show: false, source: '', target: '' };
   }
 
+  /**
+   * Confirm and execute template cloning
+   */
   async function confirmCloneTemplate() {
     const targetName = cloneTemplateModal.target.trim();
     const sourceName = cloneTemplateModal.source;
@@ -94,6 +162,20 @@
     }
   }
 
+  // ============================================================================
+  // Template Editor Functions
+  // ============================================================================
+
+  /**
+   * Open the template editor modal and load template files
+   * @param {Object} tmpl - The template object to edit
+   * 
+   * This function:
+   * 1. Opens the editor modal
+   * 2. Loads all template files from the backend
+   * 3. Selects the first file as active
+   * 4. Handles errors gracefully without closing the modal
+   */
   async function openTemplateEditor(tmpl) {
     templateEditor = { show: true, name: tmpl.name, files: {}, active: '', saving: false, error: '' };
     try {
@@ -109,10 +191,24 @@
     }
   }
 
+  /**
+   * Close the template editor modal
+   * Note: This discards any unsaved changes
+   */
   function closeTemplateEditor() {
     templateEditor = { show: false, name: '', files: {}, active: '', saving: false, error: '' };
   }
 
+  /**
+   * Save all template files to the backend
+   * 
+   * This function:
+   * 1. Validates that a template name exists
+   * 2. Sets saving state to show loading indicator
+   * 3. Calls SaveTemplateFiles API with all file contents
+   * 4. Handles errors without closing the modal (allows retry)
+   * 5. Resets saving state when complete
+   */
   async function saveTemplateEditor() {
     if (!templateEditor.name) return;
     templateEditor = { ...templateEditor, saving: true, error: '' };
@@ -124,6 +220,14 @@
     }
   }
 
+  // ============================================================================
+  // Reactive Statements
+  // ============================================================================
+
+  /**
+   * Filter and sort local templates based on search query
+   * Searches in: name, description, and module fields
+   */
   $: filteredLocalTemplates = localTemplates
     .filter(t => 
       !localTemplatesSearch || 
@@ -133,11 +237,21 @@
     )
     .sort((a, b) => a.name.localeCompare(b.name));
 
+  // ============================================================================
+  // Lifecycle
+  // ============================================================================
+
+  /**
+   * Load templates when component mounts
+   */
   onMount(() => {
     loadLocalTemplates();
   });
 
-  // Export refresh function for parent component
+  /**
+   * Export refresh function for parent component to call
+   * This allows parent components to trigger a template list refresh
+   */
   export function refresh() {
     loadLocalTemplates();
   }
@@ -459,8 +573,8 @@
 
 <!-- Template Editor Modal -->
 {#if templateEditor.show}
-  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" on:click={closeTemplateEditor}>
-    <div class="bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 overflow-hidden" on:click|stopPropagation>
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" on:click={closeTemplateEditor}>
+    <div class="bg-white rounded-xl shadow-xl max-w-6xl w-full h-[85vh] overflow-hidden" on:click|stopPropagation>
       <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
         <div>
           <h3 class="text-[15px] font-semibold text-gray-900">{t.editTemplate}</h3>
@@ -478,8 +592,8 @@
           >{templateEditor.saving ? t.saving : t.saveTemplate}</button>
         </div>
       </div>
-      <div class="flex h-[520px]">
-        <div class="w-52 border-r border-gray-100 overflow-auto">
+      <div class="flex h-[calc(100%-73px)]">
+        <div class="w-64 border-r border-gray-100 overflow-auto">
           <div class="px-4 py-3 text-[12px] font-semibold text-gray-600">{t.templateFiles}</div>
           {#each Object.keys(templateEditor.files) as fname}
             <button
@@ -488,15 +602,30 @@
             >{fname}</button>
           {/each}
         </div>
-        <div class="flex-1 p-4">
+        <div class="flex-1 p-4 flex flex-col overflow-hidden">
           {#if templateEditor.error}
-            <div class="text-[12px] text-red-500 mb-2">{templateEditor.error}</div>
+            <div class="text-[12px] text-red-500 mb-2 flex-shrink-0">{templateEditor.error}</div>
           {/if}
           {#if templateEditor.active}
-            <textarea
-              class="w-full h-full text-[12px] font-mono bg-gray-50 border border-gray-100 rounded-lg p-3 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
-              bind:value={templateEditor.files[templateEditor.active]}
-            ></textarea>
+            <!-- 
+              CodeEditor Component Integration
+              - filename: Current file name (used for syntax detection)
+              - value: Current file content
+              - on:change: Handle content changes
+              
+              Important: Must reassign templateEditor object to trigger Svelte reactivity
+              after updating nested files object
+            -->
+            <div class="flex-1 min-h-0">
+              <CodeEditor
+                filename={templateEditor.active}
+                value={templateEditor.files[templateEditor.active]}
+                on:change={(e) => {
+                  templateEditor.files[templateEditor.active] = e.detail;
+                  templateEditor = templateEditor; // Trigger reactivity
+                }}
+              />
+            </div>
           {:else}
             <div class="text-[12px] text-gray-400">{t.noParams}</div>
           {/if}
