@@ -9,6 +9,7 @@
   let credentialsLoading = false;
   let credentialsSaving = {};
   let editingProvider = null;
+  /** @type {Record<string, string>} */
   let editFields = {};
   let customConfigPath = '';
   let profiles = [];

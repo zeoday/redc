@@ -156,73 +156,73 @@
 </script>
 
 
-<div class="max-w-xl space-y-4">
+<div class="w-full max-w-xl mx-auto space-y-4">
   <!-- 基本信息 -->
   <div class="bg-white rounded-xl border border-gray-100 divide-y divide-gray-100">
-    <div class="px-5 py-4">
-      <div class="text-[12px] font-medium text-gray-500 mb-1">{t.redcPath}</div>
-      <div class="text-[13px] text-gray-900 font-mono">{config.redcPath || '-'}</div>
+    <div class="px-4 sm:px-5 py-3 sm:py-4">
+      <div class="text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1">{t.redcPath}</div>
+      <div class="text-[12px] sm:text-[13px] text-gray-900 font-mono break-all">{config.redcPath || '-'}</div>
     </div>
-    <div class="px-5 py-4">
-      <div class="text-[12px] font-medium text-gray-500 mb-1">{t.projectPath}</div>
-      <div class="text-[13px] text-gray-900 font-mono">{config.projectPath || '-'}</div>
+    <div class="px-4 sm:px-5 py-3 sm:py-4">
+      <div class="text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1">{t.projectPath}</div>
+      <div class="text-[12px] sm:text-[13px] text-gray-900 font-mono break-all">{config.projectPath || '-'}</div>
     </div>
-    <div class="px-5 py-4">
-      <div class="text-[12px] font-medium text-gray-500 mb-1">{t.logPath}</div>
-      <div class="text-[13px] text-gray-900 font-mono">{config.logPath || '-'}</div>
+    <div class="px-4 sm:px-5 py-3 sm:py-4">
+      <div class="text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1">{t.logPath}</div>
+      <div class="text-[12px] sm:text-[13px] text-gray-900 font-mono break-all">{config.logPath || '-'}</div>
     </div>
   </div>
 
   <!-- 代理配置 -->
-  <div class="bg-white rounded-xl border border-gray-100 p-5">
-    <div class="text-[14px] font-medium text-gray-900 mb-4">{t.proxyConfig}</div>
-    <div class="space-y-4">
+  <div class="bg-white rounded-xl border border-gray-100 p-4 sm:p-5">
+    <div class="text-[13px] sm:text-[14px] font-medium text-gray-900 mb-4">{t.proxyConfig}</div>
+    <div class="space-y-3 sm:space-y-4">
       <div>
-        <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.httpProxy}</label>
+        <label class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.httpProxy}</label>
         <input 
           type="text" 
           placeholder="http://127.0.0.1:7890" 
-          class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
+          class="w-full h-9 sm:h-10 px-3 text-[12px] sm:text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
           bind:value={proxyForm.httpProxy} 
         />
       </div>
       <div>
-        <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.httpsProxy}</label>
+        <label class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.httpsProxy}</label>
         <input 
           type="text" 
           placeholder="http://127.0.0.1:7890" 
-          class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
+          class="w-full h-9 sm:h-10 px-3 text-[12px] sm:text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
           bind:value={proxyForm.httpsProxy} 
         />
       </div>
       <div>
-        <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.noProxyLabel}</label>
+        <label class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.noProxyLabel}</label>
         <input 
           type="text" 
           placeholder="localhost,127.0.0.1,.local" 
-          class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
+          class="w-full h-9 sm:h-10 px-3 text-[12px] sm:text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
           bind:value={proxyForm.noProxy} 
         />
       </div>
-      <div class="pt-2">
+      <div class="pt-2 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
         <button 
-          class="h-10 px-5 bg-gray-900 text-white text-[13px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          class="h-9 sm:h-10 px-4 sm:px-5 bg-gray-900 text-white text-[12px] sm:text-[13px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           on:click={handleSaveProxy}
           disabled={proxySaving}
         >
           {proxySaving ? t.saving : t.saveProxy}
         </button>
-        <span class="ml-3 text-[12px] text-gray-500">{t.proxyHint}</span>
+        <span class="ml-0 sm:ml-3 text-[11px] sm:text-[12px] text-gray-500">{t.proxyHint}</span>
       </div>
     </div>
   </div>
 
   <!-- Terraform 镜像加速 -->
-  <div class="bg-white rounded-xl border border-gray-100 p-5">
-    <div class="flex items-start justify-between mb-4">
+  <div class="bg-white rounded-xl border border-gray-100 p-4 sm:p-5">
+    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-0 mb-4">
       <div>
-        <div class="text-[14px] font-medium text-gray-900">{t.terraformMirror}</div>
-        <div class="text-[12px] text-gray-500 mt-1">{t.mirrorConfigHint}</div>
+        <div class="text-[13px] sm:text-[14px] font-medium text-gray-900">{t.terraformMirror}</div>
+        <div class="text-[11px] sm:text-[12px] text-gray-500 mt-1">{t.mirrorConfigHint}</div>
       </div>
       <button
         class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
@@ -238,10 +238,10 @@
         ></span>
       </button>
     </div>
-    <div class="space-y-4">
+    <div class="space-y-3 sm:space-y-4">
       <div>
-        <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.mirrorProviders}</label>
-        <div class="flex flex-wrap items-center gap-3 text-[12px] text-gray-700">
+        <label class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.mirrorProviders}</label>
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3 text-[11px] sm:text-[12px] text-gray-700">
           <label class="inline-flex items-center gap-2">
             <input type="checkbox" class="rounded" bind:checked={terraformMirrorForm.providers.aliyun} />
             <span>{t.mirrorAliyun}</span>
@@ -255,59 +255,59 @@
             <span>{t.mirrorVolc}</span>
           </label>
         </div>
-        <div class="mt-2 text-[11px] text-gray-500">
+        <div class="mt-2 text-[10px] sm:text-[11px] text-gray-500">
           {t.mirrorProvidersDesc}
         </div>
       </div>
       <div>
-        <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.mirrorConfigPath}</label>
+        <label class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.mirrorConfigPath}</label>
         <input
           type="text"
           placeholder={terraformMirror.configPath || t.mirrorConfigHint}
-          class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
+          class="w-full h-9 sm:h-10 px-3 text-[12px] sm:text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
           bind:value={terraformMirrorForm.configPath}
         />
         {#if terraformMirror.fromEnv}
-          <div class="mt-1 text-[11px] text-amber-600">{t.mirrorConfigFromEnv}</div>
+          <div class="mt-1 text-[10px] sm:text-[11px] text-amber-600">{t.mirrorConfigFromEnv}</div>
         {/if}
       </div>
-      <div class="flex items-center gap-2 text-[12px] text-gray-600">
+      <div class="flex items-center gap-2 text-[11px] sm:text-[12px] text-gray-600">
         <input type="checkbox" class="rounded" bind:checked={terraformMirrorForm.setEnv} />
         <span>{t.mirrorSetEnv}</span>
       </div>
       <div class="pt-1 flex flex-wrap gap-2 items-center">
         <button
-          class="h-9 px-4 bg-gray-900 text-white text-[12px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+          class="h-8 sm:h-9 px-3 sm:px-4 bg-gray-900 text-white text-[11px] sm:text-[12px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
           on:click={handleSaveTerraformMirror}
           disabled={terraformMirrorSaving}
         >
           {terraformMirrorSaving ? t.saving : t.mirrorSave}
         </button>
         <button
-          class="h-9 px-4 bg-amber-500 text-white text-[12px] font-medium rounded-lg hover:bg-amber-600 transition-colors"
+          class="h-8 sm:h-9 px-3 sm:px-4 bg-amber-500 text-white text-[11px] sm:text-[12px] font-medium rounded-lg hover:bg-amber-600 transition-colors"
           on:click={enableAliyunMirrorQuick}
         >
           {t.mirrorAliyunPreset}
         </button>
         <button
-          class="h-9 px-4 bg-sky-500 text-white text-[12px] font-medium rounded-lg hover:bg-sky-600 transition-colors"
+          class="h-8 sm:h-9 px-3 sm:px-4 bg-sky-500 text-white text-[11px] sm:text-[12px] font-medium rounded-lg hover:bg-sky-600 transition-colors"
           on:click={enableTencentMirrorQuick}
         >
           {t.mirrorTencentPreset}
         </button>
         <button
-          class="h-9 px-4 bg-violet-500 text-white text-[12px] font-medium rounded-lg hover:bg-violet-600 transition-colors"
+          class="h-8 sm:h-9 px-3 sm:px-4 bg-violet-500 text-white text-[11px] sm:text-[12px] font-medium rounded-lg hover:bg-violet-600 transition-colors"
           on:click={enableVolcMirrorQuick}
         >
           {t.mirrorVolcPreset}
         </button>
         {#if terraformMirrorError}
-          <span class="text-[12px] text-red-500">{terraformMirrorError}</span>
+          <span class="text-[11px] sm:text-[12px] text-red-500">{terraformMirrorError}</span>
         {:else if terraformMirror.managed}
-          <span class="text-[12px] text-emerald-600">OK</span>
+          <span class="text-[11px] sm:text-[12px] text-emerald-600">OK</span>
         {/if}
       </div>
-      <div class="mt-2 text-[11px] text-gray-500 leading-relaxed">
+      <div class="mt-2 text-[10px] sm:text-[11px] text-gray-500 leading-relaxed">
         <span class="font-medium text-gray-600">{t.mirrorLimitTitle}</span>
         <span class="ml-1">{t.mirrorLimitDesc}</span>
       </div>
@@ -315,11 +315,11 @@
   </div>
 
   <!-- 网络诊断 -->
-  <div class="bg-white rounded-xl border border-gray-100 p-5">
-    <div class="flex items-center justify-between">
-      <div class="text-[14px] font-medium text-gray-900">{t.networkCheck}</div>
+  <div class="bg-white rounded-xl border border-gray-100 p-4 sm:p-5">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
+      <div class="text-[13px] sm:text-[14px] font-medium text-gray-900">{t.networkCheck}</div>
       <button
-        class="h-9 px-4 bg-gray-900 text-white text-[12px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+        class="h-8 sm:h-9 px-3 sm:px-4 bg-gray-900 text-white text-[11px] sm:text-[12px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
         on:click={runTerraformNetworkCheck}
         disabled={networkCheckLoading}
       >
@@ -327,26 +327,26 @@
       </button>
     </div>
     {#if networkCheckError}
-      <div class="mt-3 text-[12px] text-red-500">{networkCheckError}</div>
+      <div class="mt-3 text-[11px] sm:text-[12px] text-red-500">{networkCheckError}</div>
     {/if}
     {#if networkChecks.length > 0}
       <div class="mt-4 border border-gray-100 rounded-lg overflow-hidden">
-        <table class="w-full text-[12px]">
+        <table class="w-full text-[11px] sm:text-[12px]">
           <thead>
             <tr class="bg-gray-50 border-b border-gray-100">
-              <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.networkEndpoint}</th>
-              <th class="text-right px-4 py-2.5 font-semibold text-gray-600">{t.networkStatus}</th>
-              <th class="text-right px-4 py-2.5 font-semibold text-gray-600">{t.networkLatency}</th>
-              <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.networkError}</th>
+              <th class="text-left px-3 sm:px-4 py-2 sm:py-2.5 font-semibold text-gray-600">{t.networkEndpoint}</th>
+              <th class="text-right px-3 sm:px-4 py-2 sm:py-2.5 font-semibold text-gray-600">{t.networkStatus}</th>
+              <th class="text-right px-3 sm:px-4 py-2 sm:py-2.5 font-semibold text-gray-600">{t.networkLatency}</th>
+              <th class="text-left px-3 sm:px-4 py-2 sm:py-2.5 font-semibold text-gray-600">{t.networkError}</th>
             </tr>
           </thead>
           <tbody>
             {#each networkChecks as item}
               <tr class="border-b border-gray-50">
-                <td class="px-4 py-3 text-gray-700">{item.name}</td>
-                <td class="px-4 py-3 text-right {item.ok ? 'text-emerald-600' : 'text-red-600'}">{item.ok ? 'OK' : item.status || '-'}</td>
-                <td class="px-4 py-3 text-right text-gray-700">{item.latencyMs} ms</td>
-                <td class="px-4 py-3 text-gray-500 truncate" title={item.error}>{item.error || '-'}</td>
+                <td class="px-3 sm:px-4 py-2.5 sm:py-3 text-gray-700">{item.name}</td>
+                <td class="px-3 sm:px-4 py-2.5 sm:py-3 text-right {item.ok ? 'text-emerald-600' : 'text-red-600'}">{item.ok ? 'OK' : item.status || '-'}</td>
+                <td class="px-3 sm:px-4 py-2.5 sm:py-3 text-right text-gray-700">{item.latencyMs} ms</td>
+                <td class="px-3 sm:px-4 py-2.5 sm:py-3 text-gray-500 truncate" title={item.error}>{item.error || '-'}</td>
               </tr>
             {/each}
           </tbody>
@@ -356,11 +356,11 @@
   </div>
 
   <!-- 调试日志 -->
-  <div class="bg-white rounded-xl border border-gray-100 p-5">
-    <div class="flex items-center justify-between">
+  <div class="bg-white rounded-xl border border-gray-100 p-4 sm:p-5">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
       <div>
-        <div class="text-[14px] font-medium text-gray-900">{t.debugLogs}</div>
-        <div class="text-[12px] text-gray-500 mt-1">{t.debugLogsDesc}</div>
+        <div class="text-[13px] sm:text-[14px] font-medium text-gray-900">{t.debugLogs}</div>
+        <div class="text-[11px] sm:text-[12px] text-gray-500 mt-1">{t.debugLogsDesc}</div>
       </div>
       <button
         class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -380,11 +380,11 @@
   </div>
 
   <!-- 系统通知 -->
-  <div class="bg-white rounded-xl border border-gray-100 p-5">
-    <div class="flex items-center justify-between">
+  <div class="bg-white rounded-xl border border-gray-100 p-4 sm:p-5">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
       <div>
-        <div class="text-[14px] font-medium text-gray-900">{t.systemNotification}</div>
-        <div class="text-[12px] text-gray-500 mt-1">{t.systemNotificationDesc}</div>
+        <div class="text-[13px] sm:text-[14px] font-medium text-gray-900">{t.systemNotification}</div>
+        <div class="text-[11px] sm:text-[12px] text-gray-500 mt-1">{t.systemNotificationDesc}</div>
       </div>
       <button
         class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
