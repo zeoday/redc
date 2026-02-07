@@ -1,0 +1,422 @@
+<script>
+  import { onMount } from 'svelte';
+  import { GetProvidersConfig, SaveProvidersConfig, ListProfiles, GetActiveProfile, SetActiveProfile, CreateProfile, UpdateProfile, DeleteProfile } from '../../../wailsjs/go/main/App.js';
+
+  export let t;
+
+  // Credentials state
+  let providersConfig = { configPath: '', providers: [] };
+  let credentialsLoading = false;
+  let credentialsSaving = {};
+  let editingProvider = null;
+  let editFields = {};
+  let customConfigPath = '';
+  let profiles = [];
+  let activeProfileId = '';
+  let profileForm = { name: '', configPath: '', templateDir: '' };
+  let profileLoading = false;
+  let profileSaving = false;
+  let profileError = '';
+  let error = '';
+
+  async function loadProvidersConfig() {
+    credentialsLoading = true;
+    try {
+      providersConfig = await GetProvidersConfig(customConfigPath);
+    } catch (e) {
+      error = e.message || String(e);
+    } finally {
+      credentialsLoading = false;
+    }
+  }
+
+  async function loadProfiles() {
+    profileLoading = true;
+    profileError = '';
+    try {
+      const [list, active] = await Promise.all([
+        ListProfiles(),
+        GetActiveProfile()
+      ]);
+      profiles = list || [];
+      if (active && active.id) {
+        activeProfileId = active.id;
+        profileForm = {
+          name: active.name || '',
+          configPath: active.configPath || '',
+          templateDir: active.templateDir || ''
+        };
+        customConfigPath = profileForm.configPath;
+      }
+    } catch (e) {
+      profileError = e.message || String(e);
+    } finally {
+      profileLoading = false;
+    }
+  }
+
+  async function handleProfileChange(id) {
+    if (!id) return;
+    profileLoading = true;
+    profileError = '';
+    try {
+      const active = await SetActiveProfile(id);
+      activeProfileId = active.id;
+      profileForm = {
+        name: active.name || '',
+        configPath: active.configPath || '',
+        templateDir: active.templateDir || ''
+      };
+      customConfigPath = profileForm.configPath;
+      await loadProvidersConfig();
+    } catch (e) {
+      profileError = e.message || String(e);
+    } finally {
+      profileLoading = false;
+    }
+  }
+
+  async function handleCreateProfile() {
+    if (!profileForm.name) {
+      profileError = t.profileNameRequired;
+      return;
+    }
+    profileSaving = true;
+    profileError = '';
+    try {
+      const created = await CreateProfile(profileForm.name, profileForm.configPath, profileForm.templateDir);
+      profiles = await ListProfiles();
+      await handleProfileChange(created.id);
+    } catch (e) {
+      profileError = e.message || String(e);
+    } finally {
+      profileSaving = false;
+    }
+  }
+
+  async function handleSaveProfile() {
+    if (!activeProfileId) return;
+    if (!profileForm.name) {
+      profileError = t.profileNameRequired;
+      return;
+    }
+    profileSaving = true;
+    profileError = '';
+    try {
+      const updated = await UpdateProfile(activeProfileId, profileForm.name, profileForm.configPath, profileForm.templateDir);
+      profiles = await ListProfiles();
+      activeProfileId = updated.id;
+      profileForm = {
+        name: updated.name || '',
+        configPath: updated.configPath || '',
+        templateDir: updated.templateDir || ''
+      };
+      customConfigPath = profileForm.configPath;
+      await SetActiveProfile(activeProfileId);
+      await loadProvidersConfig();
+    } catch (e) {
+      profileError = e.message || String(e);
+    } finally {
+      profileSaving = false;
+    }
+  }
+
+  async function handleDeleteProfile() {
+    if (!activeProfileId) return;
+    profileSaving = true;
+    profileError = '';
+    try {
+      await DeleteProfile(activeProfileId);
+      await loadProfiles();
+      if (activeProfileId) {
+        await handleProfileChange(activeProfileId);
+      }
+    } catch (e) {
+      profileError = e.message || String(e);
+    } finally {
+      profileSaving = false;
+    }
+  }
+
+  function startEditProvider(provider) {
+    editingProvider = provider.name;
+    editFields = {};
+    // Initialize edit fields with empty values (user must re-enter secrets)
+    for (const key of Object.keys(provider.fields)) {
+      // For non-secret fields (like region), pre-fill with current value
+      if (!provider.hasSecrets || !provider.hasSecrets[key]) {
+        editFields[key] = provider.fields[key] || '';
+      } else {
+        editFields[key] = '';
+      }
+    }
+  }
+
+  function cancelEditProvider() {
+    editingProvider = null;
+    editFields = {};
+  }
+
+  async function saveProviderCredentials(providerName) {
+    credentialsSaving[providerName] = true;
+    credentialsSaving = credentialsSaving;
+    try {
+      await SaveProvidersConfig(providerName, editFields, customConfigPath);
+      editingProvider = null;
+      editFields = {};
+      await loadProvidersConfig();
+    } catch (e) {
+      error = e.message || String(e);
+    } finally {
+      credentialsSaving[providerName] = false;
+      credentialsSaving = credentialsSaving;
+    }
+  }
+
+  function getFieldLabel(key) {
+    const labels = {
+      accessKey: 'Access Key',
+      secretKey: 'Secret Key',
+      secretId: 'Secret ID',
+      region: 'Region',
+      credentials: '凭据 JSON',
+      project: '项目 ID',
+      clientId: 'Client ID',
+      clientSecret: 'Client Secret',
+      subscriptionId: 'Subscription ID',
+      tenantId: 'Tenant ID',
+      user: '用户 OCID',
+      tenancy: 'Tenancy OCID',
+      fingerprint: '指纹',
+      keyFile: '私钥文件路径',
+      email: '邮箱',
+      apiKey: 'API Key',
+    };
+    return labels[key] || key;
+  }
+
+  function isSecretField(key) {
+    const secrets = ['accessKey', 'secretKey', 'secretId', 'credentials', 'clientId', 'clientSecret', 'subscriptionId', 'tenantId', 'user', 'tenancy', 'fingerprint', 'apiKey'];
+    return secrets.includes(key);
+  }
+
+  onMount(() => {
+    loadProfiles();
+    loadProvidersConfig();
+  });
+
+  // Export refresh function for parent component
+  export function refresh() {
+    loadProfiles();
+    loadProvidersConfig();
+  }
+</script>
+
+<div class="max-w-3xl space-y-5">
+  <!-- Profile Management -->
+  <div class="bg-white rounded-xl border border-gray-100 p-5">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h3 class="text-[14px] font-semibold text-gray-900">{t.profileManage}</h3>
+        <p class="text-[12px] text-gray-500">{t.profileHint}</p>
+      </div>
+      <div class="text-[12px] text-gray-500">
+        {t.activeProfile}: <span class="font-medium text-gray-700">{profiles.find(p => p.id === activeProfileId)?.name || '-'}</span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.profile}</label>
+        <select
+          class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
+          bind:value={activeProfileId}
+          on:change={() => handleProfileChange(activeProfileId)}
+        >
+          <option value="" disabled>{t.selectProfile}</option>
+          {#each profiles as p}
+            <option value={p.id}>{p.name}</option>
+          {/each}
+        </select>
+      </div>
+      <div>
+        <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.profileName}</label>
+        <input
+          type="text"
+          class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
+          bind:value={profileForm.name}
+        />
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.configPath}</label>
+        <input
+          type="text"
+          placeholder={t.defaultPath}
+          class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
+          bind:value={profileForm.configPath}
+          on:input={() => { customConfigPath = profileForm.configPath; }}
+        />
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.templateDir}</label>
+        <input
+          type="text"
+          placeholder={t.defaultPath}
+          class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
+          bind:value={profileForm.templateDir}
+        />
+      </div>
+    </div>
+
+    {#if profileError}
+      <div class="mt-3 text-[12px] text-red-600">{profileError}</div>
+    {/if}
+
+    <div class="mt-4 flex flex-wrap gap-2">
+      <button
+        class="h-9 px-4 bg-gray-900 text-white text-[12px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+        on:click={handleCreateProfile}
+        disabled={profileSaving}
+      >
+        {t.createProfile}
+      </button>
+      <button
+        class="h-9 px-4 bg-emerald-500 text-white text-[12px] font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50"
+        on:click={handleSaveProfile}
+        disabled={profileSaving || !activeProfileId}
+      >
+        {t.saveProfile}
+      </button>
+      <button
+        class="h-9 px-4 bg-red-50 text-red-600 text-[12px] font-medium rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
+        on:click={handleDeleteProfile}
+        disabled={profileSaving || !activeProfileId}
+      >
+        {t.deleteProfile}
+      </button>
+      <button
+        class="h-9 px-4 bg-gray-100 text-gray-700 text-[12px] font-medium rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+        on:click={loadProvidersConfig}
+        disabled={credentialsLoading}
+      >
+        {credentialsLoading ? t.loading : t.loadConfig}
+      </button>
+    </div>
+
+    {#if providersConfig.configPath}
+      <div class="mt-3 text-[12px] text-gray-500">
+        {t.currentConfig}: <span class="font-mono">{providersConfig.configPath}</span>
+      </div>
+    {/if}
+    <div class="mt-2 text-[12px] text-gray-500">
+      {t.profileCredentialsFrom}: <span class="font-mono">{profileForm.configPath || providersConfig.configPath || '-'}</span>
+    </div>
+    <div class="text-[12px] text-gray-500">
+      {t.profileTemplateFrom}: <span class="font-mono">{profileForm.templateDir || '-'}</span>
+    </div>
+    <div class="text-[11px] text-gray-400 mt-1">
+      {t.profileSwitchHint}
+    </div>
+  </div>
+
+  <!-- Security Notice -->
+  <div class="flex items-start gap-3 px-4 py-3 bg-amber-50 border border-amber-100 rounded-lg">
+    <svg class="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+    </svg>
+    <div class="text-[12px] text-amber-800">
+      <strong>{t.securityTip}</strong>{t.securityInfo}
+    </div>
+  </div>
+
+  {#if credentialsLoading}
+    <div class="flex items-center justify-center h-32">
+      <div class="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin"></div>
+    </div>
+  {:else}
+    <!-- Provider Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {#each providersConfig.providers || [] as provider}
+        <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h3 class="text-[14px] font-semibold text-gray-900">{provider.name}</h3>
+            {#if editingProvider === provider.name}
+              <div class="flex gap-2">
+                <button 
+                  class="px-3 py-1 text-[12px] font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                  on:click={cancelEditProvider}
+                >{t.cancel}</button>
+                <button 
+                  class="px-3 py-1 text-[12px] font-medium text-white bg-emerald-500 rounded-md hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                  on:click={() => saveProviderCredentials(provider.name)}
+                  disabled={credentialsSaving[provider.name]}
+                >
+                  {credentialsSaving[provider.name] ? t.saving : t.save}
+                </button>
+              </div>
+            {:else}
+              <button 
+                class="px-3 py-1 text-[12px] font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+                on:click={() => startEditProvider(provider)}
+              >{t.edit}</button>
+            {/if}
+          </div>
+          <div class="p-5 space-y-3">
+            {#each Object.entries(provider.fields) as [key, value]}
+              <div>
+                <label class="block text-[11px] font-medium text-gray-500 mb-1">
+                  {getFieldLabel(key)}
+                  {#if provider.hasSecrets && provider.hasSecrets[key]}
+                    <span class="ml-1 text-amber-500">🔒</span>
+                  {/if}
+                </label>
+                {#if editingProvider === provider.name}
+                  {#if isSecretField(key)}
+                    <input 
+                      type="password"
+                      placeholder={t.enterNew}
+                      class="w-full h-9 px-3 text-[12px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
+                      bind:value={editFields[key]}
+                    />
+                  {:else}
+                    <input 
+                      type="text"
+                      placeholder={value || t.notSet}
+                      class="w-full h-9 px-3 text-[12px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
+                      bind:value={editFields[key]}
+                    />
+                  {/if}
+                {:else}
+                  <div class="h-9 px-3 flex items-center text-[12px] bg-gray-50 rounded-lg font-mono {value ? 'text-gray-900' : 'text-gray-400'}">
+                    {value || t.notSet}
+                  </div>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        </div>
+      {:else}
+        <div class="col-span-full py-16 text-center">
+          <svg class="w-10 h-10 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+          </svg>
+          <p class="text-[13px] text-gray-400">{t.clickLoad}</p>
+        </div>
+      {/each}
+    </div>
+  {/if}
+
+  {#if error}
+    <div class="flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-100 rounded-lg">
+      <svg class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+      </svg>
+      <span class="text-[13px] text-red-700 flex-1">{error}</span>
+      <button class="text-red-400 hover:text-red-600" on:click={() => error = ''}>
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  {/if}
+</div>
