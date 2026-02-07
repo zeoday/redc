@@ -579,7 +579,7 @@
     <table class="w-full">
       <thead>
         <tr class="border-b border-gray-100">
-          <th class="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-12">
+          <th class="text-left pl-4 pr-1 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-6">
             <input
               type="checkbox"
               class="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 cursor-pointer"
@@ -602,7 +602,7 @@
             class="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer"
             on:click={() => toggleCaseExpand(c.id, c.state)}
           >
-            <td class="px-5 py-3.5" on:click|stopPropagation>
+            <td class="pl-4 pr-1 py-3.5" on:click|stopPropagation>
               <input
                 type="checkbox"
                 class="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 cursor-pointer"
