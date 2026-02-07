@@ -203,7 +203,7 @@
       {/if}
       <textarea
         bind:value
-        on:input={(e) => handleContentChange(e.target.value)}
+        on:input={() => handleContentChange(value)}
         {readonly}
         class="w-full h-full border border-gray-300 rounded-md p-2 bg-gray-50 font-mono text-xs"
         placeholder="Enter your code here..."
