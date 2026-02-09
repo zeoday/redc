@@ -279,7 +279,7 @@
         <Dashboard bind:this={dashboardComponent} {t} onTabChange={(tab) => activeTab = tab} />
 
       {:else if activeTab === 'console'}
-        <Console {logs} {t} />
+        <Console bind:logs {t} />
 
       {:else if activeTab === 'resources'}
         <CloudResources bind:this={cloudResourcesComponent} {t} />
