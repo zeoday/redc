@@ -385,7 +385,8 @@ func (c *Case) TfPlan() error {
 
 func (c *Case) StatusChange(s string) {
 	c.State = s
-	c.StateTime = time.Now().Format("2006-01-02 15:04:05")
+	// Use RFC3339 format to include timezone information
+	c.StateTime = time.Now().Format(time.RFC3339)
 	if c.saveHandler != nil {
 		if err := c.saveHandler(); err != nil {
 			gologger.Error().Msgf("状态保存到配置文件失败: %s \n", err)

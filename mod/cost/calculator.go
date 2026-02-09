@@ -147,24 +147,28 @@ func (cc *CostCalculator) calculateResourceCost(resource ResourceSpec, pricingSe
 			return breakdown
 		}
 	} else {
-		// For non-compute resources (security groups, networks, key pairs, etc.), 
+		// For non-compute resources (security groups, networks, key pairs, data sources, etc.), 
 		// pricing is typically not available through instance pricing APIs
 		// Return early to avoid unnecessary API calls
 		nonComputeResources := []string{
 			// Alibaba Cloud non-compute resources
 			"alicloud_security_group", "alicloud_security_group_rule",
 			"alicloud_vpc", "alicloud_vswitch",
+			"alicloud_zones", "alicloud_images", "alicloud_instance_types",
 			// AWS non-compute resources
 			"aws_security_group", "aws_security_group_rule",
 			"aws_vpc", "aws_subnet",
 			"aws_key_pair", "aws_eip",
+			"aws_availability_zones", "aws_ami",
 			// Tencent Cloud non-compute resources
 			"tencentcloud_security_group", "tencentcloud_security_group_rule",
 			"tencentcloud_vpc", "tencentcloud_subnet",
+			"tencentcloud_availability_zones", "tencentcloud_images",
 			// Volcengine non-compute resources
 			"volcengine_eip_address", "volcengine_eip_associate",
 			"volcengine_security_group", "volcengine_security_group_rule",
 			"volcengine_vpc", "volcengine_subnet",
+			"volcengine_zones", "volcengine_images",
 			// Non-cloud providers (no pricing available)
 			"tls_private_key", "tls_cert_request", "tls_locally_signed_cert", "tls_self_signed_cert",
 			"local_file", "local_sensitive_file",

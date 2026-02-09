@@ -1,8 +1,15 @@
 export const i18n = {
   zh: {
     dashboard: '仪表盘', console: '控制台', settings: '设置', credentials: '凭据管理', registry: '模板仓库', ai: 'AI 集成', localTemplates: '本地模板', specialModules: '专项模块',
+    cases: '场景管理',
     project: '项目', selectProject: '选择项目...', newProject: '新建项目', projectName: '项目名称', createProject: '创建项目', switchProject: '切换项目', currentProject: '当前项目',
     sceneManage: '场景管理', templateRepo: '模板仓库', aiIntegration: 'AI 集成', localTmplManage: '本地模板',
+    // Dashboard specific
+    totalScenes: '总场景数', runningScenes: '运行中', stoppedScenes: '已停止', errorScenes: '异常',
+    recentScenes: '最近场景', recentActivity: '最近活动', viewAll: '查看全部',
+    resourceSummary: '资源概览', accountBalance: '账户余额', systemHealth: '系统健康',
+    memory: '内存', disk: '磁盘', noRecentScenes: '暂无场景', noResources: '暂无资源',
+    noBalanceData: '暂无余额数据', loadFailed: '加载失败',
     vulhubSupport: 'Vulhub 支持', c2Scenes: 'C2 场景', aiScenes: 'AI 场景',
     template: '模板', selectTemplate: '选择模板...', name: '名称', optional: '可选',
     create: '创建', createAndRun: '创建并运行', templateParams: '模板参数',
@@ -80,6 +87,8 @@ export const i18n = {
     mirrorProvidersDesc: '阿里云: https://mirrors.aliyun.com/terraform/ · 腾讯云: https://mirrors.tencent.com/terraform/ · 火山云: https://mirrors.volces.com/terraform/ · wgpsec: https://redc.wgpsec.org/tf-mirror/',
     networkCheck: '网络诊断', networkCheckBtn: '检测 Terraform 连接', networkChecking: '检测中...',
     networkEndpoint: '端点', networkStatus: '状态', networkLatency: '延迟', networkError: '错误',
+    noNetworkData: '暂无网络诊断数据',
+    noRecentActivity: '暂无活动记录',
     // Cost estimation
     showCostEstimate: '显示成本估算', costEstimate: '成本估算', estimatedHourlyCost: '预估小时成本',
     estimatedMonthlyCost: '预估月度成本', costBreakdown: '成本明细', pricingUnavailable: '价格不可用',
@@ -90,7 +99,14 @@ export const i18n = {
   },
   en: {
     dashboard: 'Dashboard', console: 'Console', settings: 'Settings', credentials: 'Credentials', registry: 'Template Registry', ai: 'AI Integration', localTemplates: 'Local Templates', specialModules: 'Special Modules',
+    cases: 'Cases',
     sceneManage: 'Scene Management', templateRepo: 'Template Registry', aiIntegration: 'AI Integration', localTmplManage: 'Local Templates',
+    // Dashboard specific
+    totalScenes: 'Total Scenes', runningScenes: 'Running', stoppedScenes: 'Stopped', errorScenes: 'Error',
+    recentScenes: 'Recent Scenes', recentActivity: 'Recent Activity', viewAll: 'View All',
+    resourceSummary: 'Resource Summary', accountBalance: 'Account Balance', systemHealth: 'System Health',
+    memory: 'Memory', disk: 'Disk', noRecentScenes: 'No scenes', noResources: 'No resources',
+    noBalanceData: 'No balance data', loadFailed: 'Load failed',
     vulhubSupport: 'Vulhub Support', c2Scenes: 'C2 Scenes', aiScenes: 'AI Scenes',
     template: 'Template', selectTemplate: 'Select template...', name: 'Name', optional: 'Optional',
     create: 'Create', createAndRun: 'Create & Run', templateParams: 'Template Parameters',

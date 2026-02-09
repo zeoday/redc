@@ -2139,3 +2139,417 @@ func (a *App) SelectComposeFile() (string, error) {
 	}
 	return filePath, nil
 }
+
+// GetTotalRuntime calculates total runtime of all running cases
+func (a *App) GetTotalRuntime() (string, error) {
+	a.mu.Lock()
+	project := a.project
+	logMgr := a.logMgr
+	a.mu.Unlock()
+
+	if project == nil {
+		return "0h", fmt.Errorf("项目未加载")
+	}
+
+	cases, err := redc.LoadProjectCases(project.ProjectName)
+	if err != nil {
+		return "0h", err
+	}
+
+	totalMinutes := 0
+	now := time.Now()
+
+	for _, c := range cases {
+		if c.State == redc.StateRunning {
+			// Try multiple time formats to parse StateTime
+			var stateTime time.Time
+			var parseErr error
+			
+			// Try RFC3339 format first (e.g., "2006-01-02T15:04:05Z" or "2006-01-02T15:04:05+08:00")
+			stateTime, parseErr = time.Parse(time.RFC3339, c.StateTime)
+			if parseErr != nil {
+				// Try format with timezone (e.g., "2006-01-02 15:04:05 +08:00")
+				stateTime, parseErr = time.Parse("2006-01-02 15:04:05 -07:00", c.StateTime)
+				if parseErr != nil {
+					// Try format without timezone (e.g., "2006-01-02 15:04:05")
+					// Assume local timezone
+					stateTime, parseErr = time.ParseInLocation("2006-01-02 15:04:05", c.StateTime, time.Local)
+					if parseErr != nil {
+						// Log parsing error for debugging
+						if logMgr != nil {
+							if logger, logErr := logMgr.NewServiceLogger("runtime"); logErr == nil {
+								logger.Write([]byte(fmt.Sprintf("[WARN] Failed to parse StateTime for case %s: %s (error: %v)\n", c.Name, c.StateTime, parseErr)))
+								logger.Close()
+							}
+						}
+						continue
+					}
+				}
+			}
+			
+			// COMPATIBILITY FIX: If the time ends with 'Z' (UTC) but results in negative duration,
+			// it's likely a bug where local time was incorrectly stored as UTC.
+			// Re-parse it as local time.
+			duration := now.Sub(stateTime)
+			if duration < 0 && strings.HasSuffix(c.StateTime, "Z") {
+				// Extract the time part without 'Z' and parse as local time
+				timeStr := strings.TrimSuffix(c.StateTime, "Z")
+				timeStr = strings.Replace(timeStr, "T", " ", 1)
+				stateTime, parseErr = time.ParseInLocation("2006-01-02 15:04:05", timeStr, time.Local)
+				if parseErr == nil {
+					duration = now.Sub(stateTime)
+				}
+			}
+			
+			minutes := int(duration.Minutes())
+			
+			// Log for debugging
+			if logMgr != nil {
+				if logger, logErr := logMgr.NewServiceLogger("runtime"); logErr == nil {
+					logger.Write([]byte(fmt.Sprintf("[DEBUG] Case %s: StateTime=%s, Now=%s, Duration=%v, Minutes=%d\n", 
+						c.Name, stateTime.Format(time.RFC3339), now.Format(time.RFC3339), duration, minutes)))
+					logger.Close()
+				}
+			}
+			
+			// Only add positive durations (ignore cases with future StateTime)
+			if minutes > 0 {
+				totalMinutes += minutes
+			}
+		}
+	}
+
+	// Format as hours
+	hours := totalMinutes / 60
+	return fmt.Sprintf("%dh", hours), nil
+}
+
+// GetPredictedMonthlyCost calculates predicted monthly cost for all running cases
+func (a *App) GetPredictedMonthlyCost() (string, error) {
+	a.mu.Lock()
+	project := a.project
+	pricingService := a.pricingService
+	costCalculator := a.costCalculator
+	logMgr := a.logMgr
+	a.mu.Unlock()
+
+	if project == nil {
+		return "¥0.00", fmt.Errorf("项目未加载")
+	}
+
+	if pricingService == nil || costCalculator == nil {
+		return "¥0.00", fmt.Errorf("成本估算服务未初始化")
+	}
+
+	cases, err := redc.LoadProjectCases(project.ProjectName)
+	if err != nil {
+		return "¥0.00", err
+	}
+
+	totalMonthlyCost := 0.0
+	currency := "CNY"
+	runningCount := 0
+
+	// Log start
+	if logMgr != nil {
+		if logger, logErr := logMgr.NewServiceLogger("cost-prediction"); logErr == nil {
+			logger.Write([]byte(fmt.Sprintf("[INFO] Starting predicted monthly cost calculation\n")))
+			logger.Write([]byte(fmt.Sprintf("[INFO] Total cases: %d\n", len(cases))))
+			logger.Close()
+		}
+	}
+
+	// Calculate cost for each running case
+	for _, c := range cases {
+		if c.State != redc.StateRunning {
+			continue
+		}
+		runningCount++
+		
+		if logMgr != nil {
+			if logger, logErr := logMgr.NewServiceLogger("cost-prediction"); logErr == nil {
+				logger.Write([]byte(fmt.Sprintf("[INFO] Processing running case: %s (path: %s)\n", c.Name, c.Path)))
+				logger.Close()
+			}
+		}
+		
+		if c.Path == "" {
+			if logMgr != nil {
+				if logger, logErr := logMgr.NewServiceLogger("cost-prediction"); logErr == nil {
+					logger.Write([]byte(fmt.Sprintf("[WARN] Case %s has empty path, skipping\n", c.Name)))
+					logger.Close()
+				}
+			}
+			continue
+		}
+
+		// Get terraform state
+		state, err := redc.TfStatus(c.Path)
+		if err != nil {
+			if logMgr != nil {
+				if logger, logErr := logMgr.NewServiceLogger("cost-prediction"); logErr == nil {
+					logger.Write([]byte(fmt.Sprintf("[ERROR] Failed to get terraform state for %s: %v\n", c.Name, err)))
+					logger.Close()
+				}
+			}
+			continue
+		}
+		
+		if state == nil || state.Values == nil {
+			if logMgr != nil {
+				if logger, logErr := logMgr.NewServiceLogger("cost-prediction"); logErr == nil {
+					logger.Write([]byte(fmt.Sprintf("[WARN] Case %s has nil state or values, skipping\n", c.Name)))
+					logger.Close()
+				}
+			}
+			continue
+		}
+
+		// Extract resources from state and convert to cost.Resource format
+		resources := extractResourcesFromState(state)
+		if len(resources.Resources) == 0 {
+			if logMgr != nil {
+				if logger, logErr := logMgr.NewServiceLogger("cost-prediction"); logErr == nil {
+					logger.Write([]byte(fmt.Sprintf("[WARN] Case %s has no resources, skipping\n", c.Name)))
+					logger.Close()
+				}
+			}
+			continue
+		}
+
+		if logMgr != nil {
+			if logger, logErr := logMgr.NewServiceLogger("cost-prediction"); logErr == nil {
+				logger.Write([]byte(fmt.Sprintf("[INFO] Case %s has %d resources, calculating cost...\n", c.Name, len(resources.Resources))))
+				logger.Write([]byte(fmt.Sprintf("[DEBUG] Provider: %s, Region: %s\n", resources.Provider, resources.Region)))
+				// Log first few resources for debugging
+				for i, res := range resources.Resources {
+					if i >= 3 {
+						break
+					}
+					instanceType := "N/A"
+					if it, ok := res.Attributes["instance_type"].(string); ok {
+						instanceType = it
+					}
+					region := "N/A"
+					if r, ok := res.Attributes["region"].(string); ok {
+						region = r
+					}
+					zone := "N/A"
+					if z, ok := res.Attributes["zone"].(string); ok {
+						zone = z
+					}
+					availabilityZone := "N/A"
+					if az, ok := res.Attributes["availability_zone"].(string); ok {
+						availabilityZone = az
+					}
+					zoneId := "N/A"
+					if zid, ok := res.Attributes["zone_id"].(string); ok {
+						zoneId = zid
+					}
+					logger.Write([]byte(fmt.Sprintf("[DEBUG] Resource %d: Type=%s, Name=%s, InstanceType=%s, Region=%s, Zone=%s, AvailabilityZone=%s, ZoneId=%s, ResourceRegion=%s\n", 
+						i+1, res.Type, res.Name, instanceType, region, zone, availabilityZone, zoneId, res.Region)))
+				}
+				logger.Close()
+			}
+		}
+
+		// Calculate cost for this case
+		estimate, err := costCalculator.CalculateCost(resources, pricingService)
+		if err != nil {
+			if logMgr != nil {
+				if logger, logErr := logMgr.NewServiceLogger("cost-prediction"); logErr == nil {
+					logger.Write([]byte(fmt.Sprintf("[ERROR] Failed to calculate cost for %s: %v\n", c.Name, err)))
+					logger.Close()
+				}
+			}
+			continue
+		}
+
+		if logMgr != nil {
+			if logger, logErr := logMgr.NewServiceLogger("cost-prediction"); logErr == nil {
+				logger.Write([]byte(fmt.Sprintf("[INFO] Case %s monthly cost: %.2f %s\n", c.Name, estimate.TotalMonthlyCost, estimate.Currency)))
+				logger.Close()
+			}
+		}
+
+		totalMonthlyCost += estimate.TotalMonthlyCost
+		if estimate.Currency != "" {
+			currency = estimate.Currency
+		}
+	}
+
+	// Log summary
+	if logMgr != nil {
+		if logger, logErr := logMgr.NewServiceLogger("cost-prediction"); logErr == nil {
+			logger.Write([]byte(fmt.Sprintf("[INFO] Prediction complete - Running cases: %d, Total monthly cost: %.2f %s\n", runningCount, totalMonthlyCost, currency)))
+			logger.Close()
+		}
+	}
+
+	// Format the result
+	var symbol string
+	switch currency {
+	case "CNY":
+		symbol = "¥"
+	case "USD":
+		symbol = "$"
+	default:
+		symbol = currency + " "
+	}
+
+	return fmt.Sprintf("%s%.2f", symbol, totalMonthlyCost), nil
+}
+
+// extractResourcesFromState converts terraform state to cost.TemplateResources
+func extractResourcesFromState(state *tfjson.State) *cost.TemplateResources {
+	resources := &cost.TemplateResources{
+		Resources: []cost.ResourceSpec{},
+	}
+
+	if state.Values == nil || state.Values.RootModule == nil {
+		return resources
+	}
+
+	// Extract provider from first resource if available
+	if len(state.Values.RootModule.Resources) > 0 {
+		firstResource := state.Values.RootModule.Resources[0]
+		if firstResource.ProviderName != "" {
+			// Extract short provider name from full registry path
+			// e.g., "registry.terraform.io/volcengine/volcengine" -> "volcengine"
+			providerName := extractShortProviderName(firstResource.ProviderName)
+			resources.Provider = providerName
+		}
+	}
+
+	// Recursively extract resources from modules
+	extractModuleResources(state.Values.RootModule, resources)
+	
+	// Try to extract region from any resource that has it
+	// Some resources like security groups don't have region, but compute instances do
+	for _, res := range resources.Resources {
+		if region, ok := res.Attributes["region"].(string); ok && region != "" {
+			resources.Region = region
+			break
+		} else if availabilityZone, ok := res.Attributes["availability_zone"].(string); ok && availabilityZone != "" {
+			// Extract region from availability zone (e.g., "cn-beijing-a" -> "cn-beijing")
+			if len(availabilityZone) > 2 {
+				lastDash := strings.LastIndex(availabilityZone, "-")
+				if lastDash > 0 {
+					resources.Region = availabilityZone[:lastDash]
+					break
+				}
+			}
+		} else if zone, ok := res.Attributes["zone"].(string); ok && zone != "" {
+			// Some providers use "zone" instead of "availability_zone"
+			if len(zone) > 2 {
+				lastDash := strings.LastIndex(zone, "-")
+				if lastDash > 0 {
+					resources.Region = zone[:lastDash]
+					break
+				}
+			}
+		} else if zoneId, ok := res.Attributes["zone_id"].(string); ok && zoneId != "" {
+			// Volcengine uses "zone_id" (e.g., "cn-beijing-a" -> "cn-beijing")
+			if len(zoneId) > 2 {
+				lastDash := strings.LastIndex(zoneId, "-")
+				if lastDash > 0 {
+					resources.Region = zoneId[:lastDash]
+					break
+				}
+			}
+		}
+	}
+
+	return resources
+}
+
+// extractShortProviderName extracts the short provider name from full registry path
+// e.g., "registry.terraform.io/volcengine/volcengine" -> "volcengine"
+// e.g., "registry.terraform.io/aliyun/alicloud" -> "alicloud"
+func extractShortProviderName(fullName string) string {
+	// Split by "/"
+	parts := strings.Split(fullName, "/")
+	if len(parts) >= 3 {
+		// Return the last part (provider name)
+		return parts[len(parts)-1]
+	}
+	return fullName
+}
+
+// extractModuleResources recursively extracts resources from a terraform module
+func extractModuleResources(module *tfjson.StateModule, resources *cost.TemplateResources) {
+	if module == nil {
+		return
+	}
+
+	// Extract resources from current module
+	for _, res := range module.Resources {
+		if res.Type == "" {
+			continue
+		}
+
+		// Extract short provider name
+		providerName := extractShortProviderName(res.ProviderName)
+
+		// Convert state resource to cost.ResourceSpec
+		costRes := cost.ResourceSpec{
+			Type:       res.Type,
+			Name:       res.Name,
+			Provider:   providerName,
+			Count:      1, // Default count
+			Attributes: make(map[string]interface{}),
+		}
+
+		// Copy all attributes from state values
+		if res.AttributeValues != nil {
+			for key, value := range res.AttributeValues {
+				costRes.Attributes[key] = value
+			}
+			
+			// Extract region from resource attributes
+			if region, ok := res.AttributeValues["region"].(string); ok && region != "" {
+				costRes.Region = region
+			} else if availabilityZone, ok := res.AttributeValues["availability_zone"].(string); ok && availabilityZone != "" {
+				// Extract region from availability zone (e.g., "cn-beijing-a" -> "cn-beijing")
+				if len(availabilityZone) > 2 {
+					lastDash := strings.LastIndex(availabilityZone, "-")
+					if lastDash > 0 {
+						costRes.Region = availabilityZone[:lastDash]
+					}
+				}
+			} else if zone, ok := res.AttributeValues["zone"].(string); ok && zone != "" {
+				// Some providers use "zone" instead of "availability_zone"
+				if len(zone) > 2 {
+					lastDash := strings.LastIndex(zone, "-")
+					if lastDash > 0 {
+						costRes.Region = zone[:lastDash]
+					}
+				}
+			} else if zoneId, ok := res.AttributeValues["zone_id"].(string); ok && zoneId != "" {
+				// Volcengine uses "zone_id" (e.g., "cn-beijing-a" -> "cn-beijing")
+				if len(zoneId) > 2 {
+					lastDash := strings.LastIndex(zoneId, "-")
+					if lastDash > 0 {
+						costRes.Region = zoneId[:lastDash]
+					}
+				}
+			}
+			
+			// Ensure instance_type is properly extracted for compute resources
+			if res.Type == "alicloud_instance" || res.Type == "aws_instance" || 
+			   res.Type == "tencentcloud_instance" || res.Type == "volcengine_ecs_instance" {
+				// Make sure instance_type is available
+				if instanceType, ok := res.AttributeValues["instance_type"].(string); ok && instanceType != "" {
+					costRes.Attributes["instance_type"] = instanceType
+				}
+			}
+		}
+
+		resources.Resources = append(resources.Resources, costRes)
+	}
+
+	// Recursively process child modules
+	for _, child := range module.ChildModules {
+		extractModuleResources(child, resources)
+	}
+}

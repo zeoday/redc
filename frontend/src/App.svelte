@@ -13,6 +13,7 @@
   import Credentials from './components/Credentials/Credentials.svelte';
   import LocalTemplates from './components/LocalTemplates/LocalTemplates.svelte';
   import Dashboard from './components/Dashboard/Dashboard.svelte';
+  import Cases from './components/Cases/Cases.svelte';
   import Settings from './components/Settings/Settings.svelte';
   import Sidebar from './components/Sidebar/Sidebar.svelte';
 
@@ -238,7 +239,7 @@
     <!-- Header -->
     <header class="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-6" style="--wails-draggable:drag">
       <h1 class="text-[15px] font-medium text-gray-900">
-        {#if activeTab === 'dashboard'}{t.sceneManage}{:else if activeTab === 'console'}{t.console}{:else if activeTab === 'resources'}{t.resources}{:else if activeTab === 'compose'}{t.compose}{:else if activeTab === 'registry'}{t.templateRepo}{:else if activeTab === 'localTemplates'}{t.localTmplManage}{:else if activeTab === 'ai'}{t.aiIntegration}{:else if activeTab === 'credentials'}{t.credentials}{:else if activeTab === 'specialModules'}{t.specialModules}{:else}{t.settings}{/if}
+        {#if activeTab === 'dashboard'}{t.dashboard}{:else if activeTab === 'cases'}{t.sceneManage}{:else if activeTab === 'console'}{t.console}{:else if activeTab === 'resources'}{t.resources}{:else if activeTab === 'compose'}{t.compose}{:else if activeTab === 'registry'}{t.templateRepo}{:else if activeTab === 'localTemplates'}{t.localTmplManage}{:else if activeTab === 'ai'}{t.aiIntegration}{:else if activeTab === 'credentials'}{t.credentials}{:else if activeTab === 'specialModules'}{t.specialModules}{:else}{t.settings}{/if}
       </h1>
       <div class="flex items-center gap-2" style="--wails-draggable:no-drag">
         <button 
@@ -318,7 +319,10 @@
           <div class="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin"></div>
         </div>
       {:else if activeTab === 'dashboard'}
-        <Dashboard bind:this={dashboardComponent} {t} onTabChange={(tab) => activeTab = tab} />
+        <Dashboard {t} onTabChange={(tab) => activeTab = tab} />
+
+      {:else if activeTab === 'cases'}
+        <Cases bind:this={dashboardComponent} {t} onTabChange={(tab) => activeTab = tab} />
 
       {:else if activeTab === 'console'}
         <Console bind:logs {t} />
