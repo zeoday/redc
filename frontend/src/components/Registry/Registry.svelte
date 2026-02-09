@@ -21,6 +21,22 @@ let { t } = $props();
   let batchPullConfirm = $state({ show: false, count: 0 });
   let batchUpdateConfirm = $state({ show: false, count: 0 });
 
+  let filteredRegistryTemplates = $derived(registryTemplates
+    .filter(t => 
+      !registrySearch || 
+      t.name.toLowerCase().includes(registrySearch.toLowerCase()) ||
+      (t.author && t.author.toLowerCase().includes(registrySearch.toLowerCase())) ||
+      (t.description && t.description.toLowerCase().includes(registrySearch.toLowerCase())) ||
+      (t.tags && t.tags.some(tag => tag.toLowerCase().includes(registrySearch.toLowerCase())))
+    )
+    .sort((a, b) => {
+      // Installed templates first
+      if (a.installed && !b.installed) return -1;
+      if (!a.installed && b.installed) return 1;
+      // Then sort by name alphabetically
+      return a.name.localeCompare(b.name);
+    }));
+
   let allSelected = $derived(filteredRegistryTemplates.length > 0 && selectedTemplates.size === filteredRegistryTemplates.length);
 
   let someSelected = $derived(selectedTemplates.size > 0 && selectedTemplates.size < filteredRegistryTemplates.length);
@@ -104,23 +120,6 @@ let { t } = $props();
     }
   }
 
-  let filteredRegistryTemplates = $derived(registryTemplates
-    .filter(t => 
-      !registrySearch || 
-      t.name.toLowerCase().includes(registrySearch.toLowerCase()) ||
-      (t.author && t.author.toLowerCase().includes(registrySearch.toLowerCase())) ||
-      (t.description && t.description.toLowerCase().includes(registrySearch.toLowerCase())) ||
-      (t.tags && t.tags.some(tag => tag.toLowerCase().includes(registrySearch.toLowerCase())))
-    )
-    .sort((a, b) => {
-      // Installed templates first
-      if (a.installed && !b.installed) return -1;
-      if (!a.installed && b.installed) return 1;
-      // Then sort by name alphabetically
-      return a.name.localeCompare(b.name);
-    }));
-
-
   // Listen for refresh events to update pulling status
   $effect(() => {
     if (registryTemplates.length > 0) {
@@ -139,20 +138,20 @@ let { t } = $props();
 
   function toggleSelectAll() {
     if (allSelected) {
-      selectedTemplates.clear();
+      selectedTemplates = new Set();
     } else {
-      filteredRegistryTemplates.forEach(t => selectedTemplates.add(t.name));
+      selectedTemplates = new Set(filteredRegistryTemplates.map(t => t.name));
     }
-    selectedTemplates = selectedTemplates;
   }
 
   function toggleSelectTemplate(templateName) {
-    if (selectedTemplates.has(templateName)) {
-      selectedTemplates.delete(templateName);
+    const newSet = new Set(selectedTemplates);
+    if (newSet.has(templateName)) {
+      newSet.delete(templateName);
     } else {
-      selectedTemplates.add(templateName);
+      newSet.add(templateName);
     }
-    selectedTemplates = selectedTemplates;
+    selectedTemplates = newSet;
   }
 
   function showBatchPullConfirm() {
@@ -169,8 +168,7 @@ let { t } = $props();
 
     try {
       await Promise.all(canPullTemplates.map(name => handlePullTemplate(name, false)));
-      selectedTemplates.clear();
-      selectedTemplates = selectedTemplates;
+      selectedTemplates = new Set();
     } catch (e) {
       setRegistryNotice('error', e.message || String(e));
     } finally {
@@ -193,8 +191,7 @@ let { t } = $props();
 
     try {
       await Promise.all(canUpdateTemplates.map(name => handlePullTemplate(name, true)));
-      selectedTemplates.clear();
-      selectedTemplates = selectedTemplates;
+      selectedTemplates = new Set();
     } catch (e) {
       setRegistryNotice('error', e.message || String(e));
     } finally {
@@ -296,7 +293,7 @@ let { t } = $props();
             </span>
             <button
               class="text-[12px] text-blue-600 hover:text-blue-800 underline"
-              onclick={() => { selectedTemplates.clear(); selectedTemplates = selectedTemplates; }}
+              onclick={() => { selectedTemplates = new Set(); }}
             >
               {t.clearSelection}
             </button>

@@ -232,20 +232,20 @@ let { t } = $props();
 
   function toggleSelectAll() {
     if (allSelected) {
-      selectedTemplates.clear();
+      selectedTemplates = new Set();
     } else {
-      filteredLocalTemplates.forEach(t => selectedTemplates.add(t.name));
+      selectedTemplates = new Set(filteredLocalTemplates.map(t => t.name));
     }
-    selectedTemplates = selectedTemplates; // Trigger reactivity
   }
 
   function toggleSelectTemplate(name) {
-    if (selectedTemplates.has(name)) {
-      selectedTemplates.delete(name);
+    const newSet = new Set(selectedTemplates);
+    if (newSet.has(name)) {
+      newSet.delete(name);
     } else {
-      selectedTemplates.add(name);
+      newSet.add(name);
     }
-    selectedTemplates = selectedTemplates; // Trigger reactivity
+    selectedTemplates = newSet;
   }
 
   function showBatchDeleteConfirm() {
@@ -265,8 +265,7 @@ let { t } = $props();
     try {
       // Execute deletions in parallel
       await Promise.all(templateNames.map(name => RemoveTemplate(name)));
-      selectedTemplates.clear();
-      selectedTemplates = selectedTemplates;
+      selectedTemplates = new Set();
     } catch (e) {
       error = e.message || String(e);
     } finally {
@@ -278,13 +277,6 @@ let { t } = $props();
   // ============================================================================
   // Reactive Statements
   // ============================================================================
-
-  let allSelected = $derived(filteredLocalTemplates.length > 0 && selectedTemplates.size === filteredLocalTemplates.length);
-
-  let someSelected = $derived(selectedTemplates.size > 0 && selectedTemplates.size < filteredLocalTemplates.length);
-
-  let hasSelection = $derived(selectedTemplates.size > 0);
-
 
   /**
    * Filter and sort local templates based on search query
@@ -298,6 +290,12 @@ let { t } = $props();
       (t.module && t.module.toLowerCase().includes(localTemplatesSearch.toLowerCase()))
     )
     .sort((a, b) => a.name.localeCompare(b.name)));
+
+  let allSelected = $derived(filteredLocalTemplates.length > 0 && selectedTemplates.size === filteredLocalTemplates.length);
+
+  let someSelected = $derived(selectedTemplates.size > 0 && selectedTemplates.size < filteredLocalTemplates.length);
+
+  let hasSelection = $derived(selectedTemplates.size > 0);
 
 
   // ============================================================================
@@ -362,7 +360,7 @@ let { t } = $props();
             </span>
             <button
               class="text-[12px] text-blue-600 hover:text-blue-800 underline"
-              onclick={() => { selectedTemplates.clear(); selectedTemplates = selectedTemplates; }}
+              onclick={() => { selectedTemplates = new Set(); }}
             >
               {t.clearSelection}
             </button>
@@ -761,8 +759,8 @@ let { t } = $props();
               <CodeEditor
                 filename={templateEditor.active}
                 value={templateEditor.files[templateEditor.active]}
-                onchange={(e) => {
-                  templateEditor.files[templateEditor.active] = e.detail;
+                onchange={(newContent) => {
+                  templateEditor.files[templateEditor.active] = newContent;
                   templateEditor = templateEditor; // Trigger reactivity
                 }}
               />

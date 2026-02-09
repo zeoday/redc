@@ -188,10 +188,11 @@ let { t, onTabChange = () => {} } = $props();
     }
     setCreateStatus('creating', t.creating, '');
     try {
+      /** @type {Record<string, string>} */
       const vars = {};
       for (const [key, value] of Object.entries(variableValues)) {
         if (value !== '') {
-          vars[key] = value;
+          vars[key] = String(value);
         }
       }
       await CreateCase(selectedTemplate, newCaseName, vars);
@@ -212,10 +213,11 @@ let { t, onTabChange = () => {} } = $props();
     }
     setCreateStatus('creating', t.creating, '');
     try {
+      /** @type {Record<string, string>} */
       const vars = {};
       for (const [key, value] of Object.entries(variableValues)) {
         if (value !== '') {
-          vars[key] = value;
+          vars[key] = String(value);
         }
       }
       await CreateAndRunCase(selectedTemplate, newCaseName, vars);
@@ -343,6 +345,7 @@ let { t, onTabChange = () => {} } = $props();
       const vars = await GetTemplateVariables(templateName);
       
       // Build variables object with default values only
+      /** @type {Record<string, string>} */
       const defaultVars = {};
       if (vars && vars.length > 0) {
         for (const v of vars) {
@@ -353,7 +356,6 @@ let { t, onTabChange = () => {} } = $props();
       }
       
       // Call GetCostEstimate with default variables
-      // Cast to Record<string, string> to satisfy TypeScript
       const estimate = await GetCostEstimate(templateName, defaultVars);
       
       // Store the estimate
@@ -399,10 +401,11 @@ let { t, onTabChange = () => {} } = $props();
     
     try {
       // Prepare variables object with non-empty values
+      /** @type {Record<string, string>} */
       const vars = {};
       for (const [key, value] of Object.entries(variableValues)) {
         if (value !== '') {
-          vars[key] = value;
+          vars[key] = String(value);
         }
       }
       
@@ -454,20 +457,20 @@ let { t, onTabChange = () => {} } = $props();
 
   function toggleSelectAll() {
     if (allSelected) {
-      selectedCases.clear();
+      selectedCases = new Set();
     } else {
-      cases.forEach(c => selectedCases.add(c.id));
+      selectedCases = new Set(cases.map(c => c.id));
     }
-    selectedCases = selectedCases; // Trigger reactivity
   }
 
   function toggleSelectCase(caseId) {
-    if (selectedCases.has(caseId)) {
-      selectedCases.delete(caseId);
+    const newSet = new Set(selectedCases);
+    if (newSet.has(caseId)) {
+      newSet.delete(caseId);
     } else {
-      selectedCases.add(caseId);
+      newSet.add(caseId);
     }
-    selectedCases = selectedCases; // Trigger reactivity
+    selectedCases = newSet;
   }
 
   function showBatchDeleteConfirm() {
@@ -487,8 +490,7 @@ let { t, onTabChange = () => {} } = $props();
     try {
       // Execute deletions in parallel
       await Promise.all(caseIds.map(caseId => RemoveCase(caseId)));
-      selectedCases.clear();
-      selectedCases = selectedCases;
+      selectedCases = new Set();
     } catch (e) {
       error = e.message || String(e);
     } finally {
@@ -514,8 +516,7 @@ let { t, onTabChange = () => {} } = $props();
     try {
       // Execute stops in parallel
       await Promise.all(caseIds.map(caseId => StopCase(caseId)));
-      selectedCases.clear();
-      selectedCases = selectedCases;
+      selectedCases = new Set();
     } catch (e) {
       error = e.message || String(e);
     } finally {
@@ -532,8 +533,7 @@ let { t, onTabChange = () => {} } = $props();
     try {
       // Execute starts in parallel
       await Promise.all(caseIds.map(caseId => StartCase(caseId)));
-      selectedCases.clear();
-      selectedCases = selectedCases;
+      selectedCases = new Set();
     } catch (e) {
       error = e.message || String(e);
     } finally {
@@ -757,7 +757,7 @@ let { t, onTabChange = () => {} } = $props();
           </span>
           <button
             class="text-[12px] text-blue-600 hover:text-blue-800 underline"
-            onclick={() => { selectedCases.clear(); selectedCases = selectedCases; }}
+            onclick={() => { selectedCases = new Set(); }}
           >
             {t.clearSelection}
           </button>
@@ -885,7 +885,7 @@ let { t, onTabChange = () => {} } = $props();
                               <div class="text-[11px] text-gray-500 uppercase tracking-wide">{key}</div>
                               <button 
                                 class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded flex items-center gap-1"
-                                onclick={(e) => { e.stopPropagation(); (() => copyToClipboard(value, key))(e); }}
+                                onclick={(e) => { e.stopPropagation(); copyToClipboard(value, key); }}
                                 title={t.copy}
                               >
                                 {#if copiedKey === key}

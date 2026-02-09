@@ -10,15 +10,17 @@ let { t, activeTab, lang, onTabChange, onToggleLang, onLoadMCPStatus, onLoadReso
   let isMac = $state(false);
   let isFullscreen = $state(false);
   
-  onMount(async () => {
+  onMount(() => {
     // Detect platform
-    try {
-      const env = await Environment();
-      isMac = env.platform === 'darwin';
-    } catch (e) {
-      // Fallback: detect from user agent
-      isMac = navigator.platform.toLowerCase().includes('mac');
-    }
+    (async () => {
+      try {
+        const env = await Environment();
+        isMac = env.platform === 'darwin';
+      } catch (e) {
+        // Fallback: detect from user agent
+        isMac = navigator.platform.toLowerCase().includes('mac');
+      }
+    })();
     
     const checkFullscreen = () => {
       isFullscreen = window.innerHeight === window.screen.height && window.innerWidth === window.screen.width;
