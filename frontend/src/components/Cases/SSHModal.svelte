@@ -1,5 +1,7 @@
 <script>
   import { ExecCommand, UploadFile, DownloadFile, SelectFile, SelectDirectory, SelectSaveFile } from '../../../wailsjs/go/main/App.js';
+  import WebTerminal from './WebTerminal.svelte';
+  import FileManager from './FileManager.svelte';
 
   let { t, caseId, caseName, onClose } = $props();
 
@@ -17,6 +19,10 @@
   let downloadLocalPath = $state('');
   let downloadLoading = $state(false);
   let downloadResult = $state(null);
+
+  // 新增：终端和文件管理器状态
+  let showTerminal = $state(false);
+  let showFileManager = $state(false);
 
   async function handleExec() {
     if (!command.trim()) return;
@@ -125,6 +131,30 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+      <div class="flex items-center gap-2">
+        <button
+          class="px-3 py-2 text-[12px] font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2"
+          onclick={() => showTerminal = true}
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
+          </svg>
+          {t.openTerminal || '打开终端'}
+        </button>
+        <button
+          class="px-3 py-2 text-[12px] font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+          onclick={() => showFileManager = true}
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+          {t.openFileManager || '文件管理器'}
+        </button>
+      </div>
     </div>
 
     <div class="flex border-b border-gray-100 flex-shrink-0">
@@ -382,3 +412,13 @@
     </div>
   </div>
 </div>
+
+<!-- Web Terminal -->
+{#if showTerminal}
+  <WebTerminal {t} {caseId} {caseName} onClose={() => showTerminal = false} />
+{/if}
+
+<!-- File Manager -->
+{#if showFileManager}
+  <FileManager {t} {caseId} {caseName} onClose={() => showFileManager = false} />
+{/if}

@@ -27,7 +27,6 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"github.com/projectdiscovery/gologger/levels"
 	tfjson "github.com/hashicorp/terraform-json"
-	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -3173,7 +3172,130 @@ func (a *App) SelectSaveFile(title string, defaultFilename string) (string, erro
 }
 
 // ListRemoteFiles 列出远程目录下的文件
-func (a *App) ListRemoteFiles(caseID string, remotePath string) ([]string, error) {
+// ============================================================================
+// SSH Terminal & File Manager
+// ============================================================================
+
+// SSHTerminalSession 存储活动的终端会话
+var (
+	terminalSessions   = make(map[string]*sshutil.TerminalSession)
+	terminalSessionsMu sync.Mutex
+)
+
+// StartSSHTerminal 启动 SSH 终端会话
+func (a *App) StartSSHTerminal(caseID string, rows, cols int) (string, error) {
+	a.mu.Lock()
+	project := a.project
+	a.mu.Unlock()
+
+	if project == nil {
+		return "", fmt.Errorf("项目未加载")
+	}
+
+	c, err := project.GetCase(caseID)
+	if err != nil {
+		return "", fmt.Errorf("找不到场景: %v", err)
+	}
+
+	sshConfig, err := c.GetSSHConfig()
+	if err != nil {
+		return "", fmt.Errorf("获取 SSH 配置失败: %v", err)
+	}
+
+	client, err := sshutil.NewClient(sshConfig)
+	if err != nil {
+		return "", fmt.Errorf("SSH 连接失败: %v", err)
+	}
+
+	// 创建终端会话
+	session, err := client.NewTerminalSession(rows, cols)
+	if err != nil {
+		client.Close()
+		return "", fmt.Errorf("创建终端会话失败: %v", err)
+	}
+
+	// 生成会话 ID
+	sessionID := fmt.Sprintf("%s-%d", caseID, time.Now().Unix())
+
+	// 存储会话
+	terminalSessionsMu.Lock()
+	terminalSessions[sessionID] = session
+	terminalSessionsMu.Unlock()
+
+	// 启动输出读取协程
+	go a.readTerminalOutput(sessionID, session)
+
+	return sessionID, nil
+}
+
+// readTerminalOutput 读取终端输出并发送到前端
+func (a *App) readTerminalOutput(sessionID string, session *sshutil.TerminalSession) {
+	buf := make([]byte, 4096)
+	for {
+		n, err := session.Read(buf)
+		if err != nil {
+			if err != io.EOF {
+				runtime.EventsEmit(a.ctx, "terminal-error-"+sessionID, err.Error())
+			}
+			// 会话结束，清理
+			terminalSessionsMu.Lock()
+			delete(terminalSessions, sessionID)
+			terminalSessionsMu.Unlock()
+			runtime.EventsEmit(a.ctx, "terminal-closed-"+sessionID, true)
+			break
+		}
+
+		if n > 0 {
+			// 发送输出到前端
+			runtime.EventsEmit(a.ctx, "terminal-output-"+sessionID, string(buf[:n]))
+		}
+	}
+}
+
+// WriteToTerminal 向终端写入数据
+func (a *App) WriteToTerminal(sessionID string, data string) error {
+	terminalSessionsMu.Lock()
+	session, exists := terminalSessions[sessionID]
+	terminalSessionsMu.Unlock()
+
+	if !exists {
+		return fmt.Errorf("终端会话不存在")
+	}
+
+	return session.Write([]byte(data))
+}
+
+// ResizeTerminal 调整终端大小
+func (a *App) ResizeTerminal(sessionID string, rows, cols int) error {
+	terminalSessionsMu.Lock()
+	session, exists := terminalSessions[sessionID]
+	terminalSessionsMu.Unlock()
+
+	if !exists {
+		return fmt.Errorf("终端会话不存在")
+	}
+
+	return session.Resize(rows, cols)
+}
+
+// CloseTerminal 关闭终端会话
+func (a *App) CloseTerminal(sessionID string) error {
+	terminalSessionsMu.Lock()
+	session, exists := terminalSessions[sessionID]
+	if exists {
+		delete(terminalSessions, sessionID)
+	}
+	terminalSessionsMu.Unlock()
+
+	if !exists {
+		return nil // 已经关闭
+	}
+
+	return session.Close()
+}
+
+// ListRemoteFiles 列出远程目录文件
+func (a *App) ListRemoteFiles(caseID string, remotePath string) ([]sshutil.FileInfo, error) {
 	a.mu.Lock()
 	project := a.project
 	a.mu.Unlock()
@@ -3198,20 +3320,156 @@ func (a *App) ListRemoteFiles(caseID string, remotePath string) ([]string, error
 	}
 	defer client.Close()
 
-	sftpClient, err := sftp.NewClient(client.Client)
+	return client.ListFiles(remotePath)
+}
+
+// CreateRemoteDirectory 创建远程目录
+func (a *App) CreateRemoteDirectory(caseID string, remotePath string) error {
+	a.mu.Lock()
+	project := a.project
+	a.mu.Unlock()
+
+	if project == nil {
+		return fmt.Errorf("项目未加载")
+	}
+
+	c, err := project.GetCase(caseID)
 	if err != nil {
-		return nil, fmt.Errorf("SFTP 连接失败: %v", err)
-	}
-	defer sftpClient.Close()
-
-	files := []string{}
-	walker := sftpClient.Walk(remotePath)
-	for walker.Step() {
-		if err := walker.Err(); err != nil {
-			continue
-		}
-		files = append(files, walker.Path())
+		return fmt.Errorf("找不到场景: %v", err)
 	}
 
-	return files, nil
+	sshConfig, err := c.GetSSHConfig()
+	if err != nil {
+		return fmt.Errorf("获取 SSH 配置失败: %v", err)
+	}
+
+	client, err := sshutil.NewClient(sshConfig)
+	if err != nil {
+		return fmt.Errorf("SSH 连接失败: %v", err)
+	}
+	defer client.Close()
+
+	return client.CreateDirectory(remotePath)
+}
+
+// DeleteRemoteFile 删除远程文件或目录
+func (a *App) DeleteRemoteFile(caseID string, remotePath string) error {
+	a.mu.Lock()
+	project := a.project
+	a.mu.Unlock()
+
+	if project == nil {
+		return fmt.Errorf("项目未加载")
+	}
+
+	c, err := project.GetCase(caseID)
+	if err != nil {
+		return fmt.Errorf("找不到场景: %v", err)
+	}
+
+	sshConfig, err := c.GetSSHConfig()
+	if err != nil {
+		return fmt.Errorf("获取 SSH 配置失败: %v", err)
+	}
+
+	client, err := sshutil.NewClient(sshConfig)
+	if err != nil {
+		return fmt.Errorf("SSH 连接失败: %v", err)
+	}
+	defer client.Close()
+
+	return client.DeleteFile(remotePath)
+}
+
+// RenameRemoteFile 重命名远程文件或目录
+func (a *App) RenameRemoteFile(caseID string, oldPath, newPath string) error {
+	a.mu.Lock()
+	project := a.project
+	a.mu.Unlock()
+
+	if project == nil {
+		return fmt.Errorf("项目未加载")
+	}
+
+	c, err := project.GetCase(caseID)
+	if err != nil {
+		return fmt.Errorf("找不到场景: %v", err)
+	}
+
+	sshConfig, err := c.GetSSHConfig()
+	if err != nil {
+		return fmt.Errorf("获取 SSH 配置失败: %v", err)
+	}
+
+	client, err := sshutil.NewClient(sshConfig)
+	if err != nil {
+		return fmt.Errorf("SSH 连接失败: %v", err)
+	}
+	defer client.Close()
+
+	return client.RenameFile(oldPath, newPath)
+}
+
+// GetRemoteFileContent 获取远程文件内容（用于预览）
+func (a *App) GetRemoteFileContent(caseID string, remotePath string) (string, error) {
+	a.mu.Lock()
+	project := a.project
+	a.mu.Unlock()
+
+	if project == nil {
+		return "", fmt.Errorf("项目未加载")
+	}
+
+	c, err := project.GetCase(caseID)
+	if err != nil {
+		return "", fmt.Errorf("找不到场景: %v", err)
+	}
+
+	sshConfig, err := c.GetSSHConfig()
+	if err != nil {
+		return "", fmt.Errorf("获取 SSH 配置失败: %v", err)
+	}
+
+	client, err := sshutil.NewClient(sshConfig)
+	if err != nil {
+		return "", fmt.Errorf("SSH 连接失败: %v", err)
+	}
+	defer client.Close()
+
+	// 限制预览文件大小为 1MB
+	content, err := client.GetFileContent(remotePath, 1024*1024)
+	if err != nil {
+		return "", err
+	}
+
+	return string(content), nil
+}
+
+// WriteRemoteFileContent 写入远程文件内容
+func (a *App) WriteRemoteFileContent(caseID string, remotePath string, content string) error {
+	a.mu.Lock()
+	project := a.project
+	a.mu.Unlock()
+
+	if project == nil {
+		return fmt.Errorf("项目未加载")
+	}
+
+	c, err := project.GetCase(caseID)
+	if err != nil {
+		return fmt.Errorf("找不到场景: %v", err)
+	}
+
+	sshConfig, err := c.GetSSHConfig()
+	if err != nil {
+		return fmt.Errorf("获取 SSH 配置失败: %v", err)
+	}
+
+	client, err := sshutil.NewClient(sshConfig)
+	if err != nil {
+		return fmt.Errorf("SSH 连接失败: %v", err)
+	}
+	defer client.Close()
+
+	return client.WriteFileContent(remotePath, []byte(content))
 }
