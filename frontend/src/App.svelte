@@ -340,7 +340,7 @@
         <Registry {t} />
 
       {:else if activeTab === 'ai'}
-        <AIIntegration {t} />
+        <AIIntegration {t} onTabChange={(tab) => activeTab = tab} />
 
       {:else if activeTab === 'specialModules'}
         <SpecialModules {t} />

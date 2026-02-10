@@ -15,16 +15,26 @@ const activeProfileFile = "active_profile"
 
 // ProfileInfo represents a GUI profile with an external ID (derived from filename).
 type ProfileInfo struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	ConfigPath  string `json:"configPath"`
-	TemplateDir string `json:"templateDir"`
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	ConfigPath  string    `json:"configPath"`
+	TemplateDir string    `json:"templateDir"`
+	AIConfig    *AIConfig `json:"aiConfig,omitempty"`
+}
+
+// AIConfig represents AI provider configuration
+type AIConfig struct {
+	Provider string `json:"provider"`
+	APIKey   string `json:"apiKey,omitempty"`
+	BaseURL  string `json:"baseUrl"`
+	Model    string `json:"model"`
 }
 
 type profilePayload struct {
-	Name        string `json:"name"`
-	ConfigPath  string `json:"configPath"`
-	TemplateDir string `json:"templateDir"`
+	Name        string    `json:"name"`
+	ConfigPath  string    `json:"configPath"`
+	TemplateDir string    `json:"templateDir"`
+	AIConfig    *AIConfig `json:"aiConfig,omitempty"`
 }
 
 func ensureRedcPath() error {
@@ -106,6 +116,7 @@ func readProfileFile(id string) (ProfileInfo, error) {
 		Name:        payload.Name,
 		ConfigPath:  payload.ConfigPath,
 		TemplateDir: payload.TemplateDir,
+		AIConfig:    payload.AIConfig,
 	}, nil
 }
 
@@ -126,6 +137,7 @@ func writeProfileFile(id string, payload profilePayload) (ProfileInfo, error) {
 		Name:        payload.Name,
 		ConfigPath:  payload.ConfigPath,
 		TemplateDir: payload.TemplateDir,
+		AIConfig:    payload.AIConfig,
 	}, nil
 }
 
@@ -264,6 +276,33 @@ func UpdateProfile(id string, name string, configPath string, templateDir string
 		ConfigPath:  configPath,
 		TemplateDir: templateDir,
 	})
+}
+
+// UpdateProfileAIConfig updates only the AI config for a profile
+func UpdateProfileAIConfig(id string, aiConfig *AIConfig) error {
+	profile, err := readProfileFile(id)
+	if err != nil {
+		return err
+	}
+	return writeProfileFileWithAIConfig(id, profile, aiConfig)
+}
+
+func writeProfileFileWithAIConfig(id string, profile ProfileInfo, aiConfig *AIConfig) error {
+	path, err := profileFilePath(id)
+	if err != nil {
+		return err
+	}
+	payload := profilePayload{
+		Name:        profile.Name,
+		ConfigPath:  profile.ConfigPath,
+		TemplateDir: profile.TemplateDir,
+		AIConfig:    aiConfig,
+	}
+	data, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0600)
 }
 
 func DeleteProfile(id string) error {

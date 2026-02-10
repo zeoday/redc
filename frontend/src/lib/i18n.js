@@ -96,6 +96,13 @@ export const i18n = {
     costEstimateErrorHint: '无法估算成本。您仍可以创建场景。',
     loadAllTemplateCosts: '加载所有模板成本', loadingAllTemplateCosts: '加载中...',
     batchEstimate: '批量估算',
+    // AI Configuration
+    aiConfig: 'AI 配置', aiProvider: '服务商', aiModel: '模型', aiApiKey: 'API Key',
+    aiApiKeyPlaceholder: '请输入您的 API Key', aiBaseUrl: 'API 地址', aiBaseUrlHint: '可选：自定义 API 端点地址',
+    aiModelHint: '支持任意兼容的模型名称，如 gpt-4o, deepseek-chat, MiniMax-M2.1 等',
+    aiConfigProfileHint: '请先选择一个 Profile 来配置 AI 设置',
+    aiConfigStatusDesc: '当前 AI 服务配置状态', aiConfigured: 'AI 服务已配置', aiNotConfigured: 'AI 服务未配置',
+    aiNotConfiguredHint: '请先在凭据管理页面配置 AI API Key', goToCredentials: '前往凭据管理', configureAI: '配置 AI',
     // SSH Operations
     sshOperations: 'SSH 运维', execCommand: '执行命令', command: '命令', execute: '执行',
     execSuccess: '执行成功', execFailed: '执行失败',
@@ -104,6 +111,15 @@ export const i18n = {
     selectFile: '选择文件', selectDirectory: '选择目录', selectFilePlaceholder: '点击选择文件...', selectDirectoryPlaceholder: '点击选择目录...',
     browse: '浏览', upload: '上传', downloading: '下载中...', uploading: '上传中...',
     uploadSuccess: '上传成功', uploadFailed: '上传失败', downloadSuccess: '下载成功', downloadFailed: '下载失败',
+    // AI Features
+    smartRecommend: '智能场景推荐', smartRecommendDesc: '描述您的需求，AI 将为您推荐最合适的场景模板',
+    recommendPlaceholder: '例如：我需要一个阿里云的测试环境...', recommend: '推荐', match: '匹配',
+    pullTemplate: '拉取模板', use: '使用',
+    costOptimization: '成本优化建议', costOptimizationDesc: '分析运行中的场景，提供成本优化建议',
+    startAnalysis: '开始分析', analyzing: '分析中...', foundSuggestions: '发现优化建议',
+    potentialSavings: '预计可节省', month: '月', currentCost: '当前成本', savingsLabel: '可节省',
+    applySuggestion: '应用建议', priorityHigh: '高', priorityMedium: '中', priorityLow: '低',
+    noDescription: '暂无描述',
   },
   en: {
     dashboard: 'Dashboard', console: 'Console', settings: 'Settings', credentials: 'Credentials', registry: 'Template Registry', ai: 'AI Integration', localTemplates: 'Local Templates', specialModules: 'Special Modules',
@@ -199,6 +215,13 @@ export const i18n = {
     costEstimateErrorHint: 'Failed to estimate costs. You can still create the scene.',
     loadAllTemplateCosts: 'Load All Template Costs', loadingAllTemplateCosts: 'Loading...',
     batchEstimate: 'Batch Estimate',
+    // AI Configuration
+    aiConfig: 'AI Configuration', aiProvider: 'Provider', aiModel: 'Model', aiApiKey: 'API Key',
+    aiApiKeyPlaceholder: 'Enter your API key', aiBaseUrl: 'Base URL', aiBaseUrlHint: 'Optional: Override the default API endpoint',
+    aiModelHint: 'Supports any compatible model name, e.g., gpt-4o, deepseek-chat, MiniMax-M2.1',
+    aiConfigProfileHint: 'Please select a profile first to configure AI settings',
+    aiConfigStatusDesc: 'Current AI service configuration status', aiConfigured: 'AI Service Configured', aiNotConfigured: 'AI Service Not Configured',
+    aiNotConfiguredHint: 'Please configure AI API Key in Credentials page first', goToCredentials: 'Go to Credentials', configureAI: 'Configure AI',
     // SSH Operations
     sshOperations: 'SSH Operations', execCommand: 'Execute Command', command: 'Command', execute: 'Execute',
     execSuccess: 'Success', execFailed: 'Failed',
@@ -207,6 +230,15 @@ export const i18n = {
     selectFile: 'Select File', selectDirectory: 'Select Directory', selectFilePlaceholder: 'Click to select file...', selectDirectoryPlaceholder: 'Click to select directory...',
     browse: 'Browse', upload: 'Upload', downloading: 'Downloading...', uploading: 'Uploading...',
     uploadSuccess: 'Upload success', uploadFailed: 'Upload failed', downloadSuccess: 'Download success', downloadFailed: 'Download failed',
+    // AI Features
+    smartRecommend: 'Smart Template Recommendation', smartRecommendDesc: 'Describe your needs and AI will recommend the best templates',
+    recommendPlaceholder: 'e.g., I need an Alibaba Cloud test environment...', recommend: 'Recommend', match: 'match',
+    pullTemplate: 'Pull Template', use: 'Use',
+    costOptimization: 'Cost Optimization', costOptimizationDesc: 'Analyze running scenes and provide cost optimization suggestions',
+    startAnalysis: 'Start Analysis', analyzing: 'Analyzing...', foundSuggestions: 'Found optimization suggestions',
+    potentialSavings: 'Potential Savings', month: 'month', currentCost: 'Current Cost', savingsLabel: 'Save',
+    applySuggestion: 'Apply', priorityHigh: 'High', priorityMedium: 'Medium', priorityLow: 'Low',
+    noDescription: 'No description',
   }
 };
 
