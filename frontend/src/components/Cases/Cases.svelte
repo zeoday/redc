@@ -3,6 +3,8 @@
   import { onMount, onDestroy } from 'svelte';
   import { ListCases, ListTemplates, StartCase, StopCase, RemoveCase, CreateCase, CreateAndRunCase, GetCaseOutputs, GetTemplateVariables, GetCostEstimate } from '../../../wailsjs/go/main/App.js';
   import SSHModal from './SSHModal.svelte';
+  import ScheduleDialog from './ScheduleDialog.svelte';
+  import ScheduledTasksManager from './ScheduledTasksManager.svelte';
 
 let { t, onTabChange = () => {} } = $props();
   let cases = $state([]);
@@ -19,6 +21,12 @@ let { t, onTabChange = () => {} } = $props();
   
   // SSH Modal state
   let sshModal = $state({ show: false, caseId: null, caseName: '' });
+  
+  // Schedule Dialog state
+  let scheduleDialog = $state({ show: false, caseId: null, caseName: '', action: '' });
+  
+  // Scheduled Tasks Manager refresh reference
+  let scheduledTasksManagerRefresh = { current: null };
   
   // Cost estimation state
   let showCostEstimate = $state(false);
@@ -750,6 +758,9 @@ let { t, onTabChange = () => {} } = $props();
     {/if}
   </div>
 
+  <!-- Scheduled Tasks Manager -->
+  <ScheduledTasksManager {t} refresh={scheduledTasksManagerRefresh} />
+
   <!-- Table -->
   <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
     <!-- Batch Operations Bar -->
@@ -856,6 +867,16 @@ let { t, onTabChange = () => {} } = $props();
                     {stateConfig[c.state]?.label || t.processing}...
                   </span>
                 {:else if c.state !== 'running'}
+                  <!-- 定时启动按钮 -->
+                  <button 
+                    class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                    onclick={() => scheduleDialog = { show: true, caseId: c.id, caseName: c.name, action: 'start' }}
+                    title={t.scheduleStart || '定时启动'}
+                  >
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </button>
                   <button 
                     class="px-2.5 py-1 text-[12px] font-medium text-emerald-700 bg-emerald-50 rounded-md hover:bg-emerald-100 transition-colors"
                     onclick={() => handleStart(c.id)}
@@ -868,6 +889,16 @@ let { t, onTabChange = () => {} } = $props();
                   >
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
+                    </svg>
+                  </button>
+                  <!-- 定时停止按钮 -->
+                  <button 
+                    class="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                    onclick={() => scheduleDialog = { show: true, caseId: c.id, caseName: c.name, action: 'stop' }}
+                    title={t.scheduleStop || '定时停止'}
+                  >
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </button>
                   <button 
@@ -1164,5 +1195,23 @@ let { t, onTabChange = () => {} } = $props();
     caseId={sshModal.caseId}
     caseName={sshModal.caseName}
     onClose={() => sshModal = { show: false, caseId: null, caseName: '' }}
+  />
+{/if}
+
+<!-- Schedule Dialog -->
+{#if scheduleDialog.show}
+  <ScheduleDialog
+    {t}
+    caseId={scheduleDialog.caseId}
+    caseName={scheduleDialog.caseName}
+    action={scheduleDialog.action}
+    onClose={() => scheduleDialog = { show: false, caseId: null, caseName: '', action: '' }}
+    onSuccess={() => {
+      refresh();
+      // 刷新定时任务管理器
+      if (scheduledTasksManagerRefresh.current) {
+        scheduledTasksManagerRefresh.current();
+      }
+    }}
   />
 {/if}

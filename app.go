@@ -41,6 +41,7 @@ type App struct {
 	notificationMgr    *NotificationManager
 	pricingService     *cost.PricingService
 	costCalculator     *cost.CostCalculator
+	taskScheduler      *redc.TaskScheduler
 }
 
 // NewApp creates a new App application struct
@@ -132,6 +133,37 @@ func (a *App) startup(ctx context.Context) {
 	a.pricingService.StartCacheCleanup(1 * time.Hour)
 	
 	runtime.LogInfof(ctx, "成本估算服务初始化成功 - 缓存路径: %s", pricingCacheDBPath)
+	
+	// Initialize task scheduler
+	schedulerDBPath := filepath.Join(redc.RedcPath, "scheduler.db")
+	a.taskScheduler = redc.NewTaskScheduler(a.project, schedulerDBPath)
+	
+	// 初始化数据库
+	if err := a.taskScheduler.InitDB(); err != nil {
+		runtime.LogErrorf(ctx, "任务调度器数据库初始化失败: %v", err)
+	} else {
+		runtime.LogInfof(ctx, "任务调度器数据库初始化成功: %s", schedulerDBPath)
+	}
+	
+	a.taskScheduler.SetExecuteCallback(func(caseID string, action string) error {
+		if action == "start" {
+			err := a.StartCase(caseID)
+			if err == nil {
+				a.emitRefresh()
+			}
+			return err
+		} else if action == "stop" {
+			err := a.StopCase(caseID)
+			if err == nil {
+				a.emitRefresh()
+			}
+			return err
+		}
+		return fmt.Errorf("未知操作: %s", action)
+	})
+	a.taskScheduler.Start()
+	
+	runtime.LogInfof(ctx, "任务调度器启动成功")
 }
 
 // emitLog sends a log message to the frontend and writes to file
@@ -3472,4 +3504,87 @@ func (a *App) WriteRemoteFileContent(caseID string, remotePath string, content s
 	defer client.Close()
 
 	return client.WriteFileContent(remotePath, []byte(content))
+}
+
+// ============================================================================
+// Task Scheduler APIs
+// ============================================================================
+
+// ScheduleTask 创建定时任务
+func (a *App) ScheduleTask(caseID string, caseName string, action string, scheduledAt time.Time) (*redc.ScheduledTask, error) {
+	a.mu.Lock()
+	scheduler := a.taskScheduler
+	a.mu.Unlock()
+
+	if scheduler == nil {
+		return nil, fmt.Errorf("任务调度器未初始化")
+	}
+
+	task, err := scheduler.AddTask(caseID, caseName, action, scheduledAt)
+	if err != nil {
+		return nil, err
+	}
+
+	// 发送通知
+	a.emitLog(fmt.Sprintf("已创建定时任务: %s 将在 %s %s", caseName, scheduledAt.Format("2006-01-02 15:04:05"), action))
+
+	return task, nil
+}
+
+// CancelScheduledTask 取消定时任务
+func (a *App) CancelScheduledTask(taskID string) error {
+	a.mu.Lock()
+	scheduler := a.taskScheduler
+	a.mu.Unlock()
+
+	if scheduler == nil {
+		return fmt.Errorf("任务调度器未初始化")
+	}
+
+	err := scheduler.CancelTask(taskID)
+	if err != nil {
+		return err
+	}
+
+	a.emitLog(fmt.Sprintf("已取消定时任务: %s", taskID))
+	return nil
+}
+
+// GetScheduledTask 获取定时任务
+func (a *App) GetScheduledTask(taskID string) (*redc.ScheduledTask, error) {
+	a.mu.Lock()
+	scheduler := a.taskScheduler
+	a.mu.Unlock()
+
+	if scheduler == nil {
+		return nil, fmt.Errorf("任务调度器未初始化")
+	}
+
+	return scheduler.GetTask(taskID)
+}
+
+// ListScheduledTasks 列出所有定时任务
+func (a *App) ListScheduledTasks() []*redc.ScheduledTask {
+	a.mu.Lock()
+	scheduler := a.taskScheduler
+	a.mu.Unlock()
+
+	if scheduler == nil {
+		return []*redc.ScheduledTask{}
+	}
+
+	return scheduler.ListTasks()
+}
+
+// ListCaseScheduledTasks 列出指定场景的定时任务
+func (a *App) ListCaseScheduledTasks(caseID string) []*redc.ScheduledTask {
+	a.mu.Lock()
+	scheduler := a.taskScheduler
+	a.mu.Unlock()
+
+	if scheduler == nil {
+		return []*redc.ScheduledTask{}
+	}
+
+	return scheduler.ListTasksByCase(caseID)
 }

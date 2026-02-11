@@ -111,6 +111,13 @@ export const i18n = {
     selectFile: '选择文件', selectDirectory: '选择目录', selectFilePlaceholder: '点击选择文件...', selectDirectoryPlaceholder: '点击选择目录...',
     browse: '浏览', upload: '上传', downloading: '下载中...', uploading: '上传中...',
     uploadSuccess: '上传成功', uploadFailed: '上传失败', downloadSuccess: '下载成功', downloadFailed: '下载失败',
+    // Scheduled Tasks
+    scheduledTasks: '定时任务', scheduledTasksDesc: '查看和管理所有待执行的定时任务',
+    scheduleStart: '定时启动', scheduleStop: '定时停止',
+    noScheduledTasks: '暂无待执行的定时任务', remaining: '剩余',
+    hour: '小时', minute: '分钟', second: '秒', executing: '执行中',
+    confirmCancelTask: '确认取消任务', cancelTaskWarning: '此操作不可撤销',
+    confirmCancelTaskMessage: '确定要取消定时任务', confirm: '确认',
     // AI Features
     smartRecommend: '智能场景推荐', smartRecommendDesc: '描述您的需求，AI 将为您推荐最合适的场景模板',
     recommendPlaceholder: '例如：我需要一个阿里云的测试环境...', recommend: '推荐', match: '匹配',
@@ -230,6 +237,13 @@ export const i18n = {
     selectFile: 'Select File', selectDirectory: 'Select Directory', selectFilePlaceholder: 'Click to select file...', selectDirectoryPlaceholder: 'Click to select directory...',
     browse: 'Browse', upload: 'Upload', downloading: 'Downloading...', uploading: 'Uploading...',
     uploadSuccess: 'Upload success', uploadFailed: 'Upload failed', downloadSuccess: 'Download success', downloadFailed: 'Download failed',
+    // Scheduled Tasks
+    scheduledTasks: 'Scheduled Tasks', scheduledTasksDesc: 'View and manage all pending scheduled tasks',
+    scheduleStart: 'Schedule Start', scheduleStop: 'Schedule Stop',
+    noScheduledTasks: 'No pending scheduled tasks', remaining: 'Remaining',
+    hour: 'h', minute: 'm', second: 's', executing: 'Executing',
+    confirmCancelTask: 'Confirm Cancel Task', cancelTaskWarning: 'This action cannot be undone',
+    confirmCancelTaskMessage: 'Are you sure you want to cancel scheduled task', confirm: 'Confirm',
     // AI Features
     smartRecommend: 'Smart Template Recommendation', smartRecommendDesc: 'Describe your needs and AI will recommend the best templates',
     recommendPlaceholder: 'e.g., I need an Alibaba Cloud test environment...', recommend: 'Recommend', match: 'match',
