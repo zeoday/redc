@@ -53,8 +53,8 @@ func (c *Case) GetSSHConfig() (*sshutil.SSHConfig, error) {
 	}
 
 	// 3. 尝试获取 SSH 私钥路径
-	// 优先顺序: ssh_key_path -> private_key_path -> key_path
-	keyPathKeys := []string{"ssh_key_path", "private_key_path", "key_path"}
+	// 优先顺序: ssh_private_key_path -> ssh_key_path -> private_key_path -> key_path
+	keyPathKeys := []string{"ssh_private_key_path", "ssh_key_path", "private_key_path", "key_path"}
 	var keyPath string
 	for _, key := range keyPathKeys {
 		keyPath, _ = c.GetInstanceInfo(key)
@@ -70,11 +70,26 @@ func (c *Case) GetSSHConfig() (*sshutil.SSHConfig, error) {
 		}
 	}
 
-	// 4. 返回标准配置
+	// 4. 尝试获取 SSH 用户名
+	// 优先顺序: ssh_user -> user -> username
+	userKeys := []string{"ssh_user", "user", "username"}
+	var user string
+	for _, key := range userKeys {
+		user, _ = c.GetInstanceInfo(key)
+		if user != "" {
+			break
+		}
+	}
+	// 如果没有配置用户名，默认使用 root
+	if user == "" {
+		user = "root"
+	}
+
+	// 5. 返回标准配置
 	return &sshutil.SSHConfig{
 		Host:     ip,
 		Port:     22,
-		User:     "root",
+		User:     user,
 		Password: pwd,
 		KeyPath:  keyPath,
 		Timeout:  5 * time.Second,
