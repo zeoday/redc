@@ -113,19 +113,72 @@ func ensureProviderVars(templateName string, vars map[string]string) map[string]
 		vars = map[string]string{}
 	}
 	provider := providerFromTemplateName(templateName)
-	if provider != "tencent" && provider != "tencentcloud" {
-		return vars
-	}
+	
 	conf, _, err := ReadConfig(ActiveConfigPath)
 	if err != nil || conf == nil {
 		return vars
 	}
-	if (vars["tencentcloud_secret_id"] == "" || isPlaceholderSecret(vars["tencentcloud_secret_id"])) && conf.Providers.Tencentcloud.SecretId != "" {
-		vars["tencentcloud_secret_id"] = conf.Providers.Tencentcloud.SecretId
+	
+	// 处理阿里云
+	if provider == "aliyun" || provider == "alicloud" {
+		if (vars["alicloud_access_key"] == "" || isPlaceholderSecret(vars["alicloud_access_key"])) && conf.Providers.Alicloud.AccessKey != "" {
+			vars["alicloud_access_key"] = conf.Providers.Alicloud.AccessKey
+		}
+		if (vars["alicloud_secret_key"] == "" || isPlaceholderSecret(vars["alicloud_secret_key"])) && conf.Providers.Alicloud.SecretKey != "" {
+			vars["alicloud_secret_key"] = conf.Providers.Alicloud.SecretKey
+		}
+		// 如果模板需要 instance_password 且用户未提供，则自动生成
+		if vars["instance_password"] == "" {
+			vars["instance_password"] = generateInstancePassword()
+			gologger.Info().Msgf("已自动生成阿里云实例密码")
+		}
 	}
-	if (vars["tencentcloud_secret_key"] == "" || isPlaceholderSecret(vars["tencentcloud_secret_key"])) && conf.Providers.Tencentcloud.SecretKey != "" {
-		vars["tencentcloud_secret_key"] = conf.Providers.Tencentcloud.SecretKey
+	
+	// 处理腾讯云
+	if provider == "tencent" || provider == "tencentcloud" {
+		if (vars["tencentcloud_secret_id"] == "" || isPlaceholderSecret(vars["tencentcloud_secret_id"])) && conf.Providers.Tencentcloud.SecretId != "" {
+			vars["tencentcloud_secret_id"] = conf.Providers.Tencentcloud.SecretId
+		}
+		if (vars["tencentcloud_secret_key"] == "" || isPlaceholderSecret(vars["tencentcloud_secret_key"])) && conf.Providers.Tencentcloud.SecretKey != "" {
+			vars["tencentcloud_secret_key"] = conf.Providers.Tencentcloud.SecretKey
+		}
+		// 如果模板需要 instance_password 且用户未提供，则自动生成
+		if vars["instance_password"] == "" {
+			vars["instance_password"] = generateInstancePassword()
+			gologger.Info().Msgf("已自动生成腾讯云实例密码")
+		}
 	}
+	
+	// 处理华为云
+	if provider == "huawei" || provider == "huaweicloud" {
+		if (vars["huaweicloud_access_key"] == "" || isPlaceholderSecret(vars["huaweicloud_access_key"])) && conf.Providers.Huaweicloud.AccessKey != "" {
+			vars["huaweicloud_access_key"] = conf.Providers.Huaweicloud.AccessKey
+		}
+		if (vars["huaweicloud_secret_key"] == "" || isPlaceholderSecret(vars["huaweicloud_secret_key"])) && conf.Providers.Huaweicloud.SecretKey != "" {
+			vars["huaweicloud_secret_key"] = conf.Providers.Huaweicloud.SecretKey
+		}
+		// 如果模板需要 instance_password 且用户未提供，则自动生成
+		if vars["instance_password"] == "" {
+			vars["instance_password"] = generateInstancePassword()
+			gologger.Info().Msgf("已自动生成华为云实例密码")
+		}
+	}
+	
+	// 处理火山引擎
+	if provider == "volcengine" {
+		if (vars["volcengine_access_key"] == "" || isPlaceholderSecret(vars["volcengine_access_key"])) && conf.Providers.Volcengine.AccessKey != "" {
+			vars["volcengine_access_key"] = conf.Providers.Volcengine.AccessKey
+		}
+		if (vars["volcengine_secret_key"] == "" || isPlaceholderSecret(vars["volcengine_secret_key"])) && conf.Providers.Volcengine.SecretKey != "" {
+			vars["volcengine_secret_key"] = conf.Providers.Volcengine.SecretKey
+		}
+		// 如果模板需要 instance_password 且用户未提供，则自动生成
+		if vars["instance_password"] == "" {
+			vars["instance_password"] = generateInstancePassword()
+			gologger.Info().Msgf("已自动生成火山引擎实例密码")
+		}
+	}
+	
 	return vars
 }
 
@@ -143,6 +196,24 @@ func isPlaceholderSecret(value string) bool {
 		}
 	}
 	return true
+}
+
+// generateInstancePassword 生成符合云厂商要求的实例密码
+// 华为云密码规则：8~26个字符，至少包含大写、小写、数字、特殊字符中的三种
+// 允许的特殊字符：!@%-_=+[]:./?
+// 生成格式：R{10位hex}_+{12位hex}，长度25位，包含四种字符类型
+func generateInstancePassword() string {
+	// 使用 hex 编码生成随机字符串（只包含 0-9 和 a-f）
+	seed := GenerateCaseID()
+	// 移除连字符并取前22个字符
+	seed = strings.ReplaceAll(seed, "-", "")
+	if len(seed) > 22 {
+		seed = seed[:22]
+	}
+	// 构造密码：确保包含大写、小写、数字和特殊字符
+	// 格式：R(大写) + 10位hex(小写+数字) + _+(特殊字符) + 12位hex(小写+数字)
+	password := fmt.Sprintf("R%s_+%s", seed[:10], seed[10:])
+	return password
 }
 
 func ensureProviderParams(templateName string, params []string) []string {
