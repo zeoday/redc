@@ -120,13 +120,8 @@ func ensureProviderVars(templateName string, vars map[string]string) map[string]
 	}
 	
 	// 处理阿里云
+	// 阿里云使用环境变量 ALICLOUD_ACCESS_KEY 和 ALICLOUD_SECRET_KEY，不需要通过 -var 传递
 	if provider == "aliyun" || provider == "alicloud" {
-		if (vars["alicloud_access_key"] == "" || isPlaceholderSecret(vars["alicloud_access_key"])) && conf.Providers.Alicloud.AccessKey != "" {
-			vars["alicloud_access_key"] = conf.Providers.Alicloud.AccessKey
-		}
-		if (vars["alicloud_secret_key"] == "" || isPlaceholderSecret(vars["alicloud_secret_key"])) && conf.Providers.Alicloud.SecretKey != "" {
-			vars["alicloud_secret_key"] = conf.Providers.Alicloud.SecretKey
-		}
 		// 如果模板需要 instance_password 且用户未提供，则自动生成
 		if vars["instance_password"] == "" {
 			vars["instance_password"] = generateInstancePassword()
@@ -165,13 +160,8 @@ func ensureProviderVars(templateName string, vars map[string]string) map[string]
 	}
 	
 	// 处理火山引擎
+	// 火山引擎使用环境变量 VOLCENGINE_ACCESS_KEY 和 VOLCENGINE_SECRET_KEY，不需要通过 -var 传递
 	if provider == "volcengine" {
-		if (vars["volcengine_access_key"] == "" || isPlaceholderSecret(vars["volcengine_access_key"])) && conf.Providers.Volcengine.AccessKey != "" {
-			vars["volcengine_access_key"] = conf.Providers.Volcengine.AccessKey
-		}
-		if (vars["volcengine_secret_key"] == "" || isPlaceholderSecret(vars["volcengine_secret_key"])) && conf.Providers.Volcengine.SecretKey != "" {
-			vars["volcengine_secret_key"] = conf.Providers.Volcengine.SecretKey
-		}
 		// 如果模板需要 instance_password 且用户未提供，则自动生成
 		if vars["instance_password"] == "" {
 			vars["instance_password"] = generateInstancePassword()
