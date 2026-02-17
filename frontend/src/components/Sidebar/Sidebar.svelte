@@ -119,13 +119,13 @@ let {
     { id: 'dashboard', icon: 'dashboard', labelKey: 'dashboard' },
     { id: 'cases', icon: 'cases', labelKey: 'cases' },
     { id: 'customDeployment', icon: 'customDeployment', labelKey: 'customDeployment' },
+    { id: 'specialModules', icon: 'specialModules', labelKey: 'specialModules' },
     { id: 'console', icon: 'console', labelKey: 'console' },
     { id: 'resources', icon: 'resources', labelKey: 'resources', onClick: () => onLoadResourceSummary() },
     { id: 'compose', icon: 'compose', labelKey: 'compose' },
     { id: 'credentials', icon: 'credentials', labelKey: 'credentials' },
     { id: 'registry', icon: 'registry', labelKey: 'registry' },
     { id: 'localTemplates', icon: 'localTemplates', labelKey: 'localTemplates' },
-    { id: 'specialModules', icon: 'specialModules', labelKey: 'specialModules' },
     { id: 'ai', icon: 'ai', labelKey: 'ai', onClick: () => onLoadMCPStatus() },
     { id: 'settings', icon: 'settings', labelKey: 'settings' }
   ]);
