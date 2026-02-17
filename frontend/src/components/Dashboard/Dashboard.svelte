@@ -31,10 +31,10 @@
   
   // Quick stats with real data
   let quickStats = $derived([
-    { label: '预测本月费用', value: predictedMonthlyCost, change: '0', trend: 'neutral', mock: false },
-    { label: '运行时长', value: totalRuntime, change: '0', trend: 'neutral', mock: false },
-    { label: '模板数量', value: String(templateCount), change: '0', trend: 'neutral', mock: false },
-    { label: '项目数量', value: String(projectCount), change: '0', trend: 'neutral', mock: false }
+    { label: t.predictedMonthlyCost, value: predictedMonthlyCost, change: '0', trend: 'neutral', mock: false },
+    { label: t.runtime, value: totalRuntime, change: '0', trend: 'neutral', mock: false },
+    { label: t.templateCount, value: String(templateCount), change: '0', trend: 'neutral', mock: false },
+    { label: t.projectCount, value: String(projectCount), change: '0', trend: 'neutral', mock: false }
   ]);
   
   onMount(async () => {
@@ -256,7 +256,7 @@
           onclick={runNetworkCheck}
           disabled={networkCheckLoading}
         >
-          {networkCheckLoading ? '检测中' : '重新检测'}
+          {networkCheckLoading ? t.networkChecking : t.retest}
         </button>
       </div>
       <div class="p-4">

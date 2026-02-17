@@ -1081,13 +1081,13 @@ resource "aws_instance" "conditional" {
 		t.Fatalf("ParseTemplate failed: %v", err)
 	}
 
-	if len(resources.Resources) == 0 {
-		t.Fatal("Expected at least one resource")
-	}
-
-	res := resources.Resources[0]
-	if res.Count != 0 {
-		t.Errorf("Expected count to be 0, got %d", res.Count)
+	// Resources with count=0 should be skipped (not included in the result)
+	// This is the correct behavior for cost estimation
+	if len(resources.Resources) != 0 {
+		t.Errorf("Expected 0 resources (count=0 should be skipped), got %d", len(resources.Resources))
+		for i, r := range resources.Resources {
+			t.Logf("Resource %d: %s (count=%d)", i, r.Type, r.Count)
+		}
 	}
 }
 

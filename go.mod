@@ -26,6 +26,7 @@ require (
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm v1.3.41
 	github.com/volcengine/volcengine-go-sdk v1.2.10
 	github.com/wailsapp/wails/v2 v2.11.0
+	github.com/zclconf/go-cty v1.16.4
 	go.etcd.io/bbolt v1.3.7
 	golang.org/x/crypto v0.45.0
 	golang.org/x/term v0.37.0
@@ -114,7 +115,6 @@ require (
 	github.com/volcengine/volc-sdk-golang v1.0.235 // indirect
 	github.com/wailsapp/go-webview2 v1.0.22 // indirect
 	github.com/wailsapp/mimetype v1.4.1 // indirect
-	github.com/zclconf/go-cty v1.16.4 // indirect
 	go.mongodb.org/mongo-driver v1.13.1 // indirect
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
 	golang.org/x/mod v0.29.0 // indirect

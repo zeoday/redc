@@ -32,16 +32,19 @@ import (
 
 // App struct
 type App struct {
-	ctx                context.Context
-	project            *redc.RedcProject
-	mu                 sync.Mutex
-	initError          string
-	logMgr             *gologger.LogManager
-	mcpManager         *mcp.MCPServerManager
-	notificationMgr    *NotificationManager
-	pricingService     *cost.PricingService
-	costCalculator     *cost.CostCalculator
-	taskScheduler      *redc.TaskScheduler
+	ctx                     context.Context
+	project                 *redc.RedcProject
+	mu                      sync.Mutex
+	initError               string
+	logMgr                  *gologger.LogManager
+	mcpManager              *mcp.MCPServerManager
+	notificationMgr         *NotificationManager
+	pricingService          *cost.PricingService
+	costCalculator          *cost.CostCalculator
+	taskScheduler           *redc.TaskScheduler
+	customDeploymentService *redc.CustomDeploymentService
+	templateManager         *redc.TemplateManager
+	configStore             *redc.ConfigStore
 }
 
 // NewApp creates a new App application struct
@@ -164,6 +167,13 @@ func (a *App) startup(ctx context.Context) {
 	a.taskScheduler.Start()
 	
 	runtime.LogInfof(ctx, "任务调度器启动成功")
+	
+	// Initialize custom deployment service
+	a.customDeploymentService = redc.NewCustomDeploymentService()
+	a.templateManager = redc.NewTemplateManager()
+	a.configStore = redc.NewConfigStore()
+	
+	runtime.LogInfof(ctx, "自定义部署服务初始化成功")
 }
 
 // emitLog sends a log message to the frontend and writes to file
@@ -3018,10 +3028,11 @@ type ExecCommandResult struct {
 	Error    string `json:"error,omitempty"`
 }
 
-// ExecCommand 在指定场景上执行命令并返回结果
+// ExecCommand 在指定场景或自定义部署上执行命令并返回结果
 func (a *App) ExecCommand(caseID string, command string) ExecCommandResult {
 	a.mu.Lock()
 	project := a.project
+	service := a.customDeploymentService
 	a.mu.Unlock()
 
 	result := ExecCommandResult{}
@@ -3032,19 +3043,42 @@ func (a *App) ExecCommand(caseID string, command string) ExecCommandResult {
 		return result
 	}
 
-	c, err := project.GetCase(caseID)
-	if err != nil {
-		result.Error = fmt.Sprintf("找不到场景: %v", err)
+	// 先尝试作为 Case 处理
+	c, caseErr := project.GetCase(caseID)
+	if caseErr == nil {
+		// 是 Case，使用原有逻辑
+		sshConfig, err := c.GetSSHConfig()
+		if err != nil {
+			result.Error = fmt.Sprintf("获取 SSH 配置失败: %v", err)
+			result.Success = false
+			return result
+		}
+
+		return a.execSSHCommand(sshConfig, command)
+	}
+
+	// 不是 Case，尝试作为自定义部署处理
+	if service != nil {
+		sshConfig, err := a.getDeploymentSSHConfig(caseID)
+		if err == nil {
+			// 成功获取到部署的 SSH 配置
+			return a.execSSHCommand(sshConfig, command)
+		}
+		// 既不是 Case 也不是部署
+		result.Error = fmt.Sprintf("找不到场景或部署: %s", caseID)
 		result.Success = false
 		return result
 	}
 
-	sshConfig, err := c.GetSSHConfig()
-	if err != nil {
-		result.Error = fmt.Sprintf("获取 SSH 配置失败: %v", err)
-		result.Success = false
-		return result
-	}
+	// 自定义部署服务未初始化，只能是 Case
+	result.Error = fmt.Sprintf("找不到场景: %v", caseErr)
+	result.Success = false
+	return result
+}
+
+// execSSHCommand 执行 SSH 命令的通用方法
+func (a *App) execSSHCommand(sshConfig *sshutil.SSHConfig, command string) ExecCommandResult {
+	result := ExecCommandResult{}
 
 	client, err := sshutil.NewClient(sshConfig)
 	if err != nil {
@@ -3092,10 +3126,11 @@ type FileTransferResult struct {
 	Error   string `json:"error,omitempty"`
 }
 
-// UploadFile 上传文件到远程服务器
+// UploadFile 上传文件到远程服务器（支持场景和自定义部署）
 func (a *App) UploadFile(caseID string, localPath string, remotePath string) FileTransferResult {
 	a.mu.Lock()
 	project := a.project
+	service := a.customDeploymentService
 	a.mu.Unlock()
 
 	result := FileTransferResult{}
@@ -3105,17 +3140,39 @@ func (a *App) UploadFile(caseID string, localPath string, remotePath string) Fil
 		return result
 	}
 
-	c, err := project.GetCase(caseID)
-	if err != nil {
-		result.Error = fmt.Sprintf("找不到场景: %v", err)
+	// 先尝试作为 Case 处理
+	c, caseErr := project.GetCase(caseID)
+	if caseErr == nil {
+		// 是 Case，使用原有逻辑
+		sshConfig, err := c.GetSSHConfig()
+		if err != nil {
+			result.Error = fmt.Sprintf("获取 SSH 配置失败: %v", err)
+			return result
+		}
+
+		return a.uploadFileSSH(sshConfig, localPath, remotePath)
+	}
+
+	// 不是 Case，尝试作为自定义部署处理
+	if service != nil {
+		sshConfig, err := a.getDeploymentSSHConfig(caseID)
+		if err == nil {
+			// 成功获取到部署的 SSH 配置
+			return a.uploadFileSSH(sshConfig, localPath, remotePath)
+		}
+		// 既不是 Case 也不是部署
+		result.Error = fmt.Sprintf("找不到场景或部署: %s", caseID)
 		return result
 	}
 
-	sshConfig, err := c.GetSSHConfig()
-	if err != nil {
-		result.Error = fmt.Sprintf("获取 SSH 配置失败: %v", err)
-		return result
-	}
+	// 自定义部署服务未初始化，只能是 Case
+	result.Error = fmt.Sprintf("找不到场景: %v", caseErr)
+	return result
+}
+
+// uploadFileSSH 上传文件的通用方法
+func (a *App) uploadFileSSH(sshConfig *sshutil.SSHConfig, localPath string, remotePath string) FileTransferResult {
+	result := FileTransferResult{}
 
 	client, err := sshutil.NewClient(sshConfig)
 	if err != nil {
@@ -3133,10 +3190,11 @@ func (a *App) UploadFile(caseID string, localPath string, remotePath string) Fil
 	return result
 }
 
-// DownloadFile 从远程服务器下载文件
+// DownloadFile 从远程服务器下载文件（支持场景和自定义部署）
 func (a *App) DownloadFile(caseID string, remotePath string, localPath string) FileTransferResult {
 	a.mu.Lock()
 	project := a.project
+	service := a.customDeploymentService
 	a.mu.Unlock()
 
 	result := FileTransferResult{}
@@ -3146,17 +3204,39 @@ func (a *App) DownloadFile(caseID string, remotePath string, localPath string) F
 		return result
 	}
 
-	c, err := project.GetCase(caseID)
-	if err != nil {
-		result.Error = fmt.Sprintf("找不到场景: %v", err)
+	// 先尝试作为 Case 处理
+	c, caseErr := project.GetCase(caseID)
+	if caseErr == nil {
+		// 是 Case，使用原有逻辑
+		sshConfig, err := c.GetSSHConfig()
+		if err != nil {
+			result.Error = fmt.Sprintf("获取 SSH 配置失败: %v", err)
+			return result
+		}
+
+		return a.downloadFileSSH(sshConfig, remotePath, localPath)
+	}
+
+	// 不是 Case，尝试作为自定义部署处理
+	if service != nil {
+		sshConfig, err := a.getDeploymentSSHConfig(caseID)
+		if err == nil {
+			// 成功获取到部署的 SSH 配置
+			return a.downloadFileSSH(sshConfig, remotePath, localPath)
+		}
+		// 既不是 Case 也不是部署
+		result.Error = fmt.Sprintf("找不到场景或部署: %s", caseID)
 		return result
 	}
 
-	sshConfig, err := c.GetSSHConfig()
-	if err != nil {
-		result.Error = fmt.Sprintf("获取 SSH 配置失败: %v", err)
-		return result
-	}
+	// 自定义部署服务未初始化，只能是 Case
+	result.Error = fmt.Sprintf("找不到场景: %v", caseErr)
+	return result
+}
+
+// downloadFileSSH 下载文件的通用方法
+func (a *App) downloadFileSSH(sshConfig *sshutil.SSHConfig, remotePath string, localPath string) FileTransferResult {
+	result := FileTransferResult{}
 
 	client, err := sshutil.NewClient(sshConfig)
 	if err != nil {
@@ -3212,22 +3292,13 @@ var (
 
 // StartSSHTerminal 启动 SSH 终端会话
 func (a *App) StartSSHTerminal(caseID string, rows, cols int) (string, error) {
-	a.mu.Lock()
-	project := a.project
-	a.mu.Unlock()
-
-	if project == nil {
+	if a.project == nil {
 		return "", fmt.Errorf("项目未加载")
 	}
 
-	c, err := project.GetCase(caseID)
+	sshConfig, err := a.getSSHConfig(caseID)
 	if err != nil {
-		return "", fmt.Errorf("找不到场景: %v", err)
-	}
-
-	sshConfig, err := c.GetSSHConfig()
-	if err != nil {
-		return "", fmt.Errorf("获取 SSH 配置失败: %v", err)
+		return "", err
 	}
 
 	client, err := sshutil.NewClient(sshConfig)
@@ -3324,22 +3395,9 @@ func (a *App) CloseTerminal(sessionID string) error {
 
 // ListRemoteFiles 列出远程目录文件
 func (a *App) ListRemoteFiles(caseID string, remotePath string) ([]sshutil.FileInfo, error) {
-	a.mu.Lock()
-	project := a.project
-	a.mu.Unlock()
-
-	if project == nil {
-		return nil, fmt.Errorf("项目未加载")
-	}
-
-	c, err := project.GetCase(caseID)
+	sshConfig, err := a.getSSHConfig(caseID)
 	if err != nil {
-		return nil, fmt.Errorf("找不到场景: %v", err)
-	}
-
-	sshConfig, err := c.GetSSHConfig()
-	if err != nil {
-		return nil, fmt.Errorf("获取 SSH 配置失败: %v", err)
+		return nil, err
 	}
 
 	client, err := sshutil.NewClient(sshConfig)
@@ -3353,22 +3411,9 @@ func (a *App) ListRemoteFiles(caseID string, remotePath string) ([]sshutil.FileI
 
 // CreateRemoteDirectory 创建远程目录
 func (a *App) CreateRemoteDirectory(caseID string, remotePath string) error {
-	a.mu.Lock()
-	project := a.project
-	a.mu.Unlock()
-
-	if project == nil {
-		return fmt.Errorf("项目未加载")
-	}
-
-	c, err := project.GetCase(caseID)
+	sshConfig, err := a.getSSHConfig(caseID)
 	if err != nil {
-		return fmt.Errorf("找不到场景: %v", err)
-	}
-
-	sshConfig, err := c.GetSSHConfig()
-	if err != nil {
-		return fmt.Errorf("获取 SSH 配置失败: %v", err)
+		return err
 	}
 
 	client, err := sshutil.NewClient(sshConfig)
@@ -3382,22 +3427,13 @@ func (a *App) CreateRemoteDirectory(caseID string, remotePath string) error {
 
 // DeleteRemoteFile 删除远程文件或目录
 func (a *App) DeleteRemoteFile(caseID string, remotePath string) error {
-	a.mu.Lock()
-	project := a.project
-	a.mu.Unlock()
-
-	if project == nil {
+	if a.project == nil {
 		return fmt.Errorf("项目未加载")
 	}
 
-	c, err := project.GetCase(caseID)
+	sshConfig, err := a.getSSHConfig(caseID)
 	if err != nil {
-		return fmt.Errorf("找不到场景: %v", err)
-	}
-
-	sshConfig, err := c.GetSSHConfig()
-	if err != nil {
-		return fmt.Errorf("获取 SSH 配置失败: %v", err)
+		return err
 	}
 
 	client, err := sshutil.NewClient(sshConfig)
@@ -3411,22 +3447,13 @@ func (a *App) DeleteRemoteFile(caseID string, remotePath string) error {
 
 // RenameRemoteFile 重命名远程文件或目录
 func (a *App) RenameRemoteFile(caseID string, oldPath, newPath string) error {
-	a.mu.Lock()
-	project := a.project
-	a.mu.Unlock()
-
-	if project == nil {
+	if a.project == nil {
 		return fmt.Errorf("项目未加载")
 	}
 
-	c, err := project.GetCase(caseID)
+	sshConfig, err := a.getSSHConfig(caseID)
 	if err != nil {
-		return fmt.Errorf("找不到场景: %v", err)
-	}
-
-	sshConfig, err := c.GetSSHConfig()
-	if err != nil {
-		return fmt.Errorf("获取 SSH 配置失败: %v", err)
+		return err
 	}
 
 	client, err := sshutil.NewClient(sshConfig)
@@ -3440,22 +3467,13 @@ func (a *App) RenameRemoteFile(caseID string, oldPath, newPath string) error {
 
 // GetRemoteFileContent 获取远程文件内容（用于预览）
 func (a *App) GetRemoteFileContent(caseID string, remotePath string) (string, error) {
-	a.mu.Lock()
-	project := a.project
-	a.mu.Unlock()
-
-	if project == nil {
+	if a.project == nil {
 		return "", fmt.Errorf("项目未加载")
 	}
 
-	c, err := project.GetCase(caseID)
+	sshConfig, err := a.getSSHConfig(caseID)
 	if err != nil {
-		return "", fmt.Errorf("找不到场景: %v", err)
-	}
-
-	sshConfig, err := c.GetSSHConfig()
-	if err != nil {
-		return "", fmt.Errorf("获取 SSH 配置失败: %v", err)
+		return "", err
 	}
 
 	client, err := sshutil.NewClient(sshConfig)
@@ -3475,22 +3493,13 @@ func (a *App) GetRemoteFileContent(caseID string, remotePath string) (string, er
 
 // WriteRemoteFileContent 写入远程文件内容
 func (a *App) WriteRemoteFileContent(caseID string, remotePath string, content string) error {
-	a.mu.Lock()
-	project := a.project
-	a.mu.Unlock()
-
-	if project == nil {
+	if a.project == nil {
 		return fmt.Errorf("项目未加载")
 	}
 
-	c, err := project.GetCase(caseID)
+	sshConfig, err := a.getSSHConfig(caseID)
 	if err != nil {
-		return fmt.Errorf("找不到场景: %v", err)
-	}
-
-	sshConfig, err := c.GetSSHConfig()
-	if err != nil {
-		return fmt.Errorf("获取 SSH 配置失败: %v", err)
+		return err
 	}
 
 	client, err := sshutil.NewClient(sshConfig)
@@ -3583,4 +3592,700 @@ func (a *App) ListCaseScheduledTasks(caseID string) []*redc.ScheduledTask {
 	}
 
 	return scheduler.ListTasksByCase(caseID)
+}
+
+// ============================================================================
+// Custom Deployment API Methods
+// ============================================================================
+
+// GetBaseTemplates 获取基础模板列表
+func (a *App) GetBaseTemplates() ([]*redc.BaseTemplate, error) {
+	runtime.LogInfof(a.ctx, "开始扫描基础模板...")
+	
+	a.mu.Lock()
+	templateMgr := a.templateManager
+	a.mu.Unlock()
+
+	if templateMgr == nil {
+		runtime.LogErrorf(a.ctx, "模板管理器未初始化")
+		return []*redc.BaseTemplate{}, nil // 返回空列表而不是错误
+	}
+
+	templates, err := templateMgr.ScanBaseTemplates()
+	if err != nil {
+		runtime.LogErrorf(a.ctx, "扫描基础模板失败: %v", err)
+		return []*redc.BaseTemplate{}, nil // 返回空列表而不是错误
+	}
+
+	if templates == nil {
+		templates = []*redc.BaseTemplate{}
+	}
+
+	runtime.LogInfof(a.ctx, "扫描完成，找到 %d 个基础模板", len(templates))
+	return templates, nil
+}
+
+// GetTemplateMetadata 获取模板元数据
+func (a *App) GetTemplateMetadata(name string) (*redc.BaseTemplate, error) {
+	a.mu.Lock()
+	templateMgr := a.templateManager
+	a.mu.Unlock()
+
+	if templateMgr == nil {
+		return nil, fmt.Errorf("模板管理器未初始化")
+	}
+
+	// 获取所有基础模板
+	templates, err := templateMgr.ScanBaseTemplates()
+	if err != nil {
+		return nil, fmt.Errorf("扫描基础模板失败: %w", err)
+	}
+
+	// 查找指定名称的模板
+	for _, template := range templates {
+		if template.Name == name {
+			return template, nil
+		}
+	}
+
+	return nil, fmt.Errorf("模板不存在: %s", name)
+}
+
+// GetProviderRegions 获取云厂商地域
+func (a *App) GetProviderRegions(provider string) ([]redc.Region, error) {
+	a.mu.Lock()
+	service := a.customDeploymentService
+	a.mu.Unlock()
+
+	if service == nil {
+		return nil, fmt.Errorf("自定义部署服务未初始化")
+	}
+
+	regions, err := service.GetProviderRegions(provider)
+	if err != nil {
+		return nil, fmt.Errorf("获取云厂商地域失败: %w", err)
+	}
+
+	return regions, nil
+}
+
+// GetInstanceTypes 获取实例规格
+func (a *App) GetInstanceTypes(provider, region string) ([]redc.InstanceType, error) {
+	a.mu.Lock()
+	service := a.customDeploymentService
+	a.mu.Unlock()
+
+	if service == nil {
+		return nil, fmt.Errorf("自定义部署服务未初始化")
+	}
+
+	types, err := service.GetInstanceTypes(provider, region)
+	if err != nil {
+		return nil, fmt.Errorf("获取实例规格失败: %w", err)
+	}
+
+	return types, nil
+}
+
+// ValidateDeploymentConfig 验证部署配置
+func (a *App) ValidateDeploymentConfig(config *redc.DeploymentConfig) (*redc.ValidationResult, error) {
+	a.mu.Lock()
+	service := a.customDeploymentService
+	a.mu.Unlock()
+
+	if service == nil {
+		return nil, fmt.Errorf("自定义部署服务未初始化")
+	}
+
+	if config == nil {
+		return nil, fmt.Errorf("配置不能为空")
+	}
+
+	validator := redc.NewConfigValidator()
+	result, err := validator.ValidateDeploymentConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("验证配置失败: %w", err)
+	}
+
+	return result, nil
+}
+
+// EstimateDeploymentCost 估算部署成本
+func (a *App) EstimateDeploymentCost(config *redc.DeploymentConfig) (*redc.CostEstimate, error) {
+	a.mu.Lock()
+	service := a.customDeploymentService
+	pricingService := a.pricingService
+	costCalculator := a.costCalculator
+	a.mu.Unlock()
+
+	if service == nil {
+		return nil, fmt.Errorf("自定义部署服务未初始化")
+	}
+
+	if config == nil {
+		return nil, fmt.Errorf("配置不能为空")
+	}
+
+	estimate, err := service.EstimateCost(config, pricingService, costCalculator)
+	if err != nil {
+		return nil, fmt.Errorf("估算成本失败: %w", err)
+	}
+
+	return estimate, nil
+}
+
+// CreateCustomDeployment 创建自定义部署
+func (a *App) CreateCustomDeployment(config *redc.DeploymentConfig) (*redc.CustomDeployment, error) {
+	a.mu.Lock()
+	service := a.customDeploymentService
+	project := a.project
+	a.mu.Unlock()
+
+	if service == nil {
+		return nil, fmt.Errorf("自定义部署服务未初始化")
+	}
+
+	if project == nil {
+		return nil, fmt.Errorf("项目未初始化")
+	}
+
+	if config == nil {
+		return nil, fmt.Errorf("配置不能为空")
+	}
+
+	deployment, err := service.CreateCustomDeployment(config, project.ProjectPath, project.ProjectName)
+	if err != nil {
+		return nil, fmt.Errorf("创建自定义部署失败: %w", err)
+	}
+
+	a.emitLog(fmt.Sprintf("创建自定义部署成功: %s", deployment.Name))
+	a.emitRefresh()
+
+	return deployment, nil
+}
+
+// ListCustomDeployments 列出自定义部署
+func (a *App) ListCustomDeployments() ([]*redc.CustomDeployment, error) {
+	a.mu.Lock()
+	service := a.customDeploymentService
+	project := a.project
+	a.mu.Unlock()
+
+	if service == nil {
+		return nil, fmt.Errorf("自定义部署服务未初始化")
+	}
+
+	if project == nil {
+		return nil, fmt.Errorf("项目未初始化")
+	}
+
+	deployments, err := service.ListCustomDeployments(project.ProjectName)
+	if err != nil {
+		return nil, fmt.Errorf("列出自定义部署失败: %w", err)
+	}
+
+	return deployments, nil
+}
+
+// StartCustomDeployment 启动部署
+func (a *App) StartCustomDeployment(id string) error {
+	a.mu.Lock()
+	service := a.customDeploymentService
+	project := a.project
+	a.mu.Unlock()
+
+	if service == nil {
+		return fmt.Errorf("自定义部署服务未初始化")
+	}
+
+	if project == nil {
+		return fmt.Errorf("项目未初始化")
+	}
+
+	err := service.StartCustomDeployment(project.ProjectName, id, project.ProjectPath)
+	if err != nil {
+		return fmt.Errorf("启动自定义部署失败: %w", err)
+	}
+
+	a.emitLog(fmt.Sprintf("启动自定义部署成功: %s", id))
+	a.emitRefresh()
+
+	return nil
+}
+
+// StopCustomDeployment 停止部署
+func (a *App) StopCustomDeployment(id string) error {
+	a.mu.Lock()
+	service := a.customDeploymentService
+	project := a.project
+	a.mu.Unlock()
+
+	if service == nil {
+		return fmt.Errorf("自定义部署服务未初始化")
+	}
+
+	if project == nil {
+		return fmt.Errorf("项目未初始化")
+	}
+
+	err := service.StopCustomDeployment(project.ProjectName, id, project.ProjectPath)
+	if err != nil {
+		return fmt.Errorf("停止自定义部署失败: %w", err)
+	}
+
+	a.emitLog(fmt.Sprintf("停止自定义部署成功: %s", id))
+	a.emitRefresh()
+
+	return nil
+}
+
+// DeleteCustomDeployment 删除部署
+func (a *App) DeleteCustomDeployment(id string) error {
+	a.mu.Lock()
+	service := a.customDeploymentService
+	project := a.project
+	a.mu.Unlock()
+
+	if service == nil {
+		return fmt.Errorf("自定义部署服务未初始化")
+	}
+
+	if project == nil {
+		return fmt.Errorf("项目未初始化")
+	}
+
+	err := service.DeleteCustomDeployment(project.ProjectName, id, project.ProjectPath)
+	if err != nil {
+		return fmt.Errorf("删除自定义部署失败: %w", err)
+	}
+
+	a.emitLog(fmt.Sprintf("删除自定义部署成功: %s", id))
+	a.emitRefresh()
+
+	return nil
+}
+
+// getSSHConfig 获取 SSH 配置（支持场景和自定义部署）
+func (a *App) getSSHConfig(caseID string) (*sshutil.SSHConfig, error) {
+	a.mu.Lock()
+	project := a.project
+	service := a.customDeploymentService
+	a.mu.Unlock()
+
+	if project == nil {
+		return nil, fmt.Errorf("项目未加载")
+	}
+
+	fmt.Printf("[DEBUG getSSHConfig] 尝试获取 SSH 配置，ID: %s\n", caseID)
+
+	// 先尝试作为 Case 处理
+	c, caseErr := project.GetCase(caseID)
+	if caseErr == nil {
+		fmt.Printf("[DEBUG getSSHConfig] 找到 Case: %s\n", caseID)
+		// 是 Case
+		return c.GetSSHConfig()
+	}
+
+	fmt.Printf("[DEBUG getSSHConfig] 不是 Case (错误: %v)，尝试作为部署处理\n", caseErr)
+
+	// 不是 Case，尝试作为自定义部署处理
+	if service != nil {
+		sshConfig, err := a.getDeploymentSSHConfig(caseID)
+		if err == nil {
+			fmt.Printf("[DEBUG getSSHConfig] 成功从部署获取 SSH 配置\n")
+			return sshConfig, nil
+		}
+		fmt.Printf("[DEBUG getSSHConfig] 从部署获取 SSH 配置失败: %v\n", err)
+		// 返回更详细的错误信息
+		return nil, fmt.Errorf("找不到场景或部署 '%s': Case错误=%v, 部署错误=%v", caseID, caseErr, err)
+	}
+
+	// 自定义部署服务未初始化
+	fmt.Printf("[DEBUG getSSHConfig] 自定义部署服务未初始化\n")
+	return nil, fmt.Errorf("找不到场景: %v", caseErr)
+}
+
+// getDeploymentSSHConfig 从自定义部署的 outputs 获取 SSH 配置
+func (a *App) getDeploymentSSHConfig(deploymentID string) (*sshutil.SSHConfig, error) {
+	a.mu.Lock()
+	service := a.customDeploymentService
+	project := a.project
+	a.mu.Unlock()
+
+	fmt.Printf("[DEBUG getDeploymentSSHConfig] 开始查找部署，ID: %s\n", deploymentID)
+
+	if service == nil {
+		fmt.Printf("[DEBUG getDeploymentSSHConfig] 自定义部署服务未初始化\n")
+		return nil, fmt.Errorf("自定义部署服务未初始化")
+	}
+
+	if project == nil {
+		fmt.Printf("[DEBUG getDeploymentSSHConfig] 项目未初始化\n")
+		return nil, fmt.Errorf("项目未初始化")
+	}
+
+	fmt.Printf("[DEBUG getDeploymentSSHConfig] 项目名称: %s\n", project.ProjectName)
+
+	// 加载部署信息
+	deployments, err := service.ListCustomDeployments(project.ProjectName)
+	if err != nil {
+		fmt.Printf("[DEBUG getDeploymentSSHConfig] 加载部署列表失败: %v\n", err)
+		return nil, fmt.Errorf("加载部署列表失败: %w", err)
+	}
+
+	fmt.Printf("[DEBUG getDeploymentSSHConfig] 查找部署 ID: %s, 总共有 %d 个部署\n", deploymentID, len(deployments))
+
+	// 查找指定的部署
+	var deployment *redc.CustomDeployment
+	for i, d := range deployments {
+		fmt.Printf("[DEBUG getDeploymentSSHConfig] [%d] 检查部署: ID=%s, Name=%s, State=%s, HasOutputs=%v\n", 
+			i, d.ID, d.Name, d.State, d.Outputs != nil)
+		if d.ID == deploymentID {
+			deployment = d
+			fmt.Printf("[DEBUG getDeploymentSSHConfig] ✓ 找到匹配的部署！\n")
+			break
+		}
+	}
+
+	if deployment == nil {
+		fmt.Printf("[DEBUG getDeploymentSSHConfig] ✗ 未找到部署: %s\n", deploymentID)
+		return nil, fmt.Errorf("未找到部署: %s", deploymentID)
+	}
+
+	fmt.Printf("[DEBUG getDeploymentSSHConfig] 找到部署: %s\n", deployment.Name)
+	fmt.Printf("[DEBUG getDeploymentSSHConfig] Outputs 类型: %T\n", deployment.Outputs)
+	fmt.Printf("[DEBUG getDeploymentSSHConfig] Outputs 内容: %+v\n", deployment.Outputs)
+
+	// 解析 outputs
+	var outputs map[string]interface{}
+	if deployment.Outputs != nil {
+		outputs = deployment.Outputs
+		fmt.Printf("[DEBUG getDeploymentSSHConfig] Outputs 键列表: ")
+		for key := range outputs {
+			fmt.Printf("%s ", key)
+		}
+		fmt.Printf("\n")
+	} else {
+		fmt.Printf("[DEBUG getDeploymentSSHConfig] 部署没有 outputs 信息\n")
+		return nil, fmt.Errorf("部署没有 outputs 信息")
+	}
+
+	// 从 outputs 获取 SSH 信息
+	fmt.Printf("[DEBUG getDeploymentSSHConfig] 尝试获取 public_ip...\n")
+	publicIPRaw, exists := outputs["public_ip"]
+	fmt.Printf("[DEBUG getDeploymentSSHConfig] public_ip 存在: %v, 值: %v, 类型: %T\n", exists, publicIPRaw, publicIPRaw)
+	
+	publicIP, ok := publicIPRaw.(string)
+	if !ok || publicIP == "" {
+		fmt.Printf("[DEBUG getDeploymentSSHConfig] ✗ 未找到公网 IP 或类型转换失败\n")
+		return nil, fmt.Errorf("未找到公网 IP，outputs: %v", outputs)
+	}
+	fmt.Printf("[DEBUG getDeploymentSSHConfig] ✓ 公网 IP: %s\n", publicIP)
+
+	fmt.Printf("[DEBUG getDeploymentSSHConfig] 尝试获取 instance_password...\n")
+	passwordRaw, exists := outputs["instance_password"]
+	fmt.Printf("[DEBUG getDeploymentSSHConfig] instance_password 存在: %v, 值: %v, 类型: %T\n", exists, passwordRaw, passwordRaw)
+	
+	password, ok := passwordRaw.(string)
+	if !ok || password == "" {
+		fmt.Printf("[DEBUG getDeploymentSSHConfig] ✗ 未找到实例密码或类型转换失败\n")
+		return nil, fmt.Errorf("未找到实例密码，outputs: %v", outputs)
+	}
+	fmt.Printf("[DEBUG getDeploymentSSHConfig] ✓ 实例密码: %s (长度: %d)\n", password, len(password))
+
+	fmt.Printf("[DEBUG getDeploymentSSHConfig] SSH 配置: Host=%s, User=root\n", publicIP)
+
+	// 构建 SSH 配置
+	config := &sshutil.SSHConfig{
+		Host:     publicIP,
+		Port:     22,
+		User:     "root",
+		Password: password,
+		Timeout:  30 * time.Second, // 30 秒超时
+	}
+
+	return config, nil
+}
+
+// GetDeploymentHistory 获取部署变更历史
+func (a *App) GetDeploymentHistory(id string) ([]*redc.DeploymentChangeHistory, error) {
+	a.mu.Lock()
+	service := a.customDeploymentService
+	project := a.project
+	a.mu.Unlock()
+
+	if service == nil {
+		return nil, fmt.Errorf("自定义部署服务未初始化")
+	}
+
+	if project == nil {
+		return nil, fmt.Errorf("项目未初始化")
+	}
+
+	history, err := service.GetDeploymentHistory(project.ProjectName, id)
+	if err != nil {
+		return nil, fmt.Errorf("获取部署历史失败: %w", err)
+	}
+
+	return history, nil
+}
+
+// BatchStartCustomDeployments 批量启动部署
+func (a *App) BatchStartCustomDeployments(ids []string) []redc.BatchOperationResult {
+	a.mu.Lock()
+	service := a.customDeploymentService
+	project := a.project
+	a.mu.Unlock()
+
+	if service == nil {
+		return []redc.BatchOperationResult{{
+			Success: false,
+			Error:   "自定义部署服务未初始化",
+		}}
+	}
+
+	if project == nil {
+		return []redc.BatchOperationResult{{
+			Success: false,
+			Error:   "项目未初始化",
+		}}
+	}
+
+	results := service.BatchStartDeployments(project.ProjectName, ids, project.ProjectPath)
+	
+	a.emitLog(fmt.Sprintf("批量启动部署完成: 成功 %d, 失败 %d", 
+		countSuccessful(results), countFailed(results)))
+	a.emitRefresh()
+
+	return results
+}
+
+// BatchStopCustomDeployments 批量停止部署
+func (a *App) BatchStopCustomDeployments(ids []string) []redc.BatchOperationResult {
+	a.mu.Lock()
+	service := a.customDeploymentService
+	project := a.project
+	a.mu.Unlock()
+
+	if service == nil {
+		return []redc.BatchOperationResult{{
+			Success: false,
+			Error:   "自定义部署服务未初始化",
+		}}
+	}
+
+	if project == nil {
+		return []redc.BatchOperationResult{{
+			Success: false,
+			Error:   "项目未初始化",
+		}}
+	}
+
+	results := service.BatchStopDeployments(project.ProjectName, ids, project.ProjectPath)
+	
+	a.emitLog(fmt.Sprintf("批量停止部署完成: 成功 %d, 失败 %d", 
+		countSuccessful(results), countFailed(results)))
+	a.emitRefresh()
+
+	return results
+}
+
+// BatchDeleteCustomDeployments 批量删除部署
+func (a *App) BatchDeleteCustomDeployments(ids []string) []redc.BatchOperationResult {
+	a.mu.Lock()
+	service := a.customDeploymentService
+	project := a.project
+	a.mu.Unlock()
+
+	if service == nil {
+		return []redc.BatchOperationResult{{
+			Success: false,
+			Error:   "自定义部署服务未初始化",
+		}}
+	}
+
+	if project == nil {
+		return []redc.BatchOperationResult{{
+			Success: false,
+			Error:   "项目未初始化",
+		}}
+	}
+
+	results := service.BatchDeleteDeployments(project.ProjectName, ids, project.ProjectPath)
+	
+	a.emitLog(fmt.Sprintf("批量删除部署完成: 成功 %d, 失败 %d", 
+		countSuccessful(results), countFailed(results)))
+	a.emitRefresh()
+
+	return results
+}
+
+// countSuccessful 统计成功的操作数
+func countSuccessful(results []redc.BatchOperationResult) int {
+	count := 0
+	for _, r := range results {
+		if r.Success {
+			count++
+		}
+	}
+	return count
+}
+
+// countFailed 统计失败的操作数
+func countFailed(results []redc.BatchOperationResult) int {
+	count := 0
+	for _, r := range results {
+		if !r.Success {
+			count++
+		}
+	}
+	return count
+}
+
+// SaveConfigTemplate 保存配置模板
+func (a *App) SaveConfigTemplate(name string, config *redc.DeploymentConfig) error {
+	a.mu.Lock()
+	configStore := a.configStore
+	a.mu.Unlock()
+
+	if configStore == nil {
+		return fmt.Errorf("配置存储未初始化")
+	}
+
+	if name == "" {
+		return fmt.Errorf("配置模板名称不能为空")
+	}
+
+	if config == nil {
+		return fmt.Errorf("配置不能为空")
+	}
+
+	err := configStore.SaveConfigTemplate(name, config)
+	if err != nil {
+		return fmt.Errorf("保存配置模板失败: %w", err)
+	}
+
+	a.emitLog(fmt.Sprintf("保存配置模板成功: %s", name))
+
+	return nil
+}
+
+// LoadConfigTemplate 加载配置模板
+func (a *App) LoadConfigTemplate(name string) (*redc.DeploymentConfig, error) {
+	a.mu.Lock()
+	configStore := a.configStore
+	a.mu.Unlock()
+
+	if configStore == nil {
+		return nil, fmt.Errorf("配置存储未初始化")
+	}
+
+	if name == "" {
+		return nil, fmt.Errorf("配置模板名称不能为空")
+	}
+
+	config, err := configStore.LoadConfigTemplate(name)
+	if err != nil {
+		return nil, fmt.Errorf("加载配置模板失败: %w", err)
+	}
+
+	return config, nil
+}
+
+// ListConfigTemplates 列出配置模板
+func (a *App) ListConfigTemplates() ([]string, error) {
+	a.mu.Lock()
+	configStore := a.configStore
+	a.mu.Unlock()
+
+	if configStore == nil {
+		return nil, fmt.Errorf("配置存储未初始化")
+	}
+
+	templates, err := configStore.ListConfigTemplates()
+	if err != nil {
+		return nil, fmt.Errorf("列出配置模板失败: %w", err)
+	}
+
+	return templates, nil
+}
+
+// DeleteConfigTemplate 删除配置模板
+func (a *App) DeleteConfigTemplate(name string) error {
+	a.mu.Lock()
+	configStore := a.configStore
+	a.mu.Unlock()
+
+	if configStore == nil {
+		return fmt.Errorf("配置存储未初始化")
+	}
+
+	if name == "" {
+		return fmt.Errorf("配置模板名称不能为空")
+	}
+
+	err := configStore.DeleteConfigTemplate(name)
+	if err != nil {
+		return fmt.Errorf("删除配置模板失败: %w", err)
+	}
+
+	a.emitLog(fmt.Sprintf("删除配置模板成功: %s", name))
+
+	return nil
+}
+
+// ExportConfigTemplate 导出配置模板
+func (a *App) ExportConfigTemplate(name string, exportPath string) error {
+	a.mu.Lock()
+	configStore := a.configStore
+	a.mu.Unlock()
+
+	if configStore == nil {
+		return fmt.Errorf("配置存储未初始化")
+	}
+
+	if name == "" {
+		return fmt.Errorf("配置模板名称不能为空")
+	}
+
+	if exportPath == "" {
+		return fmt.Errorf("导出路径不能为空")
+	}
+
+	err := configStore.ExportConfigTemplate(name, exportPath)
+	if err != nil {
+		return fmt.Errorf("导出配置模板失败: %w", err)
+	}
+
+	a.emitLog(fmt.Sprintf("导出配置模板成功: %s -> %s", name, exportPath))
+
+	return nil
+}
+
+// ImportConfigTemplate 导入配置模板
+func (a *App) ImportConfigTemplate(name string, importPath string) error {
+	a.mu.Lock()
+	configStore := a.configStore
+	a.mu.Unlock()
+
+	if configStore == nil {
+		return fmt.Errorf("配置存储未初始化")
+	}
+
+	if name == "" {
+		return fmt.Errorf("配置模板名称不能为空")
+	}
+
+	if importPath == "" {
+		return fmt.Errorf("导入路径不能为空")
+	}
+
+	err := configStore.ImportConfigTemplate(name, importPath)
+	if err != nil {
+		return fmt.Errorf("导入配置模板失败: %w", err)
+	}
+
+	a.emitLog(fmt.Sprintf("导入配置模板成功: %s <- %s", name, importPath))
+
+	return nil
 }

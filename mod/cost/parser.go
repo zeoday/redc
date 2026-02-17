@@ -354,7 +354,14 @@ func extractResourcesFromFile(file *hcl.File, resources *TemplateResources, reso
 						var intVal int
 						if _, err := fmt.Sscanf(v, "%d", &intVal); err == nil {
 							count = intVal
+						} else {
+							// If count is a string expression (like "${...}"), 
+							// we can't determine the actual count, so skip this resource
+							count = -1
 						}
+					default:
+						// Unknown type for count, skip this resource
+						count = -1
 					}
 				}
 
@@ -363,6 +370,11 @@ func extractResourcesFromFile(file *hcl.File, resources *TemplateResources, reso
 					// Calculate count from for_each
 					count = calculateForEachCount(value)
 				}
+			}
+
+			// Skip resources with count = 0 or unresolvable count
+			if count <= 0 {
+				continue
 			}
 
 			// Extract nested blocks (like root_block_device, ebs_block_device, etc.)
@@ -519,6 +531,21 @@ func extractAttributeValueWithVars(expr hclsyntax.Expression, resolvedVars Varia
 			return val.AsString(), nil
 		}
 
+	case *hclsyntax.ConditionalExpr:
+		// Conditional expression (e.g., var.provider == "alicloud" ? 1 : 0)
+		// Try to evaluate the condition
+		condResult, err := evaluateCondition(e.Condition, resolvedVars)
+		if err != nil {
+			// Can't evaluate condition, return error
+			return nil, fmt.Errorf("cannot evaluate condition: %w", err)
+		}
+		
+		// Return the appropriate branch based on condition result
+		if condResult {
+			return extractAttributeValueWithVars(e.TrueResult, resolvedVars)
+		}
+		return extractAttributeValueWithVars(e.FalseResult, resolvedVars)
+
 	case *hclsyntax.TemplateExpr:
 		// Template expression (string interpolation)
 		// Check if it's a simple string literal (no interpolation)
@@ -644,6 +671,43 @@ func traversalToString(traversal hcl.Traversal) string {
 		}
 	}
 	return strings.Join(parts, ".")
+}
+
+// evaluateCondition evaluates a conditional expression and returns true or false
+func evaluateCondition(expr hclsyntax.Expression, resolvedVars VariableValues) (bool, error) {
+	switch e := expr.(type) {
+	case *hclsyntax.BinaryOpExpr:
+		// Binary operation (e.g., ==, !=, <, >, etc.)
+		leftVal, err := extractAttributeValueWithVars(e.LHS, resolvedVars)
+		if err != nil {
+			return false, fmt.Errorf("cannot evaluate left side: %w", err)
+		}
+		
+		rightVal, err := extractAttributeValueWithVars(e.RHS, resolvedVars)
+		if err != nil {
+			return false, fmt.Errorf("cannot evaluate right side: %w", err)
+		}
+		
+		// Perform comparison based on operator
+		switch e.Op {
+		case hclsyntax.OpEqual:
+			return fmt.Sprintf("%v", leftVal) == fmt.Sprintf("%v", rightVal), nil
+		case hclsyntax.OpNotEqual:
+			return fmt.Sprintf("%v", leftVal) != fmt.Sprintf("%v", rightVal), nil
+		default:
+			return false, fmt.Errorf("unsupported operator: %v", e.Op)
+		}
+		
+	case *hclsyntax.LiteralValueExpr:
+		// Direct boolean value
+		if e.Val.Type().FriendlyName() == "bool" {
+			return e.Val.True(), nil
+		}
+		return false, fmt.Errorf("expected boolean, got %s", e.Val.Type().FriendlyName())
+		
+	default:
+		return false, fmt.Errorf("unsupported condition type: %T", expr)
+	}
 }
 
 // extractProviderFromResourceType extracts the provider name from a resource type
