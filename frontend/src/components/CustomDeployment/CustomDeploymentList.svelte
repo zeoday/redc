@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { ListCustomDeployments, StartCustomDeployment, StopCustomDeployment, DeleteCustomDeployment } from '../../../wailsjs/go/main/App';
+  import { ListCustomDeployments, StartCustomDeployment, StopCustomDeployment, DeleteCustomDeployment, BatchStartCustomDeployments, BatchStopCustomDeployments, BatchDeleteCustomDeployments } from '../../../wailsjs/go/main/App';
   import SSHModal from '../Cases/SSHModal.svelte';
   import ScheduleDialog from '../Cases/ScheduleDialog.svelte';
 
@@ -28,6 +28,9 @@
   let deploymentOutputs = $state<Record<string, any>>({});
   let selectedDeploymentIds = $state<Set<string>>(new Set());
   let batchMode = $state(false);
+  let batchOperating = $state(false);
+  let batchDeleteConfirm = $state({ show: false, count: 0 });
+  let batchStopConfirm = $state({ show: false, count: 0 });
   let copiedKey = $state<string | null>(null);
   let pollInterval: number | null = null;
   
@@ -266,6 +269,66 @@
     return deployments.filter(d => selectedDeploymentIds.has(d.id));
   }
 
+  function showBatchDeleteConfirm() {
+    batchDeleteConfirm = { show: true, count: selectedDeploymentIds.size };
+  }
+
+  function cancelBatchDelete() {
+    batchDeleteConfirm = { show: false, count: 0 };
+  }
+
+  async function confirmBatchDelete() {
+    batchDeleteConfirm = { show: false, count: 0 };
+    batchOperating = true;
+    const deploymentIds = Array.from(selectedDeploymentIds);
+    try {
+      await BatchDeleteCustomDeployments(deploymentIds);
+      selectedDeploymentIds = new Set();
+      await loadDeployments();
+    } catch (e) {
+      error = e.message || String(e);
+    } finally {
+      batchOperating = false;
+    }
+  }
+
+  function showBatchStopConfirm() {
+    batchStopConfirm = { show: true, count: selectedDeploymentIds.size };
+  }
+
+  function cancelBatchStop() {
+    batchStopConfirm = { show: false, count: 0 };
+  }
+
+  async function confirmBatchStop() {
+    batchStopConfirm = { show: false, count: 0 };
+    batchOperating = true;
+    const deploymentIds = Array.from(selectedDeploymentIds);
+    try {
+      await BatchStopCustomDeployments(deploymentIds);
+      selectedDeploymentIds = new Set();
+      await loadDeployments();
+    } catch (e) {
+      error = e.message || String(e);
+    } finally {
+      batchOperating = false;
+    }
+  }
+
+  async function handleBatchStart() {
+    batchOperating = true;
+    const deploymentIds = Array.from(selectedDeploymentIds);
+    try {
+      await BatchStartCustomDeployments(deploymentIds);
+      selectedDeploymentIds = new Set();
+      await loadDeployments();
+    } catch (e) {
+      error = e.message || String(e);
+    } finally {
+      batchOperating = false;
+    }
+  }
+
   // Export batch selection info for parent component
   export function getBatchSelection() {
     return {
@@ -337,6 +400,27 @@
       {#if batchMode}
         <button class="btn-select-all" onclick={selectAll}>全选</button>
         <button class="btn-deselect-all" onclick={deselectAll}>取消全选</button>
+        <button
+          class="px-4 py-2 text-[13px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md hover:bg-emerald-100 transition-colors disabled:opacity-50"
+          onclick={handleBatchStart}
+          disabled={batchOperating || selectedDeploymentIds.size === 0}
+        >
+          {t.batchStart || '批量启动'}
+        </button>
+        <button
+          class="px-4 py-2 text-[13px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md hover:bg-amber-100 transition-colors disabled:opacity-50"
+          onclick={showBatchStopConfirm}
+          disabled={batchOperating || selectedDeploymentIds.size === 0}
+        >
+          {t.batchStop || '批量停止'}
+        </button>
+        <button
+          class="px-4 py-2 text-[13px] font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition-colors disabled:opacity-50"
+          onclick={showBatchDeleteConfirm}
+          disabled={batchOperating || selectedDeploymentIds.size === 0}
+        >
+          {t.batchDelete || '批量删除'}
+        </button>
       {/if}
       <button class="btn-refresh" onclick={handleRefresh} disabled={loading}>
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -857,3 +941,71 @@
     font-size: 13px;
   }
 </style>
+
+<!-- Batch Delete Confirmation Modal -->
+{#if batchDeleteConfirm.show}
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={cancelBatchDelete}>
+    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden" onclick={(e) => e.stopPropagation()}>
+      <div class="px-6 py-5">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+            <svg class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-[15px] font-semibold text-gray-900">{t.confirmBatchDelete}</h3>
+            <p class="text-[13px] text-gray-500">{t.cannotUndo}</p>
+          </div>
+        </div>
+        <p class="text-[14px] text-gray-600 mb-4">
+          {t.confirmBatchDeleteMessage || '确定要删除选中的'} {batchDeleteConfirm.count} {t.scenes || '个场景'}?
+        </p>
+        <div class="flex justify-end gap-2">
+          <button 
+            class="px-4 py-2 text-[13px] font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            onclick={cancelBatchDelete}
+          >{t.cancel}</button>
+          <button 
+            class="px-4 py-2 text-[13px] font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+            onclick={confirmBatchDelete}
+          >{t.delete}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Batch Stop Confirmation Modal -->
+{#if batchStopConfirm.show}
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={cancelBatchStop}>
+    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden" onclick={(e) => e.stopPropagation()}>
+      <div class="px-6 py-5">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+            <svg class="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-[15px] font-semibold text-gray-900">{t.confirmBatchStop}</h3>
+            <p class="text-[13px] text-gray-500">{t.cannotUndo}</p>
+          </div>
+        </div>
+        <p class="text-[14px] text-gray-600 mb-4">
+          {t.confirmBatchStopMessage || '确定要停止选中的'} {batchStopConfirm.count} {t.scenes || '个场景'}?
+        </p>
+        <div class="flex justify-end gap-2">
+          <button 
+            class="px-4 py-2 text-[13px] font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            onclick={cancelBatchStop}
+          >{t.cancel}</button>
+          <button 
+            class="px-4 py-2 text-[13px] font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 transition-colors"
+            onclick={confirmBatchStop}
+          >{t.stop}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
