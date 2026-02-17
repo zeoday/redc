@@ -189,9 +189,62 @@ git --version
 Write-Host "Git installed successfully!"
 </powershell>
 `
+  },
+  {
+    name: 'OpenClaw',
+    nameZh: 'OpenClaw',
+    type: 'bash',
+    category: 'ai',
+    url: 'https://openclaw.ai/',
+    description: '一款开源个人 AI 智能助理。',
+    installNotes: '安装完成后，输入 openclaw onboard --install-daemon 命令配置',
+    script: `#!/bin/bash
+# OpenClaw 自动安装脚本
+curl -fsSL https://openclaw.ai/install.sh | bash
+`
+  },
+  {
+    name: 'n8n',
+    nameZh: 'n8n',
+    type: 'bash',
+    category: 'ai',
+    url: 'https://n8n.io/',
+    description: '开源工作流自动化工具，支持 AI 节点集成',
+    installNotes: '启动命令: n8n\n环境变量: N8N_BASIC_AUTH_ACTIVE=true 设置登录账号密码',
+    script: `#!/bin/bash
+# n8n 自动安装脚本
+npm install -g n8n
+
+# 启动 n8n
+# n8n
+# 默认端口: 5678
+`
+  },
+  {
+    name: 'Dify',
+    nameZh: 'Dify',
+    type: 'bash',
+    category: 'ai',
+    url: 'https://dify.ai/',
+    description: '开源 LLM 应用开发平台，支持 RAG 和 AI Agent',
+    installNotes: '访问 http://localhost:3000 进行初始化配置\n默认管理员邮箱: admin@example.com',
+    script: `#!/bin/bash
+# Dify Docker 部署
+# 请确保已安装 Docker 和 Docker Compose
+
+git clone https://github.com/langgenius/dify.git
+cd dify/docker
+docker-compose up -d
+
+# 默认端口: 3000
+`
   }
 ];
 
 export function getTemplatesByType(type) {
   return userdataTemplates.filter(t => t.type === type);
+}
+
+export function getTemplatesByCategory(category) {
+  return userdataTemplates.filter(t => t.category === category);
 }
