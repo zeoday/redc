@@ -3,30 +3,31 @@
   let specialModuleTab = $state('vulhub');
 </script>
 
-<div class="w-full max-w-4xl mx-auto">
-  <div class="flex flex-wrap gap-3 sm:gap-4 mb-6">
+<div class="w-full">
+  <!-- Tabs -->
+  <div class="flex gap-2 border-b border-gray-200 mb-6">
     <button
-      class="flex-1 min-w-[100px] px-3 sm:px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all
-        {specialModuleTab === 'vulhub' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}"
+      class="px-4 py-2 text-[13px] font-medium transition-colors {specialModuleTab === 'vulhub' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}"
       onclick={() => specialModuleTab = 'vulhub'}
     >
       {t.vulhubSupport}
     </button>
     <button
-      class="flex-1 min-w-[100px] px-3 sm:px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all
-        {specialModuleTab === 'c2' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}"
+      class="px-4 py-2 text-[13px] font-medium transition-colors {specialModuleTab === 'c2' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}"
       onclick={() => specialModuleTab = 'c2'}
     >
       {t.c2Scenes}
     </button>
     <button
-      class="flex-1 min-w-[100px] px-3 sm:px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all
-        {specialModuleTab === 'ai' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}"
+      class="px-4 py-2 text-[13px] font-medium transition-colors {specialModuleTab === 'ai' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}"
       onclick={() => specialModuleTab = 'ai'}
     >
       {t.aiScenes}
     </button>
   </div>
+
+  <!-- Content -->
+  <div class="max-w-4xl mx-auto">
 
   {#if specialModuleTab === 'vulhub'}
     <div class="bg-white rounded-xl border border-gray-100 p-4 sm:p-6 md:p-8 text-center">
@@ -68,4 +69,5 @@
       </div>
     </div>
   {/if}
+  </div>
 </div>
