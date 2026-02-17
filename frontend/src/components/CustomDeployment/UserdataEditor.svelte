@@ -1,4 +1,6 @@
 <script>
+  import { userdataTemplates, getTemplatesByType } from '../../lib/userdataTemplates.js';
+  
   // Props
   let { 
     t, 
@@ -12,86 +14,8 @@
   let selectedLanguage = $state('bash');
   let showTemplates = $state(false);
 
-  // Common script templates
-  const templates = {
-    bash: [
-      {
-        name: 'Basic Setup',
-        nameZh: '基础设置',
-        script: `#!/bin/bash
-# Update system packages
-apt-get update -y
-apt-get upgrade -y
-
-# Install common tools
-apt-get install -y curl wget git vim
-
-echo "Setup completed!"
-`
-      },
-      {
-        name: 'Docker Installation',
-        nameZh: 'Docker 安装',
-        script: `#!/bin/bash
-# Install Docker
-curl -fsSL https://get.docker.com -o get-docker.sh
-sh get-docker.sh
-
-# Start Docker service
-systemctl start docker
-systemctl enable docker
-
-# Add user to docker group
-usermod -aG docker ubuntu
-
-echo "Docker installed successfully!"
-`
-      },
-      {
-        name: 'Nginx Installation',
-        nameZh: 'Nginx 安装',
-        script: `#!/bin/bash
-# Install Nginx
-apt-get update -y
-apt-get install -y nginx
-
-# Start Nginx service
-systemctl start nginx
-systemctl enable nginx
-
-echo "Nginx installed and started!"
-`
-      }
-    ],
-    powershell: [
-      {
-        name: 'Basic Setup',
-        nameZh: '基础设置',
-        script: `<powershell>
-# Set execution policy
-Set-ExecutionPolicy Bypass -Scope Process -Force
-
-# Install Chocolatey
-[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-
-Write-Host "Setup completed!"
-</powershell>
-`
-      },
-      {
-        name: 'IIS Installation',
-        nameZh: 'IIS 安装',
-        script: `<powershell>
-# Install IIS
-Install-WindowsFeature -name Web-Server -IncludeManagementTools
-
-Write-Host "IIS installed successfully!"
-</powershell>
-`
-      }
-    ]
-  };
+  // Use imported templates
+  const templates = userdataTemplates;
 
   function handleChange(event) {
     const newValue = event.currentTarget.value;
@@ -113,7 +37,7 @@ Write-Host "IIS installed successfully!"
 
   // Get current templates based on selected language
   let currentTemplates = $derived(() => {
-    return templates[selectedLanguage] || [];
+    return getTemplatesByType(selectedLanguage);
   });
 
   // Character count
