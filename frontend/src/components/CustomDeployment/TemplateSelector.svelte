@@ -2,21 +2,13 @@
   let { t, templates = [], selectedTemplate = null, onSelect = () => {} } = $props();
   
   let searchQuery = $state('');
-  let filterType = $state('all'); // 'all', 'base', 'predefined'
 
-  // Filtered templates based on search and filter
+  // Filtered templates based on search
   let filteredTemplates = $derived(() => {
     let result = templates;
 
-    // Filter by type
-    if (filterType === 'base') {
-      result = result.filter(tmpl => tmpl.isBase);
-    } else if (filterType === 'predefined') {
-      result = result.filter(tmpl => !tmpl.isBase);
-    }
-
     // Filter by search query
-    if (searchQuery.trim()) {
+    if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(tmpl => 
         tmpl.name.toLowerCase().includes(query) ||
@@ -60,26 +52,6 @@
         class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
         bind:value={searchQuery}
       />
-    </div>
-    <div class="flex gap-2">
-      <button
-        class="px-4 h-10 text-[13px] font-medium rounded-lg transition-colors {filterType === 'all' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
-        onclick={() => filterType = 'all'}
-      >
-        {t.all || '全部'}
-      </button>
-      <button
-        class="px-4 h-10 text-[13px] font-medium rounded-lg transition-colors {filterType === 'base' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
-        onclick={() => filterType = 'base'}
-      >
-        {t.baseTemplates || '基础模板'}
-      </button>
-      <button
-        class="px-4 h-10 text-[13px] font-medium rounded-lg transition-colors {filterType === 'predefined' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
-        onclick={() => filterType = 'predefined'}
-      >
-        {t.predefinedTemplates || '预定义模板'}
-      </button>
     </div>
   </div>
 
