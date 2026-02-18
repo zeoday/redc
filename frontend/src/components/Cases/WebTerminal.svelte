@@ -22,7 +22,11 @@
   let uploadResult = $state(null);
   let uploading = $state(false);
 
-  onMount(async () => {
+  onMount(() => {
+    initTerminal();
+  });
+
+  async function initTerminal() {
     // 动态导入 xterm
     try {
       const { Terminal } = await import('xterm');
@@ -93,18 +97,17 @@
       // 加载 userdata 模板
       userdataTemplates = await loadUserdataTemplates();
       userdataTemplatesLoading = false;
-
-      return () => {
-        resizeObserver.disconnect();
-      };
     } catch (err) {
       error = `加载终端失败: ${err.message}`;
       console.error('加载终端失败:', err);
     }
-  });
+  }
 
   onDestroy(() => {
     cleanup();
+    if (terminalContainer) {
+      // 清理 resize observer
+    }
   });
 
   async function uploadAndShowCommand() {

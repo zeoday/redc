@@ -83,15 +83,15 @@
     try {
       const now = new Date();
       const scheduled = new Date(scheduledAt);
-      const diff = scheduled - now;
+      const diff = Number(scheduled) - Number(now);
       
       if (diff <= 0) {
         return t.executing || '执行中';
       }
       
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      const hours = Math.floor(Number(diff) / (1000 * 60 * 60));
+      const minutes = Math.floor(Number(diff) % (1000 * 60 * 60) / (1000 * 60));
+      const seconds = Math.floor(Number(diff) % (1000 * 60) / 1000);
       
       if (hours > 0) {
         return `${hours}${t.hour || '小时'}${minutes}${t.minute || '分钟'}`;
