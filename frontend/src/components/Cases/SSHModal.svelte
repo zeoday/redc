@@ -1,7 +1,9 @@
 <script>
-  import { ExecCommand, UploadFile, DownloadFile, SelectFile, SelectDirectory, SelectSaveFile } from '../../../wailsjs/go/main/App.js';
+  import { onMount } from 'svelte';
+  import { ExecCommand, ExecUserdata, UploadFile, DownloadFile, SelectFile, SelectDirectory, SelectSaveFile } from '../../../wailsjs/go/main/App.js';
   import WebTerminal from './WebTerminal.svelte';
   import FileManager from './FileManager.svelte';
+  import { loadUserdataTemplates, getTemplatesByCategory } from '../../lib/userdataTemplates.js';
 
   let { t, caseId, caseName, onClose } = $props();
 
@@ -19,6 +21,18 @@
   let downloadLocalPath = $state('');
   let downloadLoading = $state(false);
   let downloadResult = $state(null);
+
+  // 新增：userdata 执行状态
+  let userdataTemplates = $state([]);
+  let userdataTemplatesLoading = $state(true);
+  let selectedTemplate = $state(null);
+  let userdataExecLoading = $state(false);
+  let userdataExecResult = $state(null);
+
+  onMount(async () => {
+    userdataTemplates = await loadUserdataTemplates();
+    userdataTemplatesLoading = false;
+  });
 
   // 新增：终端和文件管理器状态
   let showTerminal = $state(false);
@@ -103,6 +117,22 @@
   function handleKeydown(e) {
     if (e.key === 'Escape') {
       onClose();
+    }
+  }
+
+  async function handleExecUserdata() {
+    if (!selectedTemplate?.script) return;
+    
+    userdataExecLoading = true;
+    userdataExecResult = null;
+    
+    try {
+      const result = await ExecUserdata(caseId, selectedTemplate.script);
+      userdataExecResult = result;
+    } catch (e) {
+      userdataExecResult = { success: false, error: e.message || String(e) };
+    } finally {
+      userdataExecLoading = false;
     }
   }
 
@@ -206,6 +236,23 @@
           {t.downloadFile || '下载文件'}
         </div>
         {#if activeTab === 'download'}
+          <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900"></div>
+        {/if}
+      </button>
+      <button
+        class="flex-1 px-4 py-3 text-[13px] font-medium transition-colors relative"
+        class:text-gray-900={activeTab === 'userdata'}
+        class:text-gray-500={activeTab !== 'userdata'}
+        class:hover:text-gray-700={activeTab !== 'userdata'}
+        onclick={() => activeTab = 'userdata'}
+      >
+        <div class="flex items-center justify-center gap-2">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+          </svg>
+          {t.execUserdata || '执行 Userdata'}
+        </div>
+        {#if activeTab === 'userdata'}
           <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900"></div>
         {/if}
       </button>
@@ -404,6 +451,93 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 <span class="text-[12px] text-red-700">{downloadResult.error}</span>
+              </div>
+            {/if}
+          {/if}
+        </div>
+      {:else if activeTab === 'userdata'}
+        <div class="space-y-4">
+          {#if userdataTemplatesLoading}
+            <div class="text-center py-8 text-gray-500 text-[13px]">
+              {t.loading || '加载中...'}
+            </div>
+          {:else if userdataTemplates.length === 0}
+            <div class="text-center py-8 text-gray-500 text-[13px]">
+              {t.noTemplates || '暂无可用模板'}
+            </div>
+          {:else}
+            <div>
+              <label class="block text-[12px] font-medium text-gray-700 mb-2">{t.selectTemplate || '选择模板'}</label>
+              <select
+                class="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                bind:value={selectedTemplate}
+              >
+                <option value={null}>{t.selectTemplate || '请选择模板'}</option>
+                {#each userdataTemplates as template}
+                  <option value={template}>{template.nameZh || template.name}</option>
+                {/each}
+              </select>
+            </div>
+
+            {#if selectedTemplate}
+              <div>
+                <label class="block text-[12px] font-medium text-gray-700 mb-2">{t.scriptPreview || '脚本预览'}</label>
+                <pre class="bg-gray-900 text-gray-100 text-[12px] p-3 rounded-lg overflow-auto max-h-48 font-mono">{selectedTemplate.script}</pre>
+              </div>
+
+              {#if selectedTemplate.description}
+                <div class="text-[12px] text-gray-500">{selectedTemplate.description}</div>
+              {/if}
+
+              <button
+                class="w-full px-4 py-2.5 text-[13px] font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                onclick={handleExecUserdata}
+                disabled={userdataExecLoading || !selectedTemplate?.script}
+              >
+                {#if userdataExecLoading}
+                  <span class="flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    {t.executing || '执行中...'}
+                  </span>
+                {:else}
+                  {t.execUserdata || '执行 Userdata'}
+                {/if}
+              </button>
+            {/if}
+
+            {#if userdataExecResult}
+              <div class="space-y-3">
+                {#if userdataExecResult.stdout}
+                  <div>
+                    <div class="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1">stdout</div>
+                    <pre class="bg-gray-900 text-green-400 text-[12px] p-3 rounded-lg overflow-auto max-h-48 font-mono">{userdataExecResult.stdout}</pre>
+                  </div>
+                {/if}
+                {#if userdataExecResult.stderr}
+                  <div>
+                    <div class="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1">stderr</div>
+                    <pre class="bg-gray-900 text-red-400 text-[12px] p-3 rounded-lg overflow-auto max-h-48 font-mono">{userdataExecResult.stderr}</pre>
+                  </div>
+                {/if}
+                {#if userdataExecResult.error}
+                  <div class="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-100 rounded-lg">
+                    <svg class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span class="text-[12px] text-red-700">{userdataExecResult.error}</span>
+                  </div>
+                {/if}
+                {#if userdataExecResult.success}
+                  <div class="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-100 rounded-lg">
+                    <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span class="text-[12px] text-emerald-700">{t.execSuccess || '执行成功'} (exit code: {userdataExecResult.exitCode})</span>
+                  </div>
+                {/if}
               </div>
             {/if}
           {/if}

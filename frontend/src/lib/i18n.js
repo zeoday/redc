@@ -112,8 +112,9 @@ export const i18n = {
     uploadFile: '上传文件', downloadFile: '下载文件',
     localFile: '本地文件', remotePath: '远程路径', remoteFile: '远程文件', localDirectory: '本地目录',
     selectFile: '选择文件', selectDirectory: '选择目录', selectFilePlaceholder: '点击选择文件...', selectDirectoryPlaceholder: '点击选择目录...',
-    browse: '浏览', upload: '上传', downloading: '下载中...', uploading: '上传中...',
+    browse: '浏览', upload: '上传', downloading: '下载中...',
     uploadSuccess: '上传成功', uploadFailed: '上传失败', downloadSuccess: '下载成功', downloadFailed: '下载失败',
+    execUserdata: '执行 Userdata', scriptPreview: '脚本预览', noTemplates: '暂无可用模板', uploadAndExec: '上传并执行',
     // Scheduled Tasks
     scheduledTasks: '定时任务', scheduledTasksDesc: '查看和管理所有待执行的定时任务',
     scheduleStart: '定时启动', scheduleStop: '定时停止',
@@ -290,8 +291,9 @@ export const i18n = {
     uploadFile: 'Upload File', downloadFile: 'Download File',
     localFile: 'Local File', remotePath: 'Remote Path', remoteFile: 'Remote File', localDirectory: 'Local Directory',
     selectFile: 'Select File', selectDirectory: 'Select Directory', selectFilePlaceholder: 'Click to select file...', selectDirectoryPlaceholder: 'Click to select directory...',
-    browse: 'Browse', upload: 'Upload', downloading: 'Downloading...', uploading: 'Uploading...',
+    browse: 'Browse', upload: 'Upload', downloading: 'Downloading...',
     uploadSuccess: 'Upload success', uploadFailed: 'Upload failed', downloadSuccess: 'Download success', downloadFailed: 'Download failed',
+    execUserdata: 'Execute Userdata', scriptPreview: 'Script Preview', noTemplates: 'No templates available', uploadAndExec: 'Upload & Execute',
     // Scheduled Tasks
     scheduledTasks: 'Scheduled Tasks', scheduledTasksDesc: 'View and manage all pending scheduled tasks',
     scheduleStart: 'Schedule Start', scheduleStop: 'Schedule Stop',

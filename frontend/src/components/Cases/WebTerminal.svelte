@@ -1,7 +1,8 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { StartSSHTerminal, WriteToTerminal, ResizeTerminal, CloseTerminal } from '../../../wailsjs/go/main/App.js';
+  import { StartSSHTerminal, WriteToTerminal, ResizeTerminal, CloseTerminal, UploadUserdataScript } from '../../../wailsjs/go/main/App.js';
   import { EventsOn, EventsOff } from '../../../wailsjs/runtime/runtime.js';
+  import { loadUserdataTemplates } from '../../lib/userdataTemplates.js';
 
   let { t, caseId, caseName, onClose } = $props();
 
@@ -12,6 +13,14 @@
   let connected = $state(false);
   let connecting = $state(false);
   let error = $state('');
+
+  // Userdata 面板状态
+  let showUserdataPanel = $state(false);
+  let userdataTemplates = $state([]);
+  let userdataTemplatesLoading = $state(true);
+  let selectedUserdataTemplate = $state(null);
+  let uploadResult = $state(null);
+  let uploading = $state(false);
 
   onMount(async () => {
     // 动态导入 xterm
@@ -81,6 +90,10 @@
       // 连接到 SSH
       await connectSSH();
 
+      // 加载 userdata 模板
+      userdataTemplates = await loadUserdataTemplates();
+      userdataTemplatesLoading = false;
+
       return () => {
         resizeObserver.disconnect();
       };
@@ -93,6 +106,32 @@
   onDestroy(() => {
     cleanup();
   });
+
+  async function uploadAndShowCommand() {
+    if (!selectedUserdataTemplate?.script || !connected) return;
+
+    uploading = true;
+    uploadResult = null;
+
+    const fileName = `${selectedUserdataTemplate.name || 'userdata'}.sh`;
+    
+    try {
+      const result = await UploadUserdataScript(caseId, selectedUserdataTemplate.script, fileName);
+      uploadResult = result;
+      
+      if (result.success) {
+        terminal?.writeln(`\r\n\x1b[32m脚本已上传到: /tmp/${fileName}\x1b[0m`);
+        terminal?.writeln(`\x1b[33m执行命令: bash /tmp/${fileName}\x1b[0m\r\n`);
+      } else {
+        terminal?.writeln(`\r\n\x1b[31m上传失败: ${result.error}\x1b[0m\r\n`);
+      }
+    } catch (err) {
+      uploadResult = { success: false, error: err.message };
+      terminal?.writeln(`\r\n\x1b[31m上传失败: ${err.message}\x1b[0m\r\n`);
+    } finally {
+      uploading = false;
+    }
+  }
 
   async function connectSSH() {
     if (connecting || connected) return;
@@ -185,6 +224,15 @@
         </div>
       </div>
       <div class="flex items-center gap-2">
+        <button
+          class="px-3 py-1.5 text-[12px] font-medium text-gray-300 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+          onclick={() => showUserdataPanel = !showUserdataPanel}
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+          </svg>
+          {t.execUserdata || 'Userdata'}
+        </button>
         {#if connected}
           <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-400 text-[11px] font-medium rounded-full">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -220,6 +268,59 @@
     <div class="flex-1 overflow-hidden p-4">
       <div bind:this={terminalContainer} class="w-full h-full rounded-lg overflow-hidden"></div>
     </div>
+
+    <!-- Userdata Panel -->
+    {#if showUserdataPanel}
+      <div class="border-t border-gray-700 bg-gray-800 p-4 max-h-64 overflow-auto">
+        {#if userdataTemplatesLoading}
+          <div class="text-center py-4 text-gray-400 text-[13px]">
+            {t.loading || '加载中...'}
+          </div>
+        {:else if userdataTemplates.length === 0}
+          <div class="text-center py-4 text-gray-400 text-[13px]">
+            {t.noTemplates || '暂无可用模板'}
+          </div>
+        {:else}
+          <div class="flex items-start gap-4">
+            <div class="flex-1">
+              <label class="block text-[12px] font-medium text-gray-300 mb-2">{t.selectTemplate || '选择模板'}</label>
+              <select
+                class="w-full px-3 py-2 text-[13px] bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                bind:value={selectedUserdataTemplate}
+              >
+                <option value={null}>{t.selectTemplate || '请选择模板'}</option>
+                {#each userdataTemplates as template}
+                  <option value={template}>{template.nameZh || template.name}</option>
+                {/each}
+              </select>
+            </div>
+            <div class="flex-1">
+              <label class="block text-[12px] font-medium text-gray-300 mb-2">{t.scriptPreview || '脚本预览'}</label>
+              <pre class="bg-gray-900 text-gray-300 text-[11px] p-2 rounded-lg overflow-auto max-h-32 font-mono">{selectedUserdataTemplate?.script || ''}</pre>
+            </div>
+            <div class="flex items-end">
+              <button
+                class="px-4 py-2 text-[13px] font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                onclick={uploadAndShowCommand}
+                disabled={!selectedUserdataTemplate?.script || !connected || uploading}
+              >
+                {#if uploading}
+                  <span class="flex items-center gap-2">
+                    <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    {t.uploading || '上传中...'}
+                  </span>
+                {:else}
+                  {t.uploadAndExec || '上传并执行'}
+                {/if}
+              </button>
+            </div>
+          </div>
+        {/if}
+      </div>
+    {/if}
 
     <!-- Error Display -->
     {#if error}

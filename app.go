@@ -10,23 +10,23 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	goruntime "runtime"
 	"sort"
 	"strings"
 	"sync"
 	"time"
-	goruntime "runtime"
 
 	redc "red-cloud/mod"
 	"red-cloud/mod/ai"
+	"red-cloud/mod/compose"
 	"red-cloud/mod/cost"
 	"red-cloud/mod/gologger"
 	"red-cloud/mod/mcp"
-	"red-cloud/mod/compose"
 	"red-cloud/utils/sshutil"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
-	"github.com/projectdiscovery/gologger/levels"
 	tfjson "github.com/hashicorp/terraform-json"
+	"github.com/projectdiscovery/gologger/levels"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -81,7 +81,7 @@ func (a *App) startup(ctx context.Context) {
 		runtime.LogInfof(ctx, "Profile 初始化失败: %v", err)
 	}
 
-	runtime.LogInfof(ctx, "配置加载成功 - RedcPath: %s, ProjectPath: %s, TemplateDir: %s", 
+	runtime.LogInfof(ctx, "配置加载成功 - RedcPath: %s, ProjectPath: %s, TemplateDir: %s",
 		redc.RedcPath, redc.ProjectPath, redc.TemplateDir)
 
 	// Load default project
@@ -104,7 +104,7 @@ func (a *App) startup(ctx context.Context) {
 	pricingCacheDBPath := filepath.Join(redc.RedcPath, "pricing_cache.db")
 	a.pricingService = cost.NewPricingService(pricingCacheDBPath)
 	a.costCalculator = cost.NewCostCalculator()
-	
+
 	// Set credential provider for cost estimation
 	// This function reads credentials from the active config file
 	credProvider := func(provider string) (accessKey, secretKey, region string, err error) {
@@ -112,7 +112,7 @@ func (a *App) startup(ctx context.Context) {
 		if err != nil {
 			return "", "", "", fmt.Errorf("failed to read config: %w", err)
 		}
-		
+
 		switch provider {
 		case "alicloud":
 			return conf.Providers.Alicloud.AccessKey, conf.Providers.Alicloud.SecretKey, conf.Providers.Alicloud.Region, nil
@@ -126,28 +126,28 @@ func (a *App) startup(ctx context.Context) {
 			return "", "", "", fmt.Errorf("unsupported provider: %s", provider)
 		}
 	}
-	
+
 	a.pricingService.SetCredentialProvider(credProvider)
-	
+
 	// Also set global credential provider for data source resolution
 	cost.SetGlobalCredentialProvider(credProvider)
-	
+
 	// Start background cache cleanup (runs every hour)
 	a.pricingService.StartCacheCleanup(1 * time.Hour)
-	
+
 	runtime.LogInfof(ctx, "成本估算服务初始化成功 - 缓存路径: %s", pricingCacheDBPath)
-	
+
 	// Initialize task scheduler
 	schedulerDBPath := filepath.Join(redc.RedcPath, "scheduler.db")
 	a.taskScheduler = redc.NewTaskScheduler(a.project, schedulerDBPath)
-	
+
 	// 初始化数据库
 	if err := a.taskScheduler.InitDB(); err != nil {
 		runtime.LogErrorf(ctx, "任务调度器数据库初始化失败: %v", err)
 	} else {
 		runtime.LogInfof(ctx, "任务调度器数据库初始化成功: %s", schedulerDBPath)
 	}
-	
+
 	a.taskScheduler.SetExecuteCallback(func(caseID string, action string) error {
 		if action == "start" {
 			err := a.StartCase(caseID)
@@ -165,14 +165,14 @@ func (a *App) startup(ctx context.Context) {
 		return fmt.Errorf("未知操作: %s", action)
 	})
 	a.taskScheduler.Start()
-	
+
 	runtime.LogInfof(ctx, "任务调度器启动成功")
-	
+
 	// Initialize custom deployment service
 	a.customDeploymentService = redc.NewCustomDeploymentService()
 	a.templateManager = redc.NewTemplateManager()
 	a.configStore = redc.NewConfigStore()
-	
+
 	runtime.LogInfof(ctx, "自定义部署服务初始化成功")
 }
 
@@ -218,21 +218,21 @@ type CaseInfo struct {
 
 // ConfigInfo represents the configuration for frontend display
 type ConfigInfo struct {
-	RedcPath    string `json:"redcPath"`
-	ProjectPath string `json:"projectPath"`
-	LogPath     string `json:"logPath"`
-	HttpProxy   string `json:"httpProxy"`
-	HttpsProxy  string `json:"httpsProxy"`
-	NoProxy     string `json:"noProxy"`
-	DebugEnabled bool  `json:"debugEnabled"`
+	RedcPath     string `json:"redcPath"`
+	ProjectPath  string `json:"projectPath"`
+	LogPath      string `json:"logPath"`
+	HttpProxy    string `json:"httpProxy"`
+	HttpsProxy   string `json:"httpsProxy"`
+	NoProxy      string `json:"noProxy"`
+	DebugEnabled bool   `json:"debugEnabled"`
 }
 
 // TerraformMirrorConfig represents terraform mirror configuration status
 type TerraformMirrorConfig struct {
-	Enabled    bool   `json:"enabled"`
-	ConfigPath string `json:"configPath"`
-	Managed    bool   `json:"managed"`
-	FromEnv    bool   `json:"fromEnv"`
+	Enabled    bool     `json:"enabled"`
+	ConfigPath string   `json:"configPath"`
+	Managed    bool     `json:"managed"`
+	FromEnv    bool     `json:"fromEnv"`
 	Providers  []string `json:"providers"`
 }
 
@@ -262,14 +262,14 @@ func (w *guiWriter) Write(data []byte, level levels.Level) {
 // ProviderCredential represents a single provider's credentials (masked for display)
 type ProviderCredential struct {
 	Name       string            `json:"name"`
-	Fields     map[string]string `json:"fields"`      // field name -> masked value
-	HasSecrets map[string]bool   `json:"hasSecrets"`  // field name -> has value
+	Fields     map[string]string `json:"fields"`     // field name -> masked value
+	HasSecrets map[string]bool   `json:"hasSecrets"` // field name -> has value
 }
 
 // ProvidersConfigInfo represents all providers' credentials
 type ProvidersConfigInfo struct {
-	ConfigPath  string               `json:"configPath"`
-	Providers   []ProviderCredential `json:"providers"`
+	ConfigPath string               `json:"configPath"`
+	Providers  []ProviderCredential `json:"providers"`
 }
 
 // GetConfig returns current configuration
@@ -279,12 +279,12 @@ func (a *App) GetConfig() ConfigInfo {
 		logPath = a.logMgr.BaseDir
 	}
 	return ConfigInfo{
-		RedcPath:    redc.RedcPath,
-		ProjectPath: redc.ProjectPath,
-		LogPath:     logPath,
-		HttpProxy:   os.Getenv("HTTP_PROXY"),
-		HttpsProxy:  os.Getenv("HTTPS_PROXY"),
-		NoProxy:     os.Getenv("NO_PROXY"),
+		RedcPath:     redc.RedcPath,
+		ProjectPath:  redc.ProjectPath,
+		LogPath:      logPath,
+		HttpProxy:    os.Getenv("HTTP_PROXY"),
+		HttpsProxy:   os.Getenv("HTTPS_PROXY"),
+		NoProxy:      os.Getenv("NO_PROXY"),
 		DebugEnabled: redc.Debug,
 	}
 }
@@ -359,7 +359,7 @@ func terraformMirrorConfigContent(enabled bool, providers []string) string {
 	builder.WriteString("disable_checkpoint = true\n")
 	// 始终优先使用本地缓存，即使网络不可达也能使用已缓存的 provider
 	builder.WriteString("plugin_cache_may_break_dependency_lock_file = true\n\n")
-	
+
 	if !enabled || len(providers) == 0 {
 		return builder.String()
 	}
@@ -1313,13 +1313,13 @@ type TemplateVariable struct {
 // GetTemplateVariables parses variables.tf and terraform.tfvars to get template variables
 func (a *App) GetTemplateVariables(templateName string) ([]TemplateVariable, error) {
 	templatePath := filepath.Join(redc.TemplateDir, templateName)
-	
+
 	// Parse variables.tf to get variable definitions
 	variablesFile := filepath.Join(templatePath, "variables.tf")
 	tfvarsFile := filepath.Join(templatePath, "terraform.tfvars")
-	
+
 	variables := make(map[string]*TemplateVariable)
-	
+
 	// Parse variables.tf
 	if _, err := os.Stat(variablesFile); err == nil {
 		vars, err := parseVariablesTf(variablesFile)
@@ -1330,7 +1330,7 @@ func (a *App) GetTemplateVariables(templateName string) ([]TemplateVariable, err
 			variables[v.Name] = v
 		}
 	}
-	
+
 	// Parse terraform.tfvars for default values
 	if _, err := os.Stat(tfvarsFile); err == nil {
 		defaults, err := parseTfvars(tfvarsFile)
@@ -1343,7 +1343,7 @@ func (a *App) GetTemplateVariables(templateName string) ([]TemplateVariable, err
 			}
 		}
 	}
-	
+
 	// Convert map to slice
 	result := make([]TemplateVariable, 0, len(variables))
 	for _, v := range variables {
@@ -1363,18 +1363,18 @@ func parseVariablesTf(filePath string) ([]*TemplateVariable, error) {
 
 	var variables []*TemplateVariable
 	scanner := bufio.NewScanner(file)
-	
+
 	varNameRegex := regexp.MustCompile(`^variable\s+"([^"]+)"`)
 	typeRegex := regexp.MustCompile(`^\s*type\s*=\s*(.+)`)
 	descRegex := regexp.MustCompile(`^\s*description\s*=\s*"([^"]*)"`)
 	defaultRegex := regexp.MustCompile(`^\s*default\s*=\s*(.+)`)
-	
+
 	var currentVar *TemplateVariable
 	braceCount := 0
-	
+
 	for scanner.Scan() {
 		line := scanner.Text()
-		
+
 		// Check for variable declaration
 		if matches := varNameRegex.FindStringSubmatch(line); len(matches) > 1 {
 			if currentVar != nil {
@@ -1388,42 +1388,42 @@ func parseVariablesTf(filePath string) ([]*TemplateVariable, error) {
 			braceCount = 1
 			continue
 		}
-		
+
 		if currentVar == nil {
 			continue
 		}
-		
+
 		// Count braces
 		braceCount += strings.Count(line, "{") - strings.Count(line, "}")
-		
+
 		// Parse type
 		if matches := typeRegex.FindStringSubmatch(line); len(matches) > 1 {
 			currentVar.Type = strings.TrimSpace(matches[1])
 		}
-		
+
 		// Parse description
 		if matches := descRegex.FindStringSubmatch(line); len(matches) > 1 {
 			currentVar.Description = matches[1]
 		}
-		
+
 		// Parse default
 		if matches := defaultRegex.FindStringSubmatch(line); len(matches) > 1 {
 			defaultRaw := strings.TrimSpace(matches[1])
 			currentVar.DefaultValue = strings.Trim(defaultRaw, `"`)
 		}
-		
+
 		// End of variable block
 		if braceCount <= 0 && currentVar != nil {
 			variables = append(variables, currentVar)
 			currentVar = nil
 		}
 	}
-	
+
 	// Add last variable if exists
 	if currentVar != nil {
 		variables = append(variables, currentVar)
 	}
-	
+
 	return variables, scanner.Err()
 }
 
@@ -1437,24 +1437,23 @@ func parseTfvars(filePath string) (map[string]string, error) {
 
 	defaults := make(map[string]string)
 	scanner := bufio.NewScanner(file)
-	
+
 	// Pattern: name = "value" or name = value
 	lineRegex := regexp.MustCompile(`^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*"?([^"]*)"?`)
-	
+
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		
+
 		if matches := lineRegex.FindStringSubmatch(line); len(matches) > 2 {
 			defaults[matches[1]] = matches[2]
 		}
 	}
-	
+
 	return defaults, scanner.Err()
 }
-
 
 // StartCase starts a case by ID
 func (a *App) StartCase(caseID string) error {
@@ -1493,7 +1492,7 @@ func (a *App) StartCase(caseID string) error {
 			}
 			a.emitRefresh()
 		}()
-		
+
 		a.emitLog(fmt.Sprintf("正在启动场景: %s", caseName))
 		if err := c.TfApply(); err != nil {
 			a.emitLog(fmt.Sprintf("启动失败: %v", err))
@@ -1503,11 +1502,11 @@ func (a *App) StartCase(caseID string) error {
 			return
 		}
 		a.emitLog(fmt.Sprintf("场景启动成功: %s", caseName))
-		
+
 		if a.notificationMgr != nil {
 			a.notificationMgr.SendSceneStarted(caseName)
 		}
-		
+
 		if outputs, err := c.TfOutput(); err == nil {
 			for name, meta := range outputs {
 				a.emitLog(fmt.Sprintf("  %s = %s", name, string(meta.Value)))
@@ -1539,7 +1538,7 @@ func (a *App) StopCase(caseID string) error {
 			}
 			a.emitRefresh()
 		}()
-		
+
 		a.emitLog(fmt.Sprintf("正在停止场景: %s", c.Name))
 		if err := c.Stop(); err != nil {
 			a.emitLog(fmt.Sprintf("停止失败: %v", err))
@@ -1549,7 +1548,7 @@ func (a *App) StopCase(caseID string) error {
 			return
 		}
 		a.emitLog(fmt.Sprintf("场景停止成功: %s", c.Name))
-		
+
 		if a.notificationMgr != nil {
 			a.notificationMgr.SendSceneStopped(c.Name)
 		}
@@ -1579,7 +1578,7 @@ func (a *App) RemoveCase(caseID string) error {
 			}
 			a.emitRefresh() // 操作完成后刷新仪表盘
 		}()
-		
+
 		a.emitLog(fmt.Sprintf("正在删除场景: %s", c.Name))
 		if err := c.Remove(); err != nil {
 			a.emitLog(fmt.Sprintf("删除失败: %v", err))
@@ -1815,7 +1814,7 @@ func (a *App) FetchRegistryTemplates(registryURL string) ([]RegistryTemplate, er
 
 	// Fetch index.json
 	indexURL := fmt.Sprintf("%s/index.json?t=%d", registryURL, time.Now().Unix())
-	
+
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Get(indexURL)
 	if err != nil {
@@ -1840,10 +1839,10 @@ func (a *App) FetchRegistryTemplates(registryURL string) ([]RegistryTemplate, er
 		if name == "" {
 			name = t.ID
 		}
-		
+
 		// Check if installed locally
 		installed, localVer, _ := redc.CheckLocalImage(name)
-		
+
 		// Get version list
 		versions := make([]string, 0, len(t.Versions))
 		var updatedAt string
@@ -2044,7 +2043,7 @@ func (a *App) AIRecommendTemplates(query string) error {
 	// Stream response to frontend with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
-	
+
 	err = client.ChatStream(ctx, messages, func(chunk string) error {
 		// Emit chunk to frontend
 		runtime.EventsEmit(a.ctx, "ai-recommend-chunk", chunk)
@@ -2106,7 +2105,7 @@ func (a *App) AICostOptimization() error {
 	// Collect running cases with cost information
 	var caseInfoList []string
 	runningCount := 0
-	
+
 	for _, c := range cases {
 		if c.State != redc.StateRunning {
 			continue
@@ -2237,10 +2236,10 @@ func (a *App) AICostOptimization() error {
 		var resourceDetails []string
 		for _, rb := range estimate.Breakdown {
 			if rb.TotalMonthly > 0 {
-				resourceDetails = append(resourceDetails, fmt.Sprintf("  - %s (%s): ¥%.2f/月", 
+				resourceDetails = append(resourceDetails, fmt.Sprintf("  - %s (%s): ¥%.2f/月",
 					rb.ResourceName, rb.ResourceType, rb.TotalMonthly))
 			} else if !rb.Available {
-				resourceDetails = append(resourceDetails, fmt.Sprintf("  - %s (%s): 定价不可用", 
+				resourceDetails = append(resourceDetails, fmt.Sprintf("  - %s (%s): 定价不可用",
 					rb.ResourceName, rb.ResourceType))
 			}
 		}
@@ -2313,7 +2312,7 @@ func (a *App) AICostOptimization() error {
 	// Stream response to frontend with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	
+
 	err = client.ChatStream(ctx, messages, func(chunk string) error {
 		// Emit chunk to frontend
 		runtime.EventsEmit(a.ctx, "ai-cost-chunk", chunk)
@@ -2638,7 +2637,7 @@ func (a *App) GetTotalRuntime() (string, error) {
 			// Try multiple time formats to parse StateTime
 			var stateTime time.Time
 			var parseErr error
-			
+
 			// Try RFC3339 format first (e.g., "2006-01-02T15:04:05Z" or "2006-01-02T15:04:05+08:00")
 			stateTime, parseErr = time.Parse(time.RFC3339, c.StateTime)
 			if parseErr != nil {
@@ -2660,7 +2659,7 @@ func (a *App) GetTotalRuntime() (string, error) {
 					}
 				}
 			}
-			
+
 			// COMPATIBILITY FIX: If the time ends with 'Z' (UTC) but results in negative duration,
 			// it's likely a bug where local time was incorrectly stored as UTC.
 			// Re-parse it as local time.
@@ -2674,18 +2673,18 @@ func (a *App) GetTotalRuntime() (string, error) {
 					duration = now.Sub(stateTime)
 				}
 			}
-			
+
 			minutes := int(duration.Minutes())
-			
+
 			// Log for debugging
 			if logMgr != nil {
 				if logger, logErr := logMgr.NewServiceLogger("runtime"); logErr == nil {
-					logger.Write([]byte(fmt.Sprintf("[DEBUG] Case %s: StateTime=%s, Now=%s, Duration=%v, Minutes=%d\n", 
+					logger.Write([]byte(fmt.Sprintf("[DEBUG] Case %s: StateTime=%s, Now=%s, Duration=%v, Minutes=%d\n",
 						c.Name, stateTime.Format(time.RFC3339), now.Format(time.RFC3339), duration, minutes)))
 					logger.Close()
 				}
 			}
-			
+
 			// Only add positive durations (ignore cases with future StateTime)
 			if minutes > 0 {
 				totalMinutes += minutes
@@ -2739,14 +2738,14 @@ func (a *App) GetPredictedMonthlyCost() (string, error) {
 			continue
 		}
 		runningCount++
-		
+
 		if logMgr != nil {
 			if logger, logErr := logMgr.NewServiceLogger("cost-prediction"); logErr == nil {
 				logger.Write([]byte(fmt.Sprintf("[INFO] Processing running case: %s (path: %s)\n", c.Name, c.Path)))
 				logger.Close()
 			}
 		}
-		
+
 		if c.Path == "" {
 			if logMgr != nil {
 				if logger, logErr := logMgr.NewServiceLogger("cost-prediction"); logErr == nil {
@@ -2768,7 +2767,7 @@ func (a *App) GetPredictedMonthlyCost() (string, error) {
 			}
 			continue
 		}
-		
+
 		if state == nil || state.Values == nil {
 			if logMgr != nil {
 				if logger, logErr := logMgr.NewServiceLogger("cost-prediction"); logErr == nil {
@@ -2820,7 +2819,7 @@ func (a *App) GetPredictedMonthlyCost() (string, error) {
 					if zid, ok := res.Attributes["zone_id"].(string); ok {
 						zoneId = zid
 					}
-					logger.Write([]byte(fmt.Sprintf("[DEBUG] Resource %d: Type=%s, Name=%s, InstanceType=%s, Region=%s, Zone=%s, AvailabilityZone=%s, ZoneId=%s, ResourceRegion=%s\n", 
+					logger.Write([]byte(fmt.Sprintf("[DEBUG] Resource %d: Type=%s, Name=%s, InstanceType=%s, Region=%s, Zone=%s, AvailabilityZone=%s, ZoneId=%s, ResourceRegion=%s\n",
 						i+1, res.Type, res.Name, instanceType, region, zone, availabilityZone, zoneId, res.Region)))
 				}
 				logger.Close()
@@ -2897,7 +2896,7 @@ func extractResourcesFromState(state *tfjson.State) *cost.TemplateResources {
 
 	// Recursively extract resources from modules
 	extractModuleResources(state.Values.RootModule, resources)
-	
+
 	// Try to extract region from any resource that has it
 	// Some resources like security groups don't have region, but compute instances do
 	for _, res := range resources.Resources {
@@ -2979,7 +2978,7 @@ func extractModuleResources(module *tfjson.StateModule, resources *cost.Template
 			for key, value := range res.AttributeValues {
 				costRes.Attributes[key] = value
 			}
-			
+
 			// Extract region from resource attributes
 			if region, ok := res.AttributeValues["region"].(string); ok && region != "" {
 				costRes.Region = region
@@ -3008,10 +3007,10 @@ func extractModuleResources(module *tfjson.StateModule, resources *cost.Template
 					}
 				}
 			}
-			
+
 			// Ensure instance_type is properly extracted for compute resources
-			if res.Type == "alicloud_instance" || res.Type == "aws_instance" || 
-			   res.Type == "tencentcloud_instance" || res.Type == "volcengine_ecs_instance" {
+			if res.Type == "alicloud_instance" || res.Type == "aws_instance" ||
+				res.Type == "tencentcloud_instance" || res.Type == "volcengine_ecs_instance" {
 				// Make sure instance_type is available
 				if instanceType, ok := res.AttributeValues["instance_type"].(string); ok && instanceType != "" {
 					costRes.Attributes["instance_type"] = instanceType
@@ -3133,10 +3132,180 @@ func (a *App) execSSHCommand(sshConfig *sshutil.SSHConfig, command string) ExecC
 	return result
 }
 
+// ExecUserdata 在指定场景或自定义部署上执行 userdata 脚本
+func (a *App) ExecUserdata(caseID string, script string) ExecCommandResult {
+	a.mu.Lock()
+	project := a.project
+	service := a.customDeploymentService
+	a.mu.Unlock()
+
+	result := ExecCommandResult{}
+
+	if project == nil {
+		result.Error = "项目未加载"
+		result.Success = false
+		return result
+	}
+
+	var sshConfig *sshutil.SSHConfig
+
+	// 先尝试作为 Case 处理
+	c, caseErr := project.GetCase(caseID)
+	if caseErr == nil {
+		// 是 Case，使用原有逻辑
+		var err error
+		sshConfig, err = c.GetSSHConfig()
+		if err != nil {
+			result.Error = fmt.Sprintf("获取 SSH 配置失败: %v", err)
+			result.Success = false
+			return result
+		}
+	} else {
+		// 尝试作为自定义部署处理
+		if service != nil {
+			var err error
+			sshConfig, err = a.getDeploymentSSHConfig(caseID)
+			if err != nil {
+				result.Error = fmt.Sprintf("找不到场景或部署: %s", caseID)
+				result.Success = false
+				return result
+			}
+		} else {
+			result.Error = fmt.Sprintf("找不到场景: %v", caseErr)
+			result.Success = false
+			return result
+		}
+	}
+
+	client, err := sshutil.NewClient(sshConfig)
+	if err != nil {
+		result.Error = fmt.Sprintf("SSH 连接失败: %v", err)
+		result.Success = false
+		return result
+	}
+	defer client.Close()
+
+	// 创建临时脚本文件
+	session, err := client.NewSession()
+	if err != nil {
+		result.Error = fmt.Sprintf("创建 SSH 会话失败: %v", err)
+		result.Success = false
+		return result
+	}
+
+	// 写入脚本到临时文件
+	var stdoutBuf, stderrBuf strings.Builder
+	session.Stdout = &stdoutBuf
+	session.Stderr = &stderrBuf
+
+	// 确定脚本解释器
+	shell := "/bin/bash"
+	if strings.HasPrefix(script, "<powershell>") || strings.HasPrefix(script, "#!/usr/bin/env pwsh") {
+		shell = "/usr/bin/env pwsh"
+	}
+
+	// 写入临时文件并执行
+	command := fmt.Sprintf("cat > /tmp/userdata_script.sh << 'EOFSCRIPT'\n%s\nEOFSCRIPT\nchmod +x /tmp/userdata_script.sh\n%s /tmp/userdata_script.sh", script, shell)
+
+	err = session.Run(command)
+	result.Stdout = stdoutBuf.String()
+	result.Stderr = stderrBuf.String()
+
+	if err != nil {
+		if exitErr, ok := err.(*ssh.ExitError); ok {
+			result.ExitCode = exitErr.ExitStatus()
+		} else {
+			result.ExitCode = -1
+			result.Error = err.Error()
+		}
+		result.Success = false
+	} else {
+		result.ExitCode = 0
+		result.Success = true
+	}
+
+	return result
+}
+
 // FileTransferResult 文件传输结果
 type FileTransferResult struct {
 	Success bool   `json:"success"`
 	Error   string `json:"error,omitempty"`
+}
+
+// UploadUserdataScript 上传 userdata 脚本内容到远程服务器
+func (a *App) UploadUserdataScript(caseID string, scriptContent string, fileName string) FileTransferResult {
+	a.mu.Lock()
+	project := a.project
+	service := a.customDeploymentService
+	a.mu.Unlock()
+
+	result := FileTransferResult{}
+
+	if project == nil {
+		result.Error = "项目未加载"
+		return result
+	}
+
+	var sshConfig *sshutil.SSHConfig
+
+	// 先尝试作为 Case 处理
+	c, caseErr := project.GetCase(caseID)
+	if caseErr == nil {
+		var err error
+		sshConfig, err = c.GetSSHConfig()
+		if err != nil {
+			result.Error = fmt.Sprintf("获取 SSH 配置失败: %v", err)
+			return result
+		}
+	} else {
+		// 尝试作为自定义部署处理
+		if service != nil {
+			var err error
+			sshConfig, err = a.getDeploymentSSHConfig(caseID)
+			if err != nil {
+				result.Error = fmt.Sprintf("找不到场景或部署: %s", caseID)
+				return result
+			}
+		} else {
+			result.Error = fmt.Sprintf("找不到场景: %v", caseErr)
+			return result
+		}
+	}
+
+	client, err := sshutil.NewClient(sshConfig)
+	if err != nil {
+		result.Error = fmt.Sprintf("SSH 连接失败: %v", err)
+		return result
+	}
+	defer client.Close()
+
+	session, err := client.NewSession()
+	if err != nil {
+		result.Error = fmt.Sprintf("创建 SSH 会话失败: %v", err)
+		return result
+	}
+	defer session.Close()
+
+	// 使用 stdin 传输脚本内容
+	session.Stdin = strings.NewReader(scriptContent)
+
+	remotePath := fmt.Sprintf("/tmp/%s", fileName)
+	command := fmt.Sprintf("cat > %s && chmod +x %s", remotePath, remotePath)
+
+	var stdoutBuf, stderrBuf strings.Builder
+	session.Stdout = &stdoutBuf
+	session.Stderr = &stderrBuf
+
+	err = session.Run(command)
+
+	if err != nil {
+		result.Error = fmt.Sprintf("上传失败: %v - %s", err, stderrBuf.String())
+		return result
+	}
+
+	result.Success = true
+	return result
 }
 
 // UploadFile 上传文件到远程服务器（支持场景和自定义部署）
@@ -3614,7 +3783,7 @@ func (a *App) ListCaseScheduledTasks(caseID string) []*redc.ScheduledTask {
 // GetBaseTemplates 获取基础模板列表
 func (a *App) GetBaseTemplates() ([]*redc.BaseTemplate, error) {
 	runtime.LogInfof(a.ctx, "开始扫描基础模板...")
-	
+
 	a.mu.Lock()
 	templateMgr := a.templateManager
 	a.mu.Unlock()
@@ -3951,7 +4120,7 @@ func (a *App) getDeploymentSSHConfig(deploymentID string) (*sshutil.SSHConfig, e
 	// 查找指定的部署
 	var deployment *redc.CustomDeployment
 	for i, d := range deployments {
-		fmt.Printf("[DEBUG getDeploymentSSHConfig] [%d] 检查部署: ID=%s, Name=%s, State=%s, HasOutputs=%v\n", 
+		fmt.Printf("[DEBUG getDeploymentSSHConfig] [%d] 检查部署: ID=%s, Name=%s, State=%s, HasOutputs=%v\n",
 			i, d.ID, d.Name, d.State, d.Outputs != nil)
 		if d.ID == deploymentID {
 			deployment = d
@@ -3987,7 +4156,7 @@ func (a *App) getDeploymentSSHConfig(deploymentID string) (*sshutil.SSHConfig, e
 	fmt.Printf("[DEBUG getDeploymentSSHConfig] 尝试获取 public_ip...\n")
 	publicIPRaw, exists := outputs["public_ip"]
 	fmt.Printf("[DEBUG getDeploymentSSHConfig] public_ip 存在: %v, 值: %v, 类型: %T\n", exists, publicIPRaw, publicIPRaw)
-	
+
 	publicIP, ok := publicIPRaw.(string)
 	if !ok || publicIP == "" {
 		fmt.Printf("[DEBUG getDeploymentSSHConfig] ✗ 未找到公网 IP 或类型转换失败\n")
@@ -3998,7 +4167,7 @@ func (a *App) getDeploymentSSHConfig(deploymentID string) (*sshutil.SSHConfig, e
 	fmt.Printf("[DEBUG getDeploymentSSHConfig] 尝试获取 instance_password...\n")
 	passwordRaw, exists := outputs["instance_password"]
 	fmt.Printf("[DEBUG getDeploymentSSHConfig] instance_password 存在: %v, 值: %v, 类型: %T\n", exists, passwordRaw, passwordRaw)
-	
+
 	password, ok := passwordRaw.(string)
 	if !ok || password == "" {
 		fmt.Printf("[DEBUG getDeploymentSSHConfig] ✗ 未找到实例密码或类型转换失败\n")
@@ -4065,8 +4234,8 @@ func (a *App) BatchStartCustomDeployments(ids []string) []redc.BatchOperationRes
 	}
 
 	results := service.BatchStartDeployments(project.ProjectName, ids, project.ProjectPath)
-	
-	a.emitLog(fmt.Sprintf("批量启动部署完成: 成功 %d, 失败 %d", 
+
+	a.emitLog(fmt.Sprintf("批量启动部署完成: 成功 %d, 失败 %d",
 		countSuccessful(results), countFailed(results)))
 	a.emitRefresh()
 
@@ -4095,8 +4264,8 @@ func (a *App) BatchStopCustomDeployments(ids []string) []redc.BatchOperationResu
 	}
 
 	results := service.BatchStopDeployments(project.ProjectName, ids, project.ProjectPath)
-	
-	a.emitLog(fmt.Sprintf("批量停止部署完成: 成功 %d, 失败 %d", 
+
+	a.emitLog(fmt.Sprintf("批量停止部署完成: 成功 %d, 失败 %d",
 		countSuccessful(results), countFailed(results)))
 	a.emitRefresh()
 
@@ -4125,8 +4294,8 @@ func (a *App) BatchDeleteCustomDeployments(ids []string) []redc.BatchOperationRe
 	}
 
 	results := service.BatchDeleteDeployments(project.ProjectName, ids, project.ProjectPath)
-	
-	a.emitLog(fmt.Sprintf("批量删除部署完成: 成功 %d, 失败 %d", 
+
+	a.emitLog(fmt.Sprintf("批量删除部署完成: 成功 %d, 失败 %d",
 		countSuccessful(results), countFailed(results)))
 	a.emitRefresh()
 
