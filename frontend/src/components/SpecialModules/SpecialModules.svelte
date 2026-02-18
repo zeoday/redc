@@ -1,14 +1,22 @@
 <script>
-  import { getTemplatesByCategory } from '../../lib/userdataTemplates.js';
+  import { onMount } from 'svelte';
+  import { loadUserdataTemplates, getTemplatesByCategory,getAIScenarios } from '../../lib/userdataTemplates.js';
   
   let { t } = $props();
   let specialModuleTab = $state('vulhub');
   let selectedAIScenario = $state(null);
   let copied = $state(false);
   let aiSearchQuery = $state('');
+  let templates = $state([]);
+  let templatesLoading = $state(true);
+  
+  onMount(async () => {
+    templates = await loadUserdataTemplates();
+    templatesLoading = false;
+  });
   
   let aiScenarios = $derived(() => {
-    let scenarios = getTemplatesByCategory('ai');
+    let scenarios = getAIScenarios(templates);
     if (aiSearchQuery) {
       const query = aiSearchQuery.toLowerCase();
       scenarios = scenarios.filter(s => 
@@ -89,7 +97,7 @@
     </div>
   {:else if specialModuleTab === 'ai'}
     <div class="bg-white rounded-xl border border-gray-100 p-4 sm:p-6 md:p-8">
-      {#if getTemplatesByCategory('ai').length > 0}
+      {#if templates.length > 0 && getTemplatesByCategory(templates, 'ai').length > 0}
         <div class="mb-4">
           <input
             type="text"

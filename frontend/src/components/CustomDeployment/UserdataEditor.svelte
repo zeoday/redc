@@ -1,5 +1,6 @@
 <script>
-  import { userdataTemplates, getTemplatesByType } from '../../lib/userdataTemplates.js';
+  import { onMount } from 'svelte';
+  import { loadUserdataTemplates, getTemplatesByType } from '../../lib/userdataTemplates.js';
   
   // Props
   let { 
@@ -10,12 +11,16 @@
     disabled = false
   } = $props();
 
-  // State - use language prop as initial value
+  // State
   let selectedLanguage = $state('bash');
   let showTemplates = $state(false);
+  let templates = $state([]);
+  let templatesLoading = $state(true);
 
-  // Use imported templates
-  const templates = userdataTemplates;
+  onMount(async () => {
+    templates = await loadUserdataTemplates();
+    templatesLoading = false;
+  });
 
   function handleChange(event) {
     const newValue = event.currentTarget.value;
@@ -37,7 +42,7 @@
 
   // Get current templates based on selected language
   let currentTemplates = $derived(() => {
-    return getTemplatesByType(selectedLanguage);
+    return getTemplatesByType(templates, selectedLanguage);
   });
 
   // Character count

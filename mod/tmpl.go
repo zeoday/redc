@@ -26,6 +26,7 @@ import (
 var TemplateDir = "redc-templates"
 
 const TmplCaseFile = "case.json"
+const TmplUserdataFile = "userdata"
 
 // RedcTmpl 对应本地 case.json 的结构
 type RedcTmpl struct {
@@ -441,6 +442,75 @@ func ListLocalTemplates() ([]*RedcTmpl, error) {
 		t.Path = dirPath
 		templates = append(templates, t)
 	}
+	return templates, nil
+}
+
+// UserdataTemplate represents a userdata template with its metadata and script
+type UserdataTemplate struct {
+	Name         string `json:"name"`
+	NameZh       string `json:"nameZh"`
+	Type         string `json:"type"`
+	Category     string `json:"category"`
+	URL          string `json:"url,omitempty"`
+	Description  string `json:"description,omitempty"`
+	InstallNotes string `json:"installNotes,omitempty"`
+	Script       string `json:"script"`
+	Path         string `json:"-"`
+}
+
+// ListUserdataTemplates returns userdata templates from the userdata-templates subdirectory
+func ListUserdataTemplates() ([]*UserdataTemplate, error) {
+	userdataDir := filepath.Join(TemplateDir, "userdata-templates")
+	if _, err := os.Stat(userdataDir); os.IsNotExist(err) {
+		return nil, nil
+	}
+
+	dirs, err := ScanTemplateDirs(userdataDir, 2)
+	if err != nil {
+		return nil, err
+	}
+
+	var templates []*UserdataTemplate
+	for _, dirPath := range dirs {
+		casePath := filepath.Join(dirPath, TmplCaseFile)
+		userdataPath := filepath.Join(dirPath, TmplUserdataFile)
+
+		caseData, err := os.ReadFile(casePath)
+		if err != nil {
+			continue
+		}
+
+		var meta struct {
+			Name         string `json:"name"`
+			NameZh       string `json:"nameZh"`
+			Type         string `json:"type"`
+			Category     string `json:"category"`
+			URL          string `json:"url"`
+			Description  string `json:"description"`
+			InstallNotes string `json:"installNotes"`
+		}
+		if err := json.Unmarshal(caseData, &meta); err != nil {
+			continue
+		}
+
+		scriptData, err := os.ReadFile(userdataPath)
+		if err != nil {
+			continue
+		}
+
+		templates = append(templates, &UserdataTemplate{
+			Name:         meta.Name,
+			NameZh:       meta.NameZh,
+			Type:         meta.Type,
+			Category:     meta.Category,
+			URL:          meta.URL,
+			Description:  meta.Description,
+			InstallNotes: meta.InstallNotes,
+			Script:       string(scriptData),
+			Path:         dirPath,
+		})
+	}
+
 	return templates, nil
 }
 
