@@ -24,3 +24,8 @@ export function getAIScenarios(templates) {
   if (!Array.isArray(templates)) return [];
   return templates.filter(t => t.category === 'ai');
 }
+
+export function getVulhubScenarios(templates) {
+  if (!Array.isArray(templates)) return [];
+  return templates.filter(t => t.category === 'vulhub');
+}

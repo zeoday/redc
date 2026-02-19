@@ -468,18 +468,30 @@ type UserdataTemplate struct {
 
 // ListUserdataTemplates returns userdata templates from the userdata-templates subdirectory
 func ListUserdataTemplates() ([]*UserdataTemplate, error) {
+	var allDirs []string
+
 	userdataDir := filepath.Join(TemplateDir, "userdata-templates")
-	if _, err := os.Stat(userdataDir); os.IsNotExist(err) {
+	if _, err := os.Stat(userdataDir); err == nil {
+		dirs, err := ScanTemplateDirs(userdataDir, 2)
+		if err == nil {
+			allDirs = append(allDirs, dirs...)
+		}
+	}
+
+	vulhubDir := filepath.Join(TemplateDir, "vulhub")
+	if _, err := os.Stat(vulhubDir); err == nil {
+		dirs, err := ScanTemplateDirs(vulhubDir, 2)
+		if err == nil {
+			allDirs = append(allDirs, dirs...)
+		}
+	}
+
+	if len(allDirs) == 0 {
 		return nil, nil
 	}
 
-	dirs, err := ScanTemplateDirs(userdataDir, 2)
-	if err != nil {
-		return nil, err
-	}
-
 	var templates []*UserdataTemplate
-	for _, dirPath := range dirs {
+	for _, dirPath := range allDirs {
 		casePath := filepath.Join(dirPath, TmplCaseFile)
 		userdataPath := filepath.Join(dirPath, TmplUserdataFile)
 
