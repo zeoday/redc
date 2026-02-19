@@ -30,12 +30,15 @@ const TmplUserdataFile = "userdata"
 
 // RedcTmpl 对应本地 case.json 的结构
 type RedcTmpl struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	User        string `json:"user"`
-	Version     string `json:"version"`
-	RedcModule  string `json:"redc_module"`
-	Path        string `json:"-"`
+	Name               string `json:"name"`
+	Description        string `json:"description"`
+	User               string `json:"user"`
+	Version            string `json:"version"`
+	RedcModule         string `json:"redc_module"`
+	IsBaseTemplate     bool   `json:"is_base_template"`
+	IsUserdataTemplate bool   `json:"is_userdata_template"`
+	IsComposeTemplate  bool   `json:"is_compose_template"`
+	Path               string `json:"-"`
 }
 
 // PullOptions 配置项
@@ -440,6 +443,10 @@ func ListLocalTemplates() ([]*RedcTmpl, error) {
 			t = &RedcTmpl{Name: filepath.Base(dirPath), Description: "[Error reading metadata]"}
 		}
 		t.Path = dirPath
+		// 过滤掉自定义模板、userdata模板和compose模板，只保留预定义场景模板
+		if t.IsBaseTemplate || t.IsUserdataTemplate || t.IsComposeTemplate {
+			continue
+		}
 		templates = append(templates, t)
 	}
 	return templates, nil
