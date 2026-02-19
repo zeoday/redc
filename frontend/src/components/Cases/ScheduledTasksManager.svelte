@@ -24,6 +24,7 @@
   });
 
   // 暴露 refresh 方法给父组件
+  // svelte-ignore state_referenced_locally
   if (externalRefresh) {
     externalRefresh.current = loadTasks;
   }
@@ -122,7 +123,7 @@
       <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
     </svg>
     <span class="text-[13px] text-red-700 flex-1">{error}</span>
-    <button class="text-red-400 hover:text-red-600" onclick={() => error = ''}>
+    <button class="text-red-400 hover:text-red-600" onclick={() => error = ''} aria-label="关闭错误">
       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
       </svg>
@@ -221,6 +222,7 @@
 
 <!-- Cancel Confirmation Modal -->
 {#if cancelConfirm.show}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={closeCancelConfirm}>
     <div class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden" onclick={(e) => e.stopPropagation()}>
       <div class="px-6 py-5">

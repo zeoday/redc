@@ -197,8 +197,9 @@ let { t, config = $bindable({ redcPath: '', projectPath: '', logPath: '' }), ter
     <div class="text-[13px] sm:text-[14px] font-medium text-gray-900 mb-4">{t.proxyConfig}</div>
     <div class="space-y-3 sm:space-y-4">
       <div>
-        <label class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.httpProxy}</label>
+        <label for="httpProxy" class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.httpProxy}</label>
         <input 
+          id="httpProxy"
           type="text" 
           placeholder="http://127.0.0.1:7890" 
           class="w-full h-9 sm:h-10 px-3 text-[12px] sm:text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
@@ -206,8 +207,9 @@ let { t, config = $bindable({ redcPath: '', projectPath: '', logPath: '' }), ter
         />
       </div>
       <div>
-        <label class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.httpsProxy}</label>
+        <label for="httpsProxy" class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.httpsProxy}</label>
         <input 
+          id="httpsProxy"
           type="text" 
           placeholder="http://127.0.0.1:7890" 
           class="w-full h-9 sm:h-10 px-3 text-[12px] sm:text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
@@ -215,8 +217,9 @@ let { t, config = $bindable({ redcPath: '', projectPath: '', logPath: '' }), ter
         />
       </div>
       <div>
-        <label class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.noProxyLabel}</label>
+        <label for="noProxy" class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.noProxyLabel}</label>
         <input 
+          id="noProxy"
           type="text" 
           placeholder="localhost,127.0.0.1,.local" 
           class="w-full h-9 sm:h-10 px-3 text-[12px] sm:text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
@@ -266,8 +269,8 @@ let { t, config = $bindable({ redcPath: '', projectPath: '', logPath: '' }), ter
     </div>
     <div class="space-y-3 sm:space-y-4">
       <div>
-        <label class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.mirrorProviders}</label>
-        <div class="flex flex-wrap items-center gap-2 sm:gap-3 text-[11px] sm:text-[12px] text-gray-700">
+        <span id="mirrorProvidersLabel" class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.mirrorProviders}</span>
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3 text-[11px] sm:text-[12px] text-gray-700" role="group" aria-labelledby="mirrorProvidersLabel">
           <label class="inline-flex items-center gap-2">
             <input type="checkbox" class="rounded" bind:checked={terraformMirrorForm.providers.aliyun} />
             <span>{t.mirrorAliyun}</span>
@@ -286,8 +289,9 @@ let { t, config = $bindable({ redcPath: '', projectPath: '', logPath: '' }), ter
         </div>
       </div>
       <div>
-        <label class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.mirrorConfigPath}</label>
+        <label for="mirrorConfigPath" class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.mirrorConfigPath}</label>
         <input
+          id="mirrorConfigPath"
           type="text"
           placeholder={terraformMirror.configPath || t.mirrorConfigHint}
           class="w-full h-9 sm:h-10 px-3 text-[12px] sm:text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"

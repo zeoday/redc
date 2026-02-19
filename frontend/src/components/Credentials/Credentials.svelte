@@ -315,8 +315,9 @@ let { t } = $props();
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
-        <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.profile}</label>
+        <label for="profile" class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.profile}</label>
         <select
+          id="profile"
           class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
           bind:value={activeProfileId}
           onchange={() => handleProfileChange(activeProfileId)}
@@ -328,16 +329,18 @@ let { t } = $props();
         </select>
       </div>
       <div>
-        <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.profileName}</label>
+        <label for="profileName" class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.profileName}</label>
         <input
+          id="profileName"
           type="text"
           class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
           bind:value={profileForm.name}
         />
       </div>
       <div class="md:col-span-2">
-        <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.configPath}</label>
+        <label for="configPath" class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.configPath}</label>
         <input
+          id="configPath"
           type="text"
           placeholder={t.defaultPath}
           class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
@@ -346,8 +349,9 @@ let { t } = $props();
         />
       </div>
       <div class="md:col-span-2">
-        <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.templateDir}</label>
+        <label for="templateDir" class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.templateDir}</label>
         <input
+          id="templateDir"
           type="text"
           placeholder={t.defaultPath}
           class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
@@ -447,8 +451,9 @@ let { t } = $props();
     <div class="p-5">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label class="block text-[11px] font-medium text-gray-500 mb-1">{t.aiProvider || 'Provider'}</label>
+          <label for="aiProvider" class="block text-[11px] font-medium text-gray-500 mb-1">{t.aiProvider || 'Provider'}</label>
           <select 
+            id="aiProvider"
             class="w-full h-9 px-3 text-[12px] bg-gray-50 border-0 rounded-lg text-gray-900 focus:ring-2 focus:ring-purple-500 focus:ring-offset-1 transition-shadow"
             bind:value={aiConfig.provider}
             onchange={handleProviderChange}
@@ -459,8 +464,9 @@ let { t } = $props();
           </select>
         </div>
         <div>
-          <label class="block text-[11px] font-medium text-gray-500 mb-1">{t.aiModel || 'Model'}</label>
+          <label for="aiModel" class="block text-[11px] font-medium text-gray-500 mb-1">{t.aiModel || 'Model'}</label>
           <input 
+            id="aiModel"
             type="text"
             placeholder={aiProviderPresets[aiConfig.provider]?.placeholder || 'Enter model name'}
             class="w-full h-9 px-3 text-[12px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:ring-offset-1 transition-shadow font-mono"
@@ -469,12 +475,13 @@ let { t } = $props();
           <p class="text-[10px] text-gray-400 mt-1">{t.aiModelHint || '支持任意兼容的模型名称'}</p>
         </div>
         <div class="md:col-span-2">
-          <label class="block text-[11px] font-medium text-gray-500 mb-1">
+          <label for="aiApiKey" class="block text-[11px] font-medium text-gray-500 mb-1">
             {t.aiApiKey || 'API Key'}
             <span class="ml-1 text-amber-500">🔒</span>
           </label>
           <div class="relative">
             <input 
+              id="aiApiKey"
               type={showApiKey ? 'text' : 'password'}
               placeholder={t.aiApiKeyPlaceholder || 'Enter your API key'}
               class="w-full h-9 px-3 pr-10 text-[12px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:ring-offset-1 transition-shadow font-mono"
@@ -484,6 +491,7 @@ let { t } = $props();
               type="button"
               class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               onclick={() => showApiKey = !showApiKey}
+              aria-label={showApiKey ? '隐藏API密钥' : '显示API密钥'}
             >
               {#if showApiKey}
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -499,8 +507,9 @@ let { t } = $props();
           </div>
         </div>
         <div class="md:col-span-2">
-          <label class="block text-[11px] font-medium text-gray-500 mb-1">{t.aiBaseUrl || 'Base URL'}</label>
+          <label for="aiBaseUrl" class="block text-[11px] font-medium text-gray-500 mb-1">{t.aiBaseUrl || 'Base URL'}</label>
           <input 
+            id="aiBaseUrl"
             type="text"
             placeholder={aiProviderPresets[aiConfig.provider]?.baseUrl || ''}
             class="w-full h-9 px-3 text-[12px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:ring-offset-1 transition-shadow font-mono"
@@ -550,7 +559,7 @@ let { t } = $props();
           <div class="p-5 space-y-3">
             {#each Object.entries(provider.fields) as [key, value]}
               <div>
-                <label class="block text-[11px] font-medium text-gray-500 mb-1">
+                <label for="field-{provider.name}-{key}" class="block text-[11px] font-medium text-gray-500 mb-1">
                   {getFieldLabel(key)}
                   {#if provider.hasSecrets && provider.hasSecrets[key]}
                     <span class="ml-1 text-amber-500">🔒</span>
@@ -559,6 +568,7 @@ let { t } = $props();
                 {#if editingProvider === provider.name}
                   {#if isSecretField(key)}
                     <input 
+                      id="field-{provider.name}-{key}"
                       type="password"
                       placeholder={t.enterNew}
                       class="w-full h-9 px-3 text-[12px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
@@ -566,6 +576,7 @@ let { t } = $props();
                     />
                   {:else}
                     <input 
+                      id="field-{provider.name}-{key}"
                       type="text"
                       placeholder={value || t.notSet}
                       class="w-full h-9 px-3 text-[12px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
@@ -598,7 +609,7 @@ let { t } = $props();
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
       </svg>
       <span class="text-[13px] text-red-700 flex-1">{error}</span>
-      <button class="text-red-400 hover:text-red-600" onclick={() => error = ''}>
+      <button class="text-red-400 hover:text-red-600" onclick={() => error = ''} aria-label="关闭错误">
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
@@ -609,6 +620,7 @@ let { t } = $props();
 
 <!-- Save Credentials Confirmation Modal -->
 {#if saveConfirm.show}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={cancelSave}>
     <div class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden" onclick={(e) => e.stopPropagation()}>
       <div class="px-6 py-5">

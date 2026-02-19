@@ -65,7 +65,7 @@
       projects = projectList || [];
       // Set current project from the list or default
       if (projects.length > 0) {
-        const current = projects.find(p => p.name === redc.Project) || projects[0];
+        const current = projects[0];
         currentProject = current;
       }
     } catch (e) {
@@ -120,7 +120,11 @@
     Quit();
   }
 
-  onMount(async () => {
+  onMount(() => {
+    initApp();
+  });
+
+  async function initApp() {
     // 检测平台
     const env = await Environment();
     isWindows = env.platform === 'windows';
@@ -152,12 +156,7 @@
     
     await refreshData();
     await loadProjects();
-    
-    // 清理函数
-    return () => {
-      document.removeEventListener('contextmenu', handleContextMenu);
-    };
-  });
+  }
 
   onDestroy(() => {
     EventsOff('log');

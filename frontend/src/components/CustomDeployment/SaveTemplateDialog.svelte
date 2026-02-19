@@ -101,6 +101,7 @@
 </script>
 
 {#if show}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onclick={handleCancel}>
     <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4" onclick={(e) => e.stopPropagation()}>
       <!-- Header -->
@@ -112,6 +113,7 @@
           class="text-gray-400 hover:text-gray-600 transition-colors"
           onclick={handleCancel}
           disabled={isSaving}
+          aria-label="关闭"
         >
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -130,6 +132,7 @@
             <button 
               class="text-red-400 hover:text-red-600" 
               onclick={() => error = ''}
+              aria-label="关闭错误"
             >
               <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -145,6 +148,7 @@
               {t.templateName || '模板名称'}
               <span class="text-red-500">*</span>
             </label>
+            <!-- svelte-ignore a11y_autofocus -->
             <input
               id="template-name"
               type="text"

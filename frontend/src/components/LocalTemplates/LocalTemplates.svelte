@@ -483,7 +483,7 @@ let { t } = $props();
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
       </svg>
       <span class="text-[13px] text-red-700 flex-1">{error}</span>
-      <button class="text-red-400 hover:text-red-600" onclick={() => error = ''}>
+      <button class="text-red-400 hover:text-red-600" onclick={() => error = ''} aria-label="关闭错误">
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
@@ -494,6 +494,7 @@ let { t } = $props();
 
 <!-- Batch Delete Confirmation Modal -->
 {#if batchDeleteConfirm.show}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={cancelBatchDelete}>
     <div class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden" onclick={(e) => e.stopPropagation()}>
       <div class="px-6 py-5">
@@ -528,6 +529,7 @@ let { t } = $props();
 
 <!-- Delete Template Confirmation Modal -->
 {#if deleteTemplateConfirm.show}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={cancelDeleteTemplate}>
     <div class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden" onclick={(e) => e.stopPropagation()}>
       <div class="px-6 py-5">
@@ -562,6 +564,7 @@ let { t } = $props();
 
 <!-- Clone Template Modal -->
 {#if cloneTemplateModal.show}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={cancelCloneTemplate}>
     <div class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden" onclick={(e) => e.stopPropagation()}>
       <div class="px-6 py-5">
@@ -576,8 +579,9 @@ let { t } = $props();
             <p class="text-[13px] text-gray-500">{t.cloneHint}</p>
           </div>
         </div>
-        <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.cloneName}</label>
+        <label for="cloneName" class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.cloneName}</label>
         <input
+          id="cloneName"
           type="text"
           class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
           bind:value={cloneTemplateModal.target}
@@ -599,6 +603,7 @@ let { t } = $props();
 
 <!-- Template Detail Drawer -->
 {#if localTemplateDetail}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex justify-end z-50" onclick={closeTemplateDetail}>
     <div class="w-full max-w-2xl bg-white h-full overflow-auto shadow-xl" onclick={(e) => e.stopPropagation()}>
       <div class="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
@@ -609,6 +614,7 @@ let { t } = $props();
         <button 
           class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
           onclick={closeTemplateDetail}
+          aria-label="关闭详情"
         >
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -712,6 +718,7 @@ let { t } = $props();
 
 <!-- Template Editor Modal -->
 {#if templateEditor.show}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onclick={closeTemplateEditor}>
     <div class="bg-white rounded-xl shadow-xl max-w-6xl w-full h-[85vh] overflow-hidden" onclick={(e) => e.stopPropagation()}>
       <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">

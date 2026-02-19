@@ -284,7 +284,7 @@
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
       </svg>
       <span class="text-[12px] sm:text-[13px] text-red-700 flex-1">{error}</span>
-      <button class="text-red-400 hover:text-red-600" onclick={() => error = ''}>
+      <button class="text-red-400 hover:text-red-600" onclick={() => error = ''} aria-label="关闭错误">
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
@@ -552,14 +552,15 @@
       <!-- Configuration form -->
       <div class="space-y-3 sm:space-y-4 mb-4">
         <div>
-          <label class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.transportMode}</label>
+          <span class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.transportMode}</span>
           <div class="inline-flex items-center h-9 sm:h-10 px-3 sm:px-4 text-[12px] sm:text-[13px] font-medium rounded-lg border bg-gray-900 text-white border-gray-900">
             SSE (HTTP)
           </div>
         </div>
         <div>
-          <label class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.listenAddr}</label>
+          <label for="listenAddr" class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.listenAddr}</label>
           <input 
+            id="listenAddr"
             type="text" 
             placeholder="localhost:8080" 
             class="w-full h-9 sm:h-10 px-3 text-[12px] sm:text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"

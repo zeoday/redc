@@ -204,6 +204,7 @@
 
 <svelte:window on:keydown={handleKeydown} />
 
+<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onclick={handleBackdropClick}>
   <div class="bg-white rounded-xl shadow-xl w-full max-w-6xl h-[85vh] overflow-hidden flex flex-col" onclick={(e) => e.stopPropagation()}>
     <!-- Header -->
@@ -237,6 +238,7 @@
           class="px-3 py-1.5 text-[12px] font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
           onclick={navigateUp}
           disabled={currentPath === '/'}
+          aria-label="返回上级目录"
         >
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -269,6 +271,7 @@
         <button
           class="px-3 py-1.5 text-[12px] font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
           onclick={loadFiles}
+          aria-label="刷新文件列表"
         >
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
@@ -284,7 +287,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
         <span class="text-[12px] text-red-700 flex-1">{error}</span>
-        <button class="text-red-400 hover:text-red-600" onclick={() => error = ''}>
+        <button class="text-red-400 hover:text-red-600" onclick={() => error = ''} aria-label="关闭错误">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -401,9 +404,11 @@
 
 <!-- New Folder Dialog -->
 {#if showNewFolderDialog}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]" onclick={() => showNewFolderDialog = false}>
     <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-5" onclick={(e) => e.stopPropagation()}>
       <h3 class="text-[14px] font-semibold text-gray-900 mb-4">{t.newFolder || '新建文件夹'}</h3>
+      <!-- svelte-ignore a11y_autofocus -->
       <input
         type="text"
         class="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -433,9 +438,11 @@
 
 <!-- Rename Dialog -->
 {#if showRenameDialog}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]" onclick={() => showRenameDialog = false}>
     <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-5" onclick={(e) => e.stopPropagation()}>
       <h3 class="text-[14px] font-semibold text-gray-900 mb-4">{t.rename || '重命名'}</h3>
+      <!-- svelte-ignore a11y_autofocus -->
       <input
         type="text"
         class="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
@@ -465,6 +472,7 @@
 
 <!-- Delete Confirm Dialog -->
 {#if showDeleteConfirm}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]" onclick={() => showDeleteConfirm = false}>
     <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-5" onclick={(e) => e.stopPropagation()}>
       <h3 class="text-[14px] font-semibold text-gray-900 mb-2">{t.confirmDelete || '确认删除'}</h3>

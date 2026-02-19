@@ -105,9 +105,10 @@
   <div class="bg-white rounded-xl border border-gray-100 p-5">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
-        <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.composeFile}</label>
+        <label for="composeFile" class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.composeFile}</label>
         <div class="flex gap-2">
           <input
+            id="composeFile"
             type="text"
             placeholder="redc-compose.yaml"
             class="flex-1 h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
@@ -122,8 +123,9 @@
         </div>
       </div>
       <div>
-        <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.composeProfiles}</label>
+        <label for="composeProfiles" class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.composeProfiles}</label>
         <input
+          id="composeProfiles"
           type="text"
           placeholder="prod,dev"
           class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"

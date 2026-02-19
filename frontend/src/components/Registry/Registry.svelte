@@ -255,7 +255,7 @@ let { t } = $props();
           <div class="w-3.5 h-3.5 border-2 border-amber-200 border-t-amber-600 rounded-full animate-spin"></div>
         {/if}
         <span class="flex-1 truncate">{registryNotice.message}</span>
-        <button class="text-gray-400 hover:text-gray-600" onclick={() => setRegistryNotice('', '')}>
+        <button class="text-gray-400 hover:text-gray-600" onclick={() => setRegistryNotice('', '')} aria-label="关闭通知">
           <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -270,7 +270,7 @@ let { t } = $props();
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
       </svg>
       <span class="text-[13px] text-red-700 flex-1">{registryError}</span>
-      <button class="text-red-400 hover:text-red-600" onclick={() => registryError = ''}>
+      <button class="text-red-400 hover:text-red-600" onclick={() => registryError = ''} aria-label="关闭错误">
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
@@ -411,6 +411,7 @@ let { t } = $props();
 
 <!-- Batch Pull Confirmation Modal -->
 {#if batchPullConfirm.show}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={cancelBatchPull}>
     <div class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden" onclick={(e) => e.stopPropagation()}>
       <div class="px-6 py-5">
@@ -445,6 +446,7 @@ let { t } = $props();
 
 <!-- Batch Update Confirmation Modal -->
 {#if batchUpdateConfirm.show}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={cancelBatchUpdate}>
     <div class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden" onclick={(e) => e.stopPropagation()}>
       <div class="px-6 py-5">

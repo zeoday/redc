@@ -145,6 +145,7 @@
 
 <svelte:window on:keydown={handleKeydown} />
 
+<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onclick={handleBackdropClick}>
   <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col" onclick={(e) => e.stopPropagation()}>
     <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
@@ -262,9 +263,10 @@
       {#if activeTab === 'exec'}
         <div class="space-y-4">
           <div>
-            <label class="block text-[12px] font-medium text-gray-700 mb-2">{t.command || '命令'}</label>
+            <label for="sshCommand" class="block text-[12px] font-medium text-gray-700 mb-2">{t.command || '命令'}</label>
             <div class="flex gap-2">
               <input
+                id="sshCommand"
                 type="text"
                 class="flex-1 px-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
                 placeholder="whoami"
@@ -324,9 +326,10 @@
       {:else if activeTab === 'upload'}
         <div class="space-y-4">
           <div>
-            <label class="block text-[12px] font-medium text-gray-700 mb-2">{t.localFile || '本地文件'}</label>
+            <label for="localFile" class="block text-[12px] font-medium text-gray-700 mb-2">{t.localFile || '本地文件'}</label>
             <div class="flex gap-2">
               <input
+                id="localFile"
                 type="text"
                 class="flex-1 px-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-gray-50"
                 placeholder={t.selectFilePlaceholder || '点击选择文件...'}
@@ -343,8 +346,9 @@
           </div>
 
           <div>
-            <label class="block text-[12px] font-medium text-gray-700 mb-2">{t.remotePath || '远程路径'}</label>
+            <label for="remotePath" class="block text-[12px] font-medium text-gray-700 mb-2">{t.remotePath || '远程路径'}</label>
             <input
+              id="remotePath"
               type="text"
               class="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
               placeholder="/root/"
@@ -391,8 +395,9 @@
       {:else if activeTab === 'download'}
         <div class="space-y-4">
           <div>
-            <label class="block text-[12px] font-medium text-gray-700 mb-2">{t.remoteFile || '远程文件'}</label>
+            <label for="remoteFile" class="block text-[12px] font-medium text-gray-700 mb-2">{t.remoteFile || '远程文件'}</label>
             <input
+              id="remoteFile"
               type="text"
               class="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
               placeholder="/root/config.txt"
@@ -401,9 +406,10 @@
           </div>
 
           <div>
-            <label class="block text-[12px] font-medium text-gray-700 mb-2">{t.localDirectory || '本地目录'}</label>
+            <label for="localDir" class="block text-[12px] font-medium text-gray-700 mb-2">{t.localDirectory || '本地目录'}</label>
             <div class="flex gap-2">
               <input
+                id="localDir"
                 type="text"
                 class="flex-1 px-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-gray-50"
                 placeholder={t.selectDirectoryPlaceholder || '点击选择目录...'}
@@ -467,8 +473,9 @@
             </div>
           {:else}
             <div>
-              <label class="block text-[12px] font-medium text-gray-700 mb-2">{t.selectTemplate || '选择模板'}</label>
+              <label for="userdataTemplate" class="block text-[12px] font-medium text-gray-700 mb-2">{t.selectTemplate || '选择模板'}</label>
               <select
+                id="userdataTemplate"
                 class="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
                 bind:value={selectedTemplate}
               >
@@ -481,7 +488,7 @@
 
             {#if selectedTemplate}
               <div>
-                <label class="block text-[12px] font-medium text-gray-700 mb-2">{t.scriptPreview || '脚本预览'}</label>
+                <span class="block text-[12px] font-medium text-gray-700 mb-2">{t.scriptPreview || '脚本预览'}</span>
                 <pre class="bg-gray-900 text-gray-100 text-[12px] p-3 rounded-lg overflow-auto max-h-48 font-mono">{selectedTemplate.script}</pre>
               </div>
 

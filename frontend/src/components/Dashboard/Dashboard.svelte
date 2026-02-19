@@ -230,6 +230,7 @@
           </div>
         {:else}
           {#each recentCases as c}
+            <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <div class="px-5 py-3 hover:bg-gray-50 transition-colors cursor-pointer" onclick={navigateToCases}>
               <div class="flex items-center justify-between">
                 <div class="flex-1">

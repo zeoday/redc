@@ -148,8 +148,10 @@
 </script>
 
 {#if show}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onclick={handleCancel}>
-    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4" onclick={(e) => e.stopPropagation()} onkeydown={handleKeydown}>
+    <!-- svelte-ignore a11y_interactive_supports_focus -->
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4" onclick={(e) => e.stopPropagation()} onkeydown={handleKeydown} role="dialog" aria-modal="true">
       <!-- Header -->
       <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
         <h3 class="text-[15px] font-semibold text-gray-900">
@@ -159,6 +161,7 @@
           class="text-gray-400 hover:text-gray-600 transition-colors"
           onclick={handleCancel}
           disabled={isProcessing}
+          aria-label="关闭"
         >
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -177,6 +180,7 @@
             <button 
               class="text-red-400 hover:text-red-600" 
               onclick={() => error = ''}
+              aria-label="关闭错误"
             >
               <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -229,7 +233,6 @@
                 bind:value={importTemplateName}
                 oninput={handleNameInput}
                 disabled={isProcessing}
-                autofocus
               />
               {#if nameError}
                 <p class="mt-1.5 text-[12px] text-red-600">{nameError}</p>
@@ -237,12 +240,13 @@
             </div>
 
             <div>
-              <label class="block text-[13px] font-medium text-gray-700 mb-1.5">
+              <label for="selectedFile" class="block text-[13px] font-medium text-gray-700 mb-1.5">
                 {t.selectFile || '选择文件'}
                 <span class="text-red-500">*</span>
               </label>
               <div class="flex items-center gap-2">
                 <input
+                  id="selectedFile"
                   type="text"
                   class="flex-1 px-3 py-2 text-[13px] border border-gray-300 rounded-lg bg-gray-50"
                   placeholder={t.noFileSelected || '未选择文件'}

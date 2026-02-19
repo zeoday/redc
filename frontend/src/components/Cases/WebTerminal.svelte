@@ -211,6 +211,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
 </svelte:head>
 
+<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onclick={handleBackdropClick}>
   <div class="bg-gray-900 rounded-xl shadow-xl w-full max-w-5xl h-[80vh] overflow-hidden flex flex-col" onclick={(e) => e.stopPropagation()}>
     <!-- Header -->
@@ -286,8 +287,9 @@
         {:else}
           <div class="flex items-start gap-4">
             <div class="flex-1">
-              <label class="block text-[12px] font-medium text-gray-300 mb-2">{t.selectTemplate || '选择模板'}</label>
+              <label for="userdataTemplateSelect" class="block text-[12px] font-medium text-gray-300 mb-2">{t.selectTemplate || '选择模板'}</label>
               <select
+                id="userdataTemplateSelect"
                 class="w-full px-3 py-2 text-[13px] bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 bind:value={selectedUserdataTemplate}
               >
@@ -298,7 +300,7 @@
               </select>
             </div>
             <div class="flex-1">
-              <label class="block text-[12px] font-medium text-gray-300 mb-2">{t.scriptPreview || '脚本预览'}</label>
+              <span class="block text-[12px] font-medium text-gray-300 mb-2">{t.scriptPreview || '脚本预览'}</span>
               <pre class="bg-gray-900 text-gray-300 text-[11px] p-2 rounded-lg overflow-auto max-h-32 font-mono">{selectedUserdataTemplate?.script || ''}</pre>
             </div>
             <div class="flex items-end">

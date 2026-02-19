@@ -287,9 +287,9 @@
     {:else}
       <!-- Show provider as read-only info -->
       <div>
-        <label class="block text-[12px] font-medium text-gray-700 mb-1.5">
+        <span class="block text-[12px] font-medium text-gray-700 mb-1.5">
           {t.cloudProvider || '云厂商'}
-        </label>
+        </span>
         <div class="w-full h-10 px-3 text-[13px] bg-gray-100 border-0 rounded-lg text-gray-600 flex items-center">
           {template.provider === 'alicloud' ? '阿里云 (Alibaba Cloud)' :
            template.provider === 'tencentcloud' ? '腾讯云 (Tencent Cloud)' :

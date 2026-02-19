@@ -116,6 +116,7 @@
 
 <svelte:window on:keydown={handleKeydown} />
 
+<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onclick={handleBackdropClick}>
   <div class="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden" onclick={(e) => e.stopPropagation()}>
     <!-- Header -->
@@ -148,7 +149,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <span class="text-[12px] text-red-700 flex-1">{error}</span>
-          <button class="text-red-400 hover:text-red-600" onclick={() => error = ''}>
+          <button class="text-red-400 hover:text-red-600" onclick={() => error = ''} aria-label="关闭错误">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -158,7 +159,7 @@
 
       <!-- Schedule Type Selection -->
       <div>
-        <label class="block text-[12px] font-medium text-gray-700 mb-2">{t.scheduleType || '时间设置'}</label>
+        <span class="block text-[12px] font-medium text-gray-700 mb-2">{t.scheduleType || '时间设置'}</span>
         <div class="flex gap-2">
           <button
             class="flex-1 px-4 py-2 text-[13px] font-medium rounded-lg transition-colors"
@@ -187,8 +188,9 @@
       {#if scheduleType === 'relative'}
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-[12px] font-medium text-gray-700 mb-1.5">{t.hours || '小时'}</label>
+            <label for="relativeHours" class="block text-[12px] font-medium text-gray-700 mb-1.5">{t.hours || '小时'}</label>
             <input
+              id="relativeHours"
               type="number"
               min="0"
               max="72"
@@ -197,8 +199,9 @@
             />
           </div>
           <div>
-            <label class="block text-[12px] font-medium text-gray-700 mb-1.5">{t.minutes || '分钟'}</label>
+            <label for="relativeMinutes" class="block text-[12px] font-medium text-gray-700 mb-1.5">{t.minutes || '分钟'}</label>
             <input
+              id="relativeMinutes"
               type="number"
               min="0"
               max="59"
@@ -216,16 +219,18 @@
       {#if scheduleType === 'absolute'}
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-[12px] font-medium text-gray-700 mb-1.5">{t.date || '日期'}</label>
+            <label for="scheduleDate" class="block text-[12px] font-medium text-gray-700 mb-1.5">{t.date || '日期'}</label>
             <input
+              id="scheduleDate"
               type="date"
               class="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               bind:value={absoluteDate}
             />
           </div>
           <div>
-            <label class="block text-[12px] font-medium text-gray-700 mb-1.5">{t.time || '时间'}</label>
+            <label for="scheduleTime" class="block text-[12px] font-medium text-gray-700 mb-1.5">{t.time || '时间'}</label>
             <input
+              id="scheduleTime"
               type="time"
               class="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               bind:value={absoluteTime}

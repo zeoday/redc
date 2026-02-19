@@ -564,7 +564,7 @@ let { t, onTabChange = () => {} } = $props();
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
       </svg>
       <span class="text-[13px] text-red-700 flex-1">{error}</span>
-      <button class="text-red-400 hover:text-red-600" onclick={() => error = ''}>
+      <button class="text-red-400 hover:text-red-600" onclick={() => error = ''} aria-label="关闭错误">
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
@@ -576,8 +576,9 @@ let { t, onTabChange = () => {} } = $props();
   <div class="bg-white rounded-xl border border-gray-100 p-5">
     <div class="flex items-end gap-4 mb-4">
       <div class="flex-1">
-        <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.template}</label>
+        <label for="templateSelect" class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.template}</label>
         <select 
+          id="templateSelect"
           class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
           bind:value={selectedTemplate}
           onchange={() => loadTemplateVariables(selectedTemplate)}
@@ -594,8 +595,9 @@ let { t, onTabChange = () => {} } = $props();
         </select>
       </div>
       <div class="w-48">
-        <label class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.name}</label>
+        <label for="caseName" class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.name}</label>
         <input 
+          id="caseName"
           type="text" 
           placeholder={t.optional}
           class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
@@ -659,7 +661,7 @@ let { t, onTabChange = () => {} } = $props();
           <div class="text-[12px] text-amber-700 mt-0.5">{costEstimateError}</div>
           <div class="text-[11px] text-amber-600 mt-1">{t.costEstimateErrorHint}</div>
         </div>
-        <button class="text-amber-400 hover:text-amber-600" onclick={() => costEstimateError = ''}>
+        <button class="text-amber-400 hover:text-amber-600" onclick={() => costEstimateError = ''} aria-label="关闭提示">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -736,7 +738,7 @@ let { t, onTabChange = () => {} } = $props();
         <div class="grid grid-cols-2 gap-3">
           {#each templateVariables as variable}
             <div class="flex flex-col">
-              <label class="text-[11px] text-gray-500 mb-1">
+              <label for="var-{variable.name}" class="text-[11px] text-gray-500 mb-1">
                 {variable.name}
                 {#if variable.required}
                   <span class="text-red-500">*</span>
@@ -746,6 +748,7 @@ let { t, onTabChange = () => {} } = $props();
                 {/if}
               </label>
               <input 
+                id="var-{variable.name}"
                 type="text"
                 class="h-9 px-3 text-[12px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
                 placeholder={variable.defaultValue || ''}
@@ -977,6 +980,7 @@ let { t, onTabChange = () => {} } = $props();
 
 <!-- Delete Confirmation Modal -->
 {#if deleteConfirm.show}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={cancelDelete}>
     <div class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden" onclick={(e) => e.stopPropagation()}>
       <div class="px-6 py-5">
@@ -1011,6 +1015,7 @@ let { t, onTabChange = () => {} } = $props();
 
 <!-- Batch Delete Confirmation Modal -->
 {#if batchDeleteConfirm.show}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={cancelBatchDelete}>
     <div class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden" onclick={(e) => e.stopPropagation()}>
       <div class="px-6 py-5">
@@ -1045,6 +1050,7 @@ let { t, onTabChange = () => {} } = $props();
 
 <!-- Batch Stop Confirmation Modal -->
 {#if batchStopConfirm.show}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={cancelBatchStop}>
     <div class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden" onclick={(e) => e.stopPropagation()}>
       <div class="px-6 py-5">
@@ -1079,6 +1085,7 @@ let { t, onTabChange = () => {} } = $props();
 
 <!-- Stop Confirmation Modal -->
 {#if stopConfirm.show}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={cancelStop}>
     <div class="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 overflow-hidden" onclick={(e) => e.stopPropagation()}>
       <div class="px-6 py-5">
@@ -1113,6 +1120,7 @@ let { t, onTabChange = () => {} } = $props();
 
 <!-- Cost Estimate Modal -->
 {#if showCostEstimate && costEstimate}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={() => showCostEstimate = false}>
     <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 overflow-hidden" onclick={(e) => e.stopPropagation()}>
       <!-- Header -->
