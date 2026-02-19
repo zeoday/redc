@@ -295,7 +295,7 @@
   <!-- AI Configuration Status Card -->
   <div class="bg-white rounded-xl border border-gray-100 p-4 sm:p-5">
     <div class="flex items-center gap-3 mb-4">
-      <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
+      <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center">
         <svg class="w-4.5 h-4.5 sm:w-5 sm:h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
         </svg>
@@ -352,7 +352,7 @@
       </div>
       <div class="mt-3">
         <button 
-          class="inline-flex items-center gap-2 px-4 h-9 bg-purple-500 text-white text-[12px] font-medium rounded-lg hover:bg-purple-600 transition-colors"
+          class="inline-flex items-center gap-2 px-4 h-9 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 text-[12px] font-medium rounded-lg transition-colors"
           onclick={() => onTabChange('credentials')}
         >
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -367,7 +367,7 @@
   <!-- Smart Template Recommendation Card -->
   <div class="bg-white rounded-xl border border-gray-100 p-4 sm:p-5">
     <div class="flex items-center gap-3 mb-4">
-      <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center">
+      <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center">
         <svg class="w-4.5 h-4.5 sm:w-5 sm:h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
         </svg>
@@ -388,7 +388,7 @@
           onkeydown={(e) => e.key === 'Enter' && handleRecommend()}
         />
         <button 
-          class="px-4 h-9 sm:h-10 bg-blue-500 text-white text-[12px] sm:text-[13px] font-medium rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+          class="px-4 h-9 sm:h-10 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 text-[12px] sm:text-[13px] font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
           onclick={handleRecommend}
           disabled={recommendLoading || !recommendQuery.trim()}
         >
@@ -434,7 +434,7 @@
   <!-- Cost Optimization Card -->
   <div class="bg-white rounded-xl border border-gray-100 p-4 sm:p-5">
     <div class="flex items-center gap-3 mb-4">
-      <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+      <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center">
         <svg class="w-4.5 h-4.5 sm:w-5 sm:h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
@@ -447,7 +447,7 @@
 
     <div class="space-y-3">
       <button 
-        class="w-full h-9 sm:h-10 bg-emerald-500 text-white text-[12px] sm:text-[13px] font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+        class="w-full h-9 sm:h-10 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 text-[12px] sm:text-[13px] font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
         onclick={handleAnalyzeCost}
         disabled={costLoading}
       >
@@ -494,7 +494,7 @@
   <div class="bg-white rounded-xl border border-gray-100 p-4 sm:p-5">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
       <div class="flex items-center gap-3">
-        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center">
           <svg class="w-4.5 h-4.5 sm:w-5 sm:h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
           </svg>
@@ -553,7 +553,7 @@
       <div class="space-y-3 sm:space-y-4 mb-4">
         <div>
           <span class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.transportMode}</span>
-          <div class="inline-flex items-center h-9 sm:h-10 px-3 sm:px-4 text-[12px] sm:text-[13px] font-medium rounded-lg border bg-gray-900 text-white border-gray-900">
+          <div class="inline-flex items-center h-9 sm:h-10 px-3 sm:px-4 text-[12px] sm:text-[13px] font-medium rounded-lg border bg-white text-gray-700 border-gray-300">
             SSE (HTTP)
           </div>
         </div>
@@ -569,7 +569,7 @@
         </div>
       </div>
       <button 
-        class="w-full h-9 sm:h-10 bg-gray-900 text-white text-[12px] sm:text-[13px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+        class="w-full h-9 sm:h-10 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 text-[12px] sm:text-[13px] font-medium rounded-lg transition-colors disabled:opacity-50"
         onclick={handleStartMCP}
         disabled={mcpLoading}
       >

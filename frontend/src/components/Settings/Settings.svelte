@@ -228,7 +228,7 @@ let { t, config = $bindable({ redcPath: '', projectPath: '', logPath: '' }), ter
       </div>
       <div class="pt-2 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
         <button 
-          class="h-9 sm:h-10 px-4 sm:px-5 bg-gray-900 text-white text-[12px] sm:text-[13px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          class="h-9 sm:h-10 px-4 sm:px-5 bg-emerald-500 text-white text-[12px] sm:text-[13px] font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           onclick={handleSaveProxy}
           disabled={proxySaving}
         >
@@ -307,26 +307,26 @@ let { t, config = $bindable({ redcPath: '', projectPath: '', logPath: '' }), ter
       </div>
       <div class="pt-1 flex flex-wrap gap-2 items-center">
         <button
-          class="h-8 sm:h-9 px-3 sm:px-4 bg-gray-900 text-white text-[11px] sm:text-[12px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+          class="h-8 sm:h-9 px-3 sm:px-4 bg-emerald-500 text-white text-[11px] sm:text-[12px] font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50"
           onclick={handleSaveTerraformMirror}
           disabled={terraformMirrorSaving}
         >
           {terraformMirrorSaving ? t.saving : t.mirrorSave}
         </button>
         <button
-          class="h-8 sm:h-9 px-3 sm:px-4 bg-amber-500 text-white text-[11px] sm:text-[12px] font-medium rounded-lg hover:bg-amber-600 transition-colors"
+          class="h-8 sm:h-9 px-3 sm:px-4 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 text-[11px] sm:text-[12px] font-medium rounded-lg transition-colors"
           onclick={enableAliyunMirrorQuick}
         >
           {t.mirrorAliyunPreset}
         </button>
         <button
-          class="h-8 sm:h-9 px-3 sm:px-4 bg-sky-500 text-white text-[11px] sm:text-[12px] font-medium rounded-lg hover:bg-sky-600 transition-colors"
+          class="h-8 sm:h-9 px-3 sm:px-4 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 text-[11px] sm:text-[12px] font-medium rounded-lg transition-colors"
           onclick={enableTencentMirrorQuick}
         >
           {t.mirrorTencentPreset}
         </button>
         <button
-          class="h-8 sm:h-9 px-3 sm:px-4 bg-violet-500 text-white text-[11px] sm:text-[12px] font-medium rounded-lg hover:bg-violet-600 transition-colors"
+          class="h-8 sm:h-9 px-3 sm:px-4 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 text-[11px] sm:text-[12px] font-medium rounded-lg transition-colors"
           onclick={enableVolcMirrorQuick}
         >
           {t.mirrorVolcPreset}
@@ -349,7 +349,7 @@ let { t, config = $bindable({ redcPath: '', projectPath: '', logPath: '' }), ter
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
       <div class="text-[13px] sm:text-[14px] font-medium text-gray-900">{t.networkCheck}</div>
       <button
-        class="h-8 sm:h-9 px-3 sm:px-4 bg-gray-900 text-white text-[11px] sm:text-[12px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+        class="h-8 sm:h-9 px-3 sm:px-4 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 text-[11px] sm:text-[12px] font-medium rounded-lg transition-colors disabled:opacity-50"
         onclick={runTerraformNetworkCheck}
         disabled={networkCheckLoading}
       >

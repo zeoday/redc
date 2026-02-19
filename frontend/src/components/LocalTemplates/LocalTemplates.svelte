@@ -335,7 +335,7 @@ let { t } = $props();
         />
       </div>
       <button 
-        class="h-10 px-5 bg-gray-900 text-white text-[13px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+        class="h-10 px-5 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 text-[13px] font-medium rounded-lg transition-colors disabled:opacity-50"
         onclick={loadLocalTemplates}
         disabled={localTemplatesLoading}
       >

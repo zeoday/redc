@@ -605,7 +605,7 @@ let { t, onTabChange = () => {} } = $props();
         />
       </div>
       <button 
-        class="h-10 px-5 bg-gray-500 text-white text-[13px] font-medium rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        class="h-10 px-5 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 text-[13px] font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         onclick={handleCreate}
         disabled={createBusy}
       >
@@ -635,7 +635,7 @@ let { t, onTabChange = () => {} } = $props();
         </button>
       {/if}
       <button 
-        class="h-10 px-5 bg-orange-500 text-white text-[13px] font-medium rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        class="h-10 px-5 bg-red-500 text-white text-[13px] font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         onclick={loadAllTemplateCosts}
         disabled={allTemplateCostsLoading || templates.length === 0}
       >

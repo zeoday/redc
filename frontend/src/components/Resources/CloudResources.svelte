@@ -70,7 +70,7 @@ let { t } = $props();
         <p class="text-[12px] text-gray-500"></p>
       </div>
       <button
-        class="h-9 px-4 bg-gray-900 text-white text-[12px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+        class="h-9 px-4 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 text-[12px] font-medium rounded-lg transition-colors disabled:opacity-50"
         onclick={loadResourceSummary}
         disabled={resourcesLoading}
       >

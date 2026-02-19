@@ -253,7 +253,7 @@
       <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
         <h3 class="text-[15px] font-semibold text-gray-900">{t.networkCheck || '网络诊断'}</h3>
         <button
-          class="h-7 px-2.5 bg-gray-900 text-white text-[10px] font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+          class="h-7 px-2.5 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 text-[10px] font-medium rounded-lg transition-colors disabled:opacity-50"
           onclick={runNetworkCheck}
           disabled={networkCheckLoading}
         >
