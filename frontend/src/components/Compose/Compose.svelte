@@ -1,8 +1,19 @@
 <script>
 
   import { ComposePreview, ComposeUp, ComposeDown, SelectComposeFile } from '../../../wailsjs/go/main/App.js';
+  import { loadComposeTemplates } from '../../lib/composeTemplates.js';
+  import { onMount } from 'svelte';
 
-  let { t } = $props(); // i18n translations
+  let { t } = $props();
+
+  let composeTemplates = $state([]);
+  let selectedTemplate = $state(null);
+  let templatesLoading = $state(true);
+
+  onMount(async () => {
+    composeTemplates = await loadComposeTemplates();
+    templatesLoading = false;
+  });
 
   // State
   let composeFilePath = $state('');
@@ -12,13 +23,29 @@
   let composeActionLoading = $state(false);
   let composeError = $state('');
   let hasManuallyPreviewed = $state(false);
+  let lastPreviewedPath = $state('');
 
   // Functions
+  function handleSelectTemplate() {
+    if (!selectedTemplate) {
+      composeFilePath = '';
+      return;
+    }
+    const template = composeTemplates.find(t => t.name === selectedTemplate);
+    if (template && template.path) {
+      composeFilePath = template.path + '/redc-compose.yaml';
+      hasManuallyPreviewed = true;
+      previewCompose();
+    }
+  }
+
   async function handleBrowseFile() {
     try {
       const selectedPath = await SelectComposeFile();
       if (selectedPath) {
         composeFilePath = selectedPath;
+        hasManuallyPreviewed = true;
+        previewCompose();
       }
     } catch (e) {
       console.error('Failed to select file:', e);
@@ -57,9 +84,10 @@
   }
 
   $effect(() => {
-    if (hasManuallyPreviewed && composeFilePath) {
+    if (hasManuallyPreviewed && composeFilePath && composeFilePath !== lastPreviewedPath) {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
+        lastPreviewedPath = composeFilePath;
         previewCompose();
       }, 500);
     }
@@ -102,6 +130,40 @@
 </script>
 
 <div class="max-w-3xl lg:max-w-5xl xl:max-w-full space-y-5">
+  {#if composeTemplates.length > 0}
+    <div class="bg-white rounded-xl border border-gray-100 p-5">
+      <div class="flex items-center gap-4">
+        <div class="flex-1">
+          <label for="templateSelect" class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.selectTemplate || '选择模板'}</label>
+          <select
+            id="templateSelect"
+            class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
+            bind:value={selectedTemplate}
+            onchange={handleSelectTemplate}
+          >
+            <option value={null}>{templatesLoading ? (t.loading || '加载中...') : (t.selectTemplate || '请选择模板')}</option>
+            {#each composeTemplates as tmpl}
+              <option value={tmpl.name}>{tmpl.nameZh || tmpl.name}</option>
+            {/each}
+          </select>
+        </div>
+        {#if selectedTemplate}
+          {@const currentTemplate = composeTemplates.find(t => t.name === selectedTemplate)}
+          {#if currentTemplate?.description}
+            <div class="flex-1 text-[12px] text-gray-500">
+              <span class="font-medium">{(t.description || '描述')}:</span> {currentTemplate.description}
+            </div>
+          {/if}
+          {#if currentTemplate?.path}
+            <div class="flex-1 text-[12px] text-gray-400 font-mono mt-1">
+              <span class="font-medium">{(t.path || '路径')}:</span> {currentTemplate.path}
+            </div>
+          {/if}
+        {/if}
+      </div>
+    </div>
+  {/if}
+  
   <div class="bg-white rounded-xl border border-gray-100 p-5">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>

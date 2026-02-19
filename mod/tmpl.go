@@ -27,6 +27,7 @@ var TemplateDir = "redc-templates"
 
 const TmplCaseFile = "case.json"
 const TmplUserdataFile = "userdata"
+const TmplComposeFile = "redc-compose.yaml"
 
 // RedcTmpl 对应本地 case.json 的结构
 type RedcTmpl struct {
@@ -515,6 +516,80 @@ func ListUserdataTemplates() ([]*UserdataTemplate, error) {
 			InstallNotes: meta.InstallNotes,
 			Script:       string(scriptData),
 			Path:         dirPath,
+		})
+	}
+
+	return templates, nil
+}
+
+// ComposeTemplate represents a compose template with its metadata and compose file
+type ComposeTemplate struct {
+	Name        string `json:"name"`
+	NameZh      string `json:"nameZh"`
+	Type        string `json:"type"`
+	Category    string `json:"category"`
+	Description string `json:"description,omitempty"`
+	User        string `json:"user,omitempty"`
+	Version     string `json:"version,omitempty"`
+	ComposeFile string `json:"composeFile"`
+	Path        string `json:"path"`
+}
+
+// ListComposeTemplates returns compose templates from the compose-templates subdirectory
+func ListComposeTemplates() ([]*ComposeTemplate, error) {
+	composeDir := filepath.Join(TemplateDir, "compose-templates")
+	if _, err := os.Stat(composeDir); os.IsNotExist(err) {
+		return nil, nil
+	}
+
+	dirs, err := ScanTemplateDirs(composeDir, 2)
+	if err != nil {
+		return nil, err
+	}
+
+	var templates []*ComposeTemplate
+	for _, dirPath := range dirs {
+		casePath := filepath.Join(dirPath, TmplCaseFile)
+		composePath := filepath.Join(dirPath, TmplComposeFile)
+
+		caseData, err := os.ReadFile(casePath)
+		if err != nil {
+			continue
+		}
+
+		var meta struct {
+			Name        string `json:"name"`
+			NameZh      string `json:"nameZh"`
+			Type        string `json:"type"`
+			Category    string `json:"category"`
+			Description string `json:"description"`
+			User        string `json:"user"`
+			Version     string `json:"version"`
+		}
+		if err := json.Unmarshal(caseData, &meta); err != nil {
+			continue
+		}
+
+		composeData, err := os.ReadFile(composePath)
+		if err != nil {
+			continue
+		}
+
+		absDirPath, err := filepath.Abs(dirPath)
+		if err != nil {
+			absDirPath = dirPath
+		}
+
+		templates = append(templates, &ComposeTemplate{
+			Name:        meta.Name,
+			NameZh:      meta.NameZh,
+			Type:        meta.Type,
+			Category:    meta.Category,
+			Description: meta.Description,
+			User:        meta.User,
+			Version:     meta.Version,
+			ComposeFile: string(composeData),
+			Path:        absDirPath,
 		})
 	}
 

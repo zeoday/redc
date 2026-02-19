@@ -2379,6 +2379,19 @@ func (a *App) ListUserdataTemplates() ([]redc.UserdataTemplate, error) {
 	return result, nil
 }
 
+// ListComposeTemplates returns compose templates from the local template directory
+func (a *App) ListComposeTemplates() ([]redc.ComposeTemplate, error) {
+	templates, err := redc.ListComposeTemplates()
+	if err != nil {
+		return nil, err
+	}
+	result := make([]redc.ComposeTemplate, 0, len(templates))
+	for _, t := range templates {
+		result = append(result, *t)
+	}
+	return result, nil
+}
+
 // SaveTemplateFiles writes editable files to a template directory
 func (a *App) SaveTemplateFiles(templateName string, files map[string]string) error {
 	path, err := redc.GetTemplatePath(templateName)
