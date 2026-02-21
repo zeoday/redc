@@ -453,6 +453,28 @@ func ListLocalTemplates() ([]*RedcTmpl, error) {
 	return templates, nil
 }
 
+// ListAllTemplates 返回所有模板，包括自定义模板、userdata模板和compose模板
+func ListAllTemplates() ([]*RedcTmpl, error) {
+	if _, err := os.Stat(TemplateDir); os.IsNotExist(err) {
+		return nil, nil
+	}
+	// 假设最大深度为 3，根据需要调整
+	dirs, err := ScanTemplateDirs(TemplateDir, 3)
+	if err != nil {
+		return nil, err
+	}
+	var templates []*RedcTmpl
+	for _, dirPath := range dirs {
+		t, err := readTemplateMeta(dirPath)
+		if err != nil {
+			t = &RedcTmpl{Name: filepath.Base(dirPath), Description: "[Error reading metadata]"}
+		}
+		t.Path = dirPath
+		templates = append(templates, t)
+	}
+	return templates, nil
+}
+
 // UserdataTemplate represents a userdata template with its metadata and script
 type UserdataTemplate struct {
 	Name         string `json:"name"`

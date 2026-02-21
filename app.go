@@ -1301,6 +1301,24 @@ func (a *App) ListTemplates() ([]TemplateInfo, error) {
 	return result, nil
 }
 
+func (a *App) ListAllTemplates() ([]TemplateInfo, error) {
+	templates, err := redc.ListAllTemplates()
+	if err != nil {
+		return nil, err
+	}
+	result := make([]TemplateInfo, 0, len(templates))
+	for _, t := range templates {
+		result = append(result, TemplateInfo{
+			Name:        t.Name,
+			Description: t.Description,
+			Version:     t.Version,
+			User:        t.User,
+			Module:      t.RedcModule,
+		})
+	}
+	return result, nil
+}
+
 // TemplateVariable represents a variable definition from terraform
 type TemplateVariable struct {
 	Name         string `json:"name"`
@@ -2355,10 +2373,15 @@ func (a *App) GetTemplateFiles(templateName string) (map[string]string, error) {
 			continue
 		}
 		name := entry.Name()
-		if name == "case.json" || name == "terraform.tfvars" || strings.HasSuffix(name, ".tf") {
+		// Read case.json, terraform.tfvars, *.tf, userdata files, and compose files
+		if name == "case.json" || name == "terraform.tfvars" ||
+			strings.HasSuffix(name, ".tf") ||
+			strings.HasSuffix(name, ".yaml") || strings.HasSuffix(name, ".yml") ||
+			strings.HasSuffix(name, ".sh") || strings.HasSuffix(name, ".userdata") ||
+			name == "userdata" || name == "script.sh" {
 			data, err := os.ReadFile(filepath.Join(path, name))
 			if err != nil {
-				return nil, err
+				continue
 			}
 			files[name] = string(data)
 		}
@@ -2399,7 +2422,12 @@ func (a *App) SaveTemplateFiles(templateName string, files map[string]string) er
 		return err
 	}
 	for name, content := range files {
-		if name == "case.json" || name == "terraform.tfvars" || strings.HasSuffix(name, ".tf") {
+		// Save case.json, terraform.tfvars, *.tf, userdata files, and compose files
+		if name == "case.json" || name == "terraform.tfvars" ||
+			strings.HasSuffix(name, ".tf") ||
+			strings.HasSuffix(name, ".yaml") || strings.HasSuffix(name, ".yml") ||
+			strings.HasSuffix(name, ".sh") || strings.HasSuffix(name, ".userdata") ||
+			name == "userdata" || name == "script.sh" {
 			if err := os.WriteFile(filepath.Join(path, name), []byte(content), 0644); err != nil {
 				return err
 			}

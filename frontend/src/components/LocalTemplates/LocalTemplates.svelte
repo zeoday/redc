@@ -1,7 +1,7 @@
 <script>
 
   import { onMount } from 'svelte';
-  import { ListTemplates, GetTemplateVariables, RemoveTemplate, CopyTemplate, GetTemplateFiles, SaveTemplateFiles } from '../../../wailsjs/go/main/App.js';
+  import { ListAllTemplates, GetTemplateVariables, RemoveTemplate, CopyTemplate, GetTemplateFiles, SaveTemplateFiles } from '../../../wailsjs/go/main/App.js';
   import CodeEditor from '../CodeEditor/CodeEditor.svelte';
 
   // Translation object passed from parent component
@@ -55,7 +55,7 @@ let { t } = $props();
   async function loadLocalTemplates() {
     localTemplatesLoading = true;
     try {
-      localTemplates = await ListTemplates() || [];
+      localTemplates = await ListAllTemplates() || [];
     } catch (e) {
       error = e.message || String(e);
       localTemplates = [];
