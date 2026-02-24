@@ -95,13 +95,11 @@ func TfApply(Path string, opts ...string) error {
 		o = ToApply(opts)
 	}
 	
-	// Add stdout/stderr wrapper if needed for debugging
-	// But NewTerraformExecutor already handles it via options or default os.Stdout
-	
 	err = te.Apply(ctx, o...)
 	if err != nil {
 		gologger.Debug().Msgf("场景启动失败: %s", err.Error())
-		return err
+		// 返回更详细的错误信息，包含 Terraform 的实际错误输出
+		return fmt.Errorf("Terraform apply 失败: %w", err)
 	}
 	return nil
 }

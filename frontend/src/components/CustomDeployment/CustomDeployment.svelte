@@ -24,6 +24,7 @@
     region: '',
     instanceType: '',
     userdata: '',
+    isSpotInstance: false,
     variables: {}
   });
   let validation = $state({
@@ -95,6 +96,7 @@
       region: '',
       instanceType: '',
       userdata: '',
+      isSpotInstance: false,
       variables: {}
     };
     validation = {
@@ -183,6 +185,7 @@
         region: config.region,
         instance_type: config.instanceType,
         userdata: config.userdata,
+        is_spot_instance: config.isSpotInstance,
         variables: config.variables,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -231,6 +234,7 @@
       region: loadedConfig.region || '',
       instanceType: loadedConfig.instance_type || '',
       userdata: loadedConfig.userdata || '',
+      isSpotInstance: loadedConfig.is_spot_instance || false,
       variables: loadedConfig.variables || {}
     };
     

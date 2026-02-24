@@ -168,6 +168,7 @@ type DeploymentConfig struct {
 	Region       string            `json:"region"`
 	InstanceType string            `json:"instance_type"`
 	Userdata     string            `json:"userdata,omitempty"`
+	IsSpotInstance bool            `json:"is_spot_instance"`
 	Variables    map[string]string `json:"variables"`
 	CreatedAt    time.Time         `json:"created_at"`
 	UpdatedAt    time.Time         `json:"updated_at"`
@@ -483,6 +484,12 @@ func (s *CustomDeploymentService) StartCustomDeployment(projectID, deploymentID,
 
 	// 执行 Terraform apply
 	if err := TfApply(deploymentPath); err != nil {
+		// 将错误信息保存到 outputs 中以便前端显示
+		errorMsg := err.Error()
+		deployment.Outputs = map[string]interface{}{
+			"error_message": errorMsg,
+		}
+		
 		// 更新状态为错误
 		deployment.State = StateError
 		deployment.UpdatedAt = time.Now()
@@ -1050,6 +1057,12 @@ func fetchVolcengineInstanceTypesStatic(region string) ([]InstanceType, error) {
 			{Code: "ecs.g3i.2xlarge", Name: "通用型 g3i", CPU: 8, Memory: 32768, Description: "8核32GB"},
 			{Code: "ecs.g2i.large", Name: "通用型 g2i", CPU: 2, Memory: 8192, Description: "2核8GB"},
 			{Code: "ecs.g2i.xlarge", Name: "通用型 g2i", CPU: 4, Memory: 16384, Description: "4核16GB"},
+			{Code: "ecs.c4i.large", Name: "计算型 c4i", CPU: 2, Memory: 4096, Description: "2核4GB"},
+			{Code: "ecs.c4i.xlarge", Name: "计算型 c4i", CPU: 4, Memory: 8192, Description: "4核8GB"},
+			{Code: "ecs.c4i.2xlarge", Name: "计算型 c4i", CPU: 8, Memory: 16384, Description: "8核16GB"},
+			{Code: "ecs.c4i.4xlarge", Name: "计算型 c4i", CPU: 16, Memory: 32768, Description: "16核32GB"},
+			{Code: "ecs.r4i.large", Name: "内存型 r4i", CPU: 2, Memory: 16384, Description: "2核16GB"},
+			{Code: "ecs.r4i.xlarge", Name: "内存型 r4i", CPU: 4, Memory: 32768, Description: "4核32GB"},
 		},
 		"cn-shanghai": {
 			{Code: "ecs.g3i.large", Name: "通用型 g3i", CPU: 2, Memory: 8192, Description: "2核8GB"},

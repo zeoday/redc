@@ -15,14 +15,32 @@ import (
 // 这个函数会尝试使用配置的凭证调用云厂商 API
 // 如果失败（如凭证未配置），则回退到静态数据
 func fetchInstanceTypesFromProviderAPI(provider, region string) ([]InstanceType, error) {
-	// 尝试从环境变量获取凭证
-	var accessKey, secretKey string
+	// 优先从配置文件中获取凭证，如果没有则从环境变量获取
+	accessKey, secretKey := GetProviderCredentials(provider)
+	
+	// 如果从配置文件获取失败，尝试从环境变量获取
+	if accessKey == "" || secretKey == "" {
+		switch provider {
+		case "volcengine":
+			accessKey = os.Getenv("VOLCENGINE_ACCESS_KEY")
+			secretKey = os.Getenv("VOLCENGINE_SECRET_KEY")
+		case "alicloud":
+			accessKey = os.Getenv("ALICLOUD_ACCESS_KEY")
+			secretKey = os.Getenv("ALICLOUD_SECRET_KEY")
+		case "tencentcloud":
+			accessKey = os.Getenv("TENCENTCLOUD_SECRET_ID")
+			secretKey = os.Getenv("TENCENTCLOUD_SECRET_KEY")
+		case "aws":
+			accessKey = os.Getenv("AWS_ACCESS_KEY_ID")
+			secretKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
+		case "huaweicloud":
+			accessKey = os.Getenv("HUAWEICLOUD_ACCESS_KEY")
+			secretKey = os.Getenv("HUAWEICLOUD_SECRET_KEY")
+		}
+	}
 	
 	switch provider {
 	case "volcengine":
-		accessKey = os.Getenv("VOLCENGINE_ACCESS_KEY")
-		secretKey = os.Getenv("VOLCENGINE_SECRET_KEY")
-		
 		if accessKey != "" && secretKey != "" {
 			// 调用火山引擎 API
 			types, err := fetchVolcengineInstanceTypesFromAPI(region, accessKey, secretKey)
@@ -34,9 +52,6 @@ func fetchInstanceTypesFromProviderAPI(provider, region string) ([]InstanceType,
 		}
 		
 	case "alicloud":
-		accessKey = os.Getenv("ALICLOUD_ACCESS_KEY")
-		secretKey = os.Getenv("ALICLOUD_SECRET_KEY")
-		
 		if accessKey != "" && secretKey != "" {
 			types, err := fetchAlicloudInstanceTypesFromAPI(region, accessKey, secretKey)
 			if err == nil {
@@ -46,11 +61,8 @@ func fetchInstanceTypesFromProviderAPI(provider, region string) ([]InstanceType,
 		}
 		
 	case "tencentcloud":
-		secretId := os.Getenv("TENCENTCLOUD_SECRET_ID")
-		secretKey = os.Getenv("TENCENTCLOUD_SECRET_KEY")
-		
-		if secretId != "" && secretKey != "" {
-			types, err := fetchTencentcloudInstanceTypesFromAPI(region, secretId, secretKey)
+		if accessKey != "" && secretKey != "" {
+			types, err := fetchTencentcloudInstanceTypesFromAPI(region, accessKey, secretKey)
 			if err == nil {
 				return types, nil
 			}

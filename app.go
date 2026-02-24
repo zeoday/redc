@@ -2346,6 +2346,76 @@ func (a *App) AICostOptimization() error {
 	return nil
 }
 
+// AnalyzeDeploymentError uses AI to analyze deployment errors and provide solutions
+func (a *App) AnalyzeDeploymentError(deploymentID, errorMessage, provider, templateName string) error {
+	gologger.Info().Msgf("开始 AI 分析部署错误: deploymentID=%s, provider=%s, template=%s", deploymentID, provider, templateName)
+
+	// Get active profile and AI config
+	profile, err := redc.GetActiveProfile()
+	if err != nil || profile.AIConfig == nil {
+		gologger.Error().Msgf("AI 配置获取失败: %v", err)
+		return fmt.Errorf("请先配置 AI 服务")
+	}
+
+	aiConfig := profile.AIConfig
+	if aiConfig.APIKey == "" || aiConfig.BaseURL == "" || aiConfig.Model == "" {
+		return fmt.Errorf("AI 配置不完整，请检查 API Key、Base URL 和 Model")
+	}
+
+	// Create AI client
+	client := ai.NewClient(aiConfig.Provider, aiConfig.APIKey, aiConfig.BaseURL, aiConfig.Model)
+
+	// Prepare system prompt for error analysis
+	systemPrompt := `你是一个云资源部署专家助手。用户会提供一个部署失败的错误信息，你需要分析错误原因并提供解决方案。
+
+请分析以下部署错误：
+
+- 云服务商: ` + provider + `
+- 模板名称: ` + templateName + `
+- 错误信息:
+` + errorMessage + `
+
+请按以下格式回复：
+1. 错误原因分析
+2. 解决方案建议
+3. 如果需要，提供具体的配置修改建议
+
+请用简洁、专业的语言回复，直接给出分析结果和解决方案。`
+
+	messages := []ai.Message{
+		{Role: "system", Content: systemPrompt},
+	}
+
+	gologger.Info().Msgf("AI 分析: 准备调用流式 API，错误信息长度: %d", len(errorMessage))
+
+	// Stream response to frontend with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	err = client.ChatStream(ctx, messages, func(chunk string) error {
+		gologger.Debug().Msgf("AI 分析收到 chunk: %s", chunk)
+		// Emit chunk to frontend - 发送不带后缀的事件名
+		runtime.EventsEmit(a.ctx, "ai-deployment-error-chunk", map[string]string{
+			"deploymentId": deploymentID,
+			"chunk":        chunk,
+		})
+		return nil
+	})
+
+	if err != nil {
+		gologger.Error().Msgf("AI 分析失败: %v", err)
+		return fmt.Errorf("AI 分析失败: %v", err)
+	}
+
+	gologger.Info().Msgf("AI 分析完成")
+	// Emit completion event
+	runtime.EventsEmit(a.ctx, "ai-deployment-error-complete", map[string]interface{}{
+		"deploymentId": deploymentID,
+		"success":      true,
+	})
+	return nil
+}
+
 // CopyTemplate creates an editable local copy of a template
 func (a *App) CopyTemplate(sourceName string, targetName string) error {
 	if err := redc.CopyTemplate(sourceName, targetName); err != nil {

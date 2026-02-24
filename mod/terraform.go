@@ -18,6 +18,16 @@ import (
 	tfjson "github.com/hashicorp/terraform-json"
 )
 
+// stderrWriter 捕获 stderr 输出的 writer
+type stderrWriter struct {
+	buf *strings.Builder
+}
+
+func (w *stderrWriter) Write(p []byte) (int, error) {
+	w.buf.WriteString(string(p))
+	return len(p), nil
+}
+
 const (
 	// TerraformTimeout is the default timeout for terraform operations
 	TerraformTimeout = 30 * time.Minute
@@ -35,6 +45,7 @@ type TerraformExecutor struct {
 	workingDir string
 	stdout     io.Writer
 	stderr     io.Writer
+	stderrBuf  string // 用于捕获 stderr 输出以便返回错误信息
 }
 
 // TerraformOption configures a TerraformExecutor
@@ -78,7 +89,11 @@ func NewTerraformExecutor(workingDir string, opts ...TerraformOption) (*Terrafor
 		workingDir: workingDir,
 		stdout:     os.Stdout,
 		stderr:     os.Stderr,
+		stderrBuf:  "",
 	}
+
+	// 创建一个自定义的 stderr writer 来捕获输出
+	stderrCapture := &stderrWriter{buf: &strings.Builder{}}
 
 	// Apply options
 	for _, opt := range opts {
@@ -87,7 +102,11 @@ func NewTerraformExecutor(workingDir string, opts ...TerraformOption) (*Terrafor
 
 	// Always set stdout and stderr for better visibility and debugging
 	tf.SetStdout(te.stdout)
-	tf.SetStderr(te.stderr)
+	// 先设置自定义 stderr writer 捕获输出
+	tf.SetStderr(stderrCapture)
+
+	// 保存 stderr writer 的引用以便后续获取
+	te.stderr = stderrCapture
 
 	// Pass all environment variables including proxy settings to terraform subprocess
 	// Check if proxy is configured
@@ -99,11 +118,11 @@ func NewTerraformExecutor(workingDir string, opts ...TerraformOption) (*Terrafor
 			break
 		}
 	}
-	
+
 	// On macOS, always set environment variables to include DYLD_FALLBACK_LIBRARY_PATH
 	// This fixes the "Failed to read any lines from plugin's stdout" error with Terraform providers
 	needsCustomEnv := hasProxy || runtime.GOOS == "darwin"
-	
+
 	if needsCustomEnv {
 		envVars := make(map[string]string)
 		// Copy all current environment variables
@@ -112,7 +131,7 @@ func NewTerraformExecutor(workingDir string, opts ...TerraformOption) (*Terrafor
 				envVars[env[:idx]] = env[idx+1:]
 			}
 		}
-		
+
 		// On macOS, ensure library paths are set for provider plugins
 		if runtime.GOOS == "darwin" {
 			if _, exists := envVars["DYLD_FALLBACK_LIBRARY_PATH"]; !exists {
@@ -128,7 +147,7 @@ func NewTerraformExecutor(workingDir string, opts ...TerraformOption) (*Terrafor
 				envVars["TF_LOG_PROVIDER"] = "DEBUG"
 			}
 		}
-		
+
 		tf.SetEnv(envVars)
 	}
 
@@ -142,7 +161,20 @@ func (te *TerraformExecutor) Init(ctx context.Context) error {
 
 // Apply runs terraform apply (auto-approve is the default behavior in terraform-exec)
 func (te *TerraformExecutor) Apply(ctx context.Context, opts ...tfexec.ApplyOption) error {
-	return te.tf.Apply(ctx, opts...)
+	err := te.tf.Apply(ctx, opts...)
+	if err != nil {
+		// 获取捕获的 stderr 输出
+		var stderrMsg string
+		if sw, ok := te.stderr.(*stderrWriter); ok {
+			stderrMsg = strings.TrimSpace(sw.buf.String())
+		}
+		// 只有当 stderr 有内容且原始错误较简短时才追加 stderr（避免重复）
+		if stderrMsg != "" && len(err.Error()) < 100 {
+			return fmt.Errorf("%w\n\n%v", err, stderrMsg)
+		}
+		return err
+	}
+	return nil
 }
 func (te *TerraformExecutor) Plan(ctx context.Context, opts ...tfexec.PlanOption) error {
 	_, err := te.tf.Plan(ctx, opts...)
@@ -251,9 +283,9 @@ func GetTerraformExecPath(ctx context.Context, priorityDir string) (string, erro
 
 	// 1.5 macOS GUI 应用可能没有继承完整 PATH，尝试常见路径
 	commonPaths := []string{
-		"/opt/homebrew/bin/terraform",     // Homebrew on Apple Silicon
-		"/usr/local/bin/terraform",         // Homebrew on Intel / manual install
-		"/usr/bin/terraform",               // System
+		"/opt/homebrew/bin/terraform", // Homebrew on Apple Silicon
+		"/usr/local/bin/terraform",    // Homebrew on Intel / manual install
+		"/usr/bin/terraform",          // System
 	}
 	for _, p := range commonPaths {
 		if _, err := os.Stat(p); err == nil {

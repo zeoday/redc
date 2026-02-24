@@ -14,6 +14,7 @@ var commonCachePath = "./tf-plugin-cache" // Provider 插件缓存目录
 var RedcPath = ""
 var ProjectPath = "redc-taskresult"
 var ActiveConfigPath = ""
+var LoadedConfig *Config = nil // 全局配置对象
 
 const ProjectFile = "project.json"
 const RedcPlanPath = "case.tfplan"
@@ -142,7 +143,10 @@ func LoadConfig(path string) error {
 	if loadedPath != "" {
 		ActiveConfigPath = loadedPath
 	}
-
+	
+	// 保存到全局变量
+	LoadedConfig = &conf
+	
 	return nil
 }
 
@@ -242,5 +246,31 @@ func SaveConfig(conf *Config, customPath string) error {
 
 	// Rebind environment variables after saving
 	bindEnv(*conf)
+	
+	// 更新全局配置对象
+	LoadedConfig = conf
+	
 	return nil
+}
+
+// GetProviderCredentials 从已加载的配置中获取云厂商凭据
+func GetProviderCredentials(provider string) (accessKey, secretKey string) {
+	if LoadedConfig == nil {
+		return "", ""
+	}
+	
+	switch provider {
+	case "volcengine":
+		return LoadedConfig.Providers.Volcengine.AccessKey, LoadedConfig.Providers.Volcengine.SecretKey
+	case "alicloud":
+		return LoadedConfig.Providers.Alicloud.AccessKey, LoadedConfig.Providers.Alicloud.SecretKey
+	case "tencentcloud":
+		return LoadedConfig.Providers.Tencentcloud.SecretId, LoadedConfig.Providers.Tencentcloud.SecretKey
+	case "aws":
+		return LoadedConfig.Providers.Aws.AccessKey, LoadedConfig.Providers.Aws.SecretKey
+	case "huaweicloud":
+		return LoadedConfig.Providers.Huaweicloud.AccessKey, LoadedConfig.Providers.Huaweicloud.SecretKey
+	}
+	
+	return "", ""
 }

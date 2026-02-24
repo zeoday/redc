@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"red-cloud/mod/gologger"
 )
 
 // Client represents an AI API client
@@ -130,7 +132,9 @@ func (c *Client) chatStreamOpenAI(ctx context.Context, messages []Message, callb
 		}
 
 		if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
-			if err := callback(chunk.Choices[0].Delta.Content); err != nil {
+			content := chunk.Choices[0].Delta.Content
+			gologger.Debug().Msgf("AI stream 收到内容: %s", content)
+			if err := callback(content); err != nil {
 				return err
 			}
 		}

@@ -168,12 +168,15 @@ func (e *DeploymentExecutor) GenerateVariablesFile(config *DeploymentConfig) (st
 		}
 	}
 	
+	// 添加抢占式实例配置
+	tfvars += fmt.Sprintf("is_spot_instance = %v\n", config.IsSpotInstance)
+	
 	// 添加其他自定义变量（排除已经添加的核心变量）
 	if config.Variables != nil && len(config.Variables) > 0 {
 		tfvars += "\n# 自定义变量\n"
 		for key, value := range config.Variables {
 			// 跳过已经添加的核心变量
-			if key == "cloud_provider" || key == "provider" || key == "region" || key == "instance_type" || key == "instance_name" || key == "userdata" {
+			if key == "cloud_provider" || key == "provider" || key == "region" || key == "instance_type" || key == "instance_name" || key == "userdata" || key == "is_spot_instance" {
 				continue
 			}
 			// 跳过空字符串值的变量，避免类型不匹配错误

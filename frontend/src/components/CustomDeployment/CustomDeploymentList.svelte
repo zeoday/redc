@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { ListCustomDeployments, StartCustomDeployment, StopCustomDeployment, DeleteCustomDeployment, BatchStartCustomDeployments, BatchStopCustomDeployments, BatchDeleteCustomDeployments } from '../../../wailsjs/go/main/App';
+  import { ListCustomDeployments, StartCustomDeployment, StopCustomDeployment, DeleteCustomDeployment, BatchStartCustomDeployments, BatchStopCustomDeployments, BatchDeleteCustomDeployments, AnalyzeDeploymentError, GetActiveProfile } from '../../../wailsjs/go/main/App';
+  import { EventsOn } from '../../../wailsjs/runtime/runtime.js';
   import SSHModal from '../Cases/SSHModal.svelte';
   import ScheduleDialog from '../Cases/ScheduleDialog.svelte';
 
@@ -48,6 +49,11 @@
     deploymentName: '', 
     action: '' 
   });
+
+  // AI Error Analysis state
+  let aiAnalyzing = $state<Record<string, boolean>>({});
+  let aiAnalysisResult = $state<Record<string, string>>({});
+  let aiAnalysisCompleted = $state<Record<string, boolean>>({});
 
   // 状态颜色配置（与创建部署页面一致）
   const stateConfig: Record<string, { label: string; color: string; bg: string; dot: string }> = {
@@ -204,10 +210,19 @@
     }
   }
 
+  let deleteConfirm = $state({ show: false, deploymentId: '', deploymentName: '' });
+
   async function handleDelete(deploymentId: string, deploymentName: string) {
-    if (!confirm(`确定要删除部署 "${deploymentName}" 吗？此操作不可撤销。`)) {
-      return;
-    }
+    deleteConfirm = { show: true, deploymentId, deploymentName };
+  }
+
+  function cancelDelete() {
+    deleteConfirm = { show: false, deploymentId: '', deploymentName: '' };
+  }
+
+  async function confirmDelete() {
+    const { deploymentId, deploymentName } = deleteConfirm;
+    deleteConfirm = { show: false, deploymentId: '', deploymentName: '' };
     
     // 立即更新本地状态为"删除中"
     deployments = deployments.map(d => 
@@ -222,6 +237,39 @@
       alert(`删除失败: ${err.message || err}`);
       // 失败后重新加载以恢复正确状态
       await loadDeployments();
+    }
+  }
+
+  async function handleAIAnalysis(deploymentId: string, errorMessage: string, provider: string, templateName: string) {
+    if (!errorMessage) {
+      alert('没有错误信息可以分析');
+      return;
+    }
+    
+    // 先检查 AI 配置
+    try {
+      const profile = await GetActiveProfile();
+      if (!profile || !profile.aiConfig || !profile.aiConfig.apiKey) {
+        alert('请先在设置中配置 AI 服务');
+        return;
+      }
+    } catch (err: any) {
+      alert(`检查 AI 配置失败: ${err.message || err}`);
+      return;
+    }
+    
+    // 开始 AI 分析
+    aiAnalyzing[deploymentId] = true;
+    aiAnalyzing = { ...aiAnalyzing };
+    aiAnalysisResult[deploymentId] = '';
+    aiAnalysisResult = { ...aiAnalysisResult };
+    
+    try {
+      await AnalyzeDeploymentError(deploymentId, errorMessage, provider, templateName);
+    } catch (err: any) {
+      alert(`AI 分析失败: ${err.message || err}`);
+      aiAnalyzing[deploymentId] = false;
+      aiAnalyzing = { ...aiAnalyzing };
     }
   }
 
@@ -361,6 +409,30 @@
 
   onMount(() => {
     loadDeployments();
+    
+    // 设置 AI 分析事件监听
+    EventsOn('ai-deployment-error-chunk', (data: any) => {
+      console.log('AI chunk received:', data);
+      const { deploymentId, chunk } = data;
+      if (deploymentId && chunk) {
+        aiAnalysisResult[deploymentId] = (aiAnalysisResult[deploymentId] || '') + chunk;
+        aiAnalysisResult = { ...aiAnalysisResult };
+      }
+    });
+    
+    EventsOn('ai-deployment-error-complete', (data: any) => {
+      console.log('AI complete received:', data);
+      const { deploymentId, success } = data;
+      if (deploymentId) {
+        aiAnalyzing[deploymentId] = false;
+        aiAnalyzing = { ...aiAnalyzing };
+        aiAnalysisCompleted[deploymentId] = true;
+        aiAnalysisCompleted = { ...aiAnalysisCompleted };
+        if (!success) {
+          console.error('AI analysis failed for deployment:', deploymentId);
+        }
+      }
+    });
     
     // 组件卸载时清理轮询
     return () => {
@@ -517,6 +589,14 @@
                     <span class="px-2.5 py-1 text-[12px] font-medium text-amber-600">
                       {stateConfig[deployment.state]?.label || '处理中'}...
                     </span>
+                  {:else if deployment.state === 'error'}
+                    <span class="px-2.5 py-1 text-[12px] font-medium text-red-600">
+                      {stateConfig[deployment.state]?.label || '错误'}
+                    </span>
+                    <button 
+                      class="px-2.5 py-1 text-[12px] font-medium text-amber-700 bg-amber-50 rounded-md hover:bg-amber-100 transition-colors"
+                      onclick={() => handleStart(deployment.id)}
+                    >重试</button>
                   {:else if deployment.state !== 'running'}
                     <!-- 定时启动按钮 -->
                     <button 
@@ -566,12 +646,52 @@
                 </div>
               </td>
             </tr>
-            <!-- Expanded row for outputs -->
+            <!-- Expanded row for outputs or error -->
             {#if expandedDeploymentId === deployment.id}
               <tr class="bg-slate-50">
                 <td colspan="7" class="px-5 py-4">
                   <div class="pl-6">
-                    {#if deployment.state === 'running'}
+                    {#if deployment.state === 'error'}
+                      <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div class="flex items-start gap-3">
+                          <svg class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                          <div class="flex-1">
+                            <h4 class="text-[13px] font-semibold text-red-900">部署失败</h4>
+                            <p class="text-[12px] text-red-700 mt-1">请检查配置后重试。错误详情：</p>
+                            <pre class="mt-2 p-3 bg-white rounded border border-red-200 text-[11px] text-red-800 overflow-x-auto whitespace-pre-wrap">{deployment.outputs?.error_message || '未知错误'}</pre>
+                            
+                            {#if aiAnalyzing[deployment.id] || aiAnalysisCompleted[deployment.id]}
+                              <div class="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
+                                {#if aiAnalyzing[deployment.id]}
+                                  <div class="flex items-center gap-2 mb-2">
+                                    <svg class="animate-spin h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span class="text-[12px] text-blue-700">AI 正在分析错误...</span>
+                                  </div>
+                                {/if}
+                                {#if aiAnalysisResult[deployment.id]}
+                                  <pre class="text-[11px] text-blue-800 whitespace-pre-wrap">{aiAnalysisResult[deployment.id]}</pre>
+                                {/if}
+                              </div>
+                            {:else}
+                              <button 
+                                class="mt-3 px-3 py-1.5 text-[12px] font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors flex items-center gap-1.5"
+                                onclick={() => handleAIAnalysis(deployment.id, deployment.outputs?.error_message || '', deployment.config?.provider || '', deployment.template_name || '')}
+                              >
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                </svg>
+                                AI 分析错误原因
+                              </button>
+                            {/if}
+                          </div>
+                        </div>
+                      </div>
+                    {:else if deployment.state === 'running'}
                       {#if deploymentOutputs[deployment.id] && Object.keys(deploymentOutputs[deployment.id]).length > 0}
                         <div class="grid grid-cols-2 gap-3">
                           {#each Object.entries(deploymentOutputs[deployment.id]) as [key, value]}

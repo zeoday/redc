@@ -40,10 +40,8 @@ func TestFetchVolcengineInstanceTypesFromAPI(t *testing.T) {
 			t.Errorf("实例规格 %s 的内存大小无效: %d", it.Code, it.Memory)
 		}
 		
-		// 只打印前 5 个实例规格作为示例
-		if i < 5 {
-			t.Logf("实例规格 %d: %s - %s (%d核%dMB)", i+1, it.Code, it.Name, it.CPU, it.Memory)
-		}
+		// 打印所有实例规格
+		t.Logf("实例规格 %d: %s - %s (%d核%dMB)", i+1, it.Code, it.Name, it.CPU, it.Memory)
 	}
 	
 	t.Logf("成功获取 %d 个实例规格", len(types))
