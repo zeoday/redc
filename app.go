@@ -2580,7 +2580,8 @@ func (a *App) GetTemplateFiles(templateName string) (map[string]string, error) {
 			strings.HasSuffix(name, ".tf") ||
 			strings.HasSuffix(name, ".yaml") || strings.HasSuffix(name, ".yml") ||
 			strings.HasSuffix(name, ".sh") || strings.HasSuffix(name, ".userdata") ||
-			name == "userdata" || name == "script.sh" {
+			strings.HasSuffix(name, ".md") ||
+			name == "userdata" || name == "script.sh" || name == "README" {
 			data, err := os.ReadFile(filepath.Join(path, name))
 			if err != nil {
 				continue
@@ -2629,7 +2630,8 @@ func (a *App) SaveTemplateFiles(templateName string, files map[string]string) er
 			strings.HasSuffix(name, ".tf") ||
 			strings.HasSuffix(name, ".yaml") || strings.HasSuffix(name, ".yml") ||
 			strings.HasSuffix(name, ".sh") || strings.HasSuffix(name, ".userdata") ||
-			name == "userdata" || name == "script.sh" {
+			strings.HasSuffix(name, ".md") ||
+			name == "userdata" || name == "script.sh" || name == "README" {
 			if err := os.WriteFile(filepath.Join(path, name), []byte(content), 0644); err != nil {
 				return err
 			}
