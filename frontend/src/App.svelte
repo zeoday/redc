@@ -29,6 +29,13 @@
   let terraformMirror = $state({ enabled: false, configPath: '', managed: false, fromEnv: false, providers: [] });
   let notificationEnabled = $state(false);
   let rightClickDisabled = $state(true);
+  let rightClickDisabledSync = true; // 同步变量用于右键处理
+  
+  // 当 rightClickDisabled 变化时更新同步变量
+  $effect(() => {
+    rightClickDisabledSync = rightClickDisabled;
+  });
+  
   let debugEnabled = $state(false);
   let isMaximised = $state(false);
   let isWindows = $state(false);
@@ -130,14 +137,13 @@
     const env = await Environment();
     isWindows = env.platform === 'windows';
     
-    // 注册右键菜单处理
-    const handleContextMenu = (e) => {
-      if (rightClickDisabled) {
-        e.preventDefault();
-        return false;
-      }
-    };
-    document.addEventListener('contextmenu', handleContextMenu);
+    // 注册右键菜单处理 - 使用同步变量
+     window.addEventListener('contextmenu', (e) => {
+       if (rightClickDisabledSync) {
+         e.preventDefault();
+         e.stopPropagation();
+       }
+     }, true);
     
     EventsOn('log', (message) => {
       logs = [...logs, { time: new Date().toLocaleTimeString(), message }];
@@ -181,6 +187,7 @@
         GetNotificationEnabled(),
         GetDisableRightClick()
       ]);
+      rightClickDisabledSync = rightClickDisabled;
       debugEnabled = !!config.debugEnabled;
       // Refresh dashboard component if it exists
       if (dashboardComponent && dashboardComponent.refresh) {
