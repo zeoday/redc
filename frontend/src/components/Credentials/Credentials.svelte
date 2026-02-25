@@ -294,6 +294,7 @@ let { t } = $props();
     '火山引擎': ['accessKey', 'secretKey', 'region'],
     '华为云': ['accessKey', 'secretKey', 'region'],
     'UCloud': ['publicKey', 'privateKey', 'projectId', 'region'],
+    'Ctyun': ['accessKey', 'secretKey', 'region'],
     'Vultr': ['apiKey'],
     'Google Cloud': ['credentials', 'project', 'region'],
     'Azure': ['clientId', 'clientSecret', 'subscriptionId', 'tenantId'],

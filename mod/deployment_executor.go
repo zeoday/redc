@@ -93,6 +93,15 @@ func (e *DeploymentExecutor) GenerateProviderConfig(provider string, region stri
 				"region": region,
 			},
 		}, nil
+	case "ctyun":
+		return &ProviderConfig{
+			Name:    "ctyun",
+			Source:  "ctyun-it/ctyun",
+			Version: "~> 0.0",
+			Config: map[string]string{
+				"region": region,
+			},
+		}, nil
 	default:
 		return nil, &ValidationError{
 			Field:   "provider",

@@ -785,6 +785,18 @@ func (a *App) GetProvidersConfig(customPath string) (ProvidersConfigInfo, error)
 			},
 		},
 		{
+			Name: "Ctyun",
+			Fields: map[string]string{
+				"accessKey": maskValue(conf.Providers.Ctyun.AccessKey),
+				"secretKey": maskValue(conf.Providers.Ctyun.SecretKey),
+				"region":    conf.Providers.Ctyun.Region,
+			},
+			HasSecrets: map[string]bool{
+				"accessKey": conf.Providers.Ctyun.AccessKey != "",
+				"secretKey": conf.Providers.Ctyun.SecretKey != "",
+			},
+		},
+		{
 			Name: "Cloudflare",
 			Fields: map[string]string{
 				"email":  conf.Cloudflare.Email,
@@ -915,6 +927,16 @@ func (a *App) SaveProvidersConfig(providerName string, fields map[string]string,
 		}
 		if v, ok := fields["region"]; ok {
 			conf.Providers.UCloud.Region = v
+		}
+	case "Ctyun":
+		if v, ok := fields["accessKey"]; ok && v != "" {
+			conf.Providers.Ctyun.AccessKey = v
+		}
+		if v, ok := fields["secretKey"]; ok && v != "" {
+			conf.Providers.Ctyun.SecretKey = v
+		}
+		if v, ok := fields["region"]; ok {
+			conf.Providers.Ctyun.Region = v
 		}
 	case "Cloudflare":
 		if v, ok := fields["email"]; ok {

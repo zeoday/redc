@@ -179,6 +179,22 @@ func ensureProviderVars(templateName string, vars map[string]string) map[string]
 		}
 	}
 
+	// 处理天翼云 CTYun
+	if provider == "ctyun" {
+		// 如果模板需要 access_key 且用户未提供，则从配置中获取
+		if (vars["access_key"] == "" || isPlaceholderSecret(vars["access_key"])) && conf.Providers.Ctyun.AccessKey != "" {
+			vars["access_key"] = conf.Providers.Ctyun.AccessKey
+		}
+		if (vars["secret_key"] == "" || isPlaceholderSecret(vars["secret_key"])) && conf.Providers.Ctyun.SecretKey != "" {
+			vars["secret_key"] = conf.Providers.Ctyun.SecretKey
+		}
+		// 如果模板需要 instance_password 且用户未提供，则自动生成
+		if vars["instance_password"] == "" {
+			vars["instance_password"] = generateInstancePassword()
+			gologger.Info().Msgf("已自动生成天翼云实例密码")
+		}
+	}
+
 	return vars
 }
 

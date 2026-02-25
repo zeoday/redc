@@ -164,6 +164,7 @@ let { t, onTabChange = () => {} } = $props();
     }
     if (cleanMessage.includes('场景创建成功')) {
       setCreateStatus('success', t.createSuccess, message);
+      refresh();
       return;
     }
     if (cleanMessage.includes('场景创建失败') || cleanMessage.includes('创建场景时发生错误')) {

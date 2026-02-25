@@ -67,6 +67,11 @@ type Config struct {
 		Vultr struct {
 			ApiKey string `yaml:"VULTR_API_KEY" env:"VULTR_API_KEY"`
 		} `yaml:"vultr"`
+		Ctyun struct {
+			AccessKey string `yaml:"CTYUN_AK" env:"CTYUN_AK"`
+			SecretKey string `yaml:"CTYUN_SK" env:"CTYUN_SK"`
+			Region    string `yaml:"region"`
+		} `yaml:"ctyun"`
 		Google struct {
 			Credentials string `yaml:"GOOGLE_CREDENTIALS" env:"GOOGLE_CREDENTIALS"`
 			Project     string `yaml:"project"`
@@ -287,6 +292,8 @@ func GetProviderCredentials(provider string) (accessKey, secretKey string) {
 		return LoadedConfig.Providers.Huaweicloud.AccessKey, LoadedConfig.Providers.Huaweicloud.SecretKey
 	case "ucloud":
 		return LoadedConfig.Providers.UCloud.PublicKey, LoadedConfig.Providers.UCloud.PrivateKey
+	case "ctyun":
+		return LoadedConfig.Providers.Ctyun.AccessKey, LoadedConfig.Providers.Ctyun.SecretKey
 	}
 
 	return "", ""
