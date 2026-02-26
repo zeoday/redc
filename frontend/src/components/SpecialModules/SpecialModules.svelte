@@ -64,7 +64,6 @@
 
 <div class="w-full">
   <!-- Tabs -->
-  <div class="flex gap-2 border-b border-gray-100 mb-6">
     <button
       class="px-4 py-2 text-[13px] font-medium transition-colors {specialModuleTab === 'vulhub' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}"
       onclick={() => specialModuleTab = 'vulhub'}
@@ -99,14 +98,14 @@
           <input
             type="text"
             placeholder={t.search || '搜索漏洞环境...'}
-            class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:ring-offset-1 transition-shadow"
+            class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-shadow"
             bind:value={vulhubSearchQuery}
           />
           {#if vulhubScenarios().length > 0}
             <div class="flex flex-wrap gap-2 mt-3">
               {#each vulhubScenarios() as scenario}
                 <button
-                  class="px-3 py-2 text-[12px] font-medium rounded-lg transition-all {selectedVulhubScenario?.name === scenario.name ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+                  class="px-3 py-2 text-[12px] font-medium rounded-lg transition-all {selectedVulhubScenario?.name === scenario.name ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
                   onclick={() => selectVulhubScenario(scenario)}
                 >
                   {scenario.nameZh || scenario.name}
@@ -138,7 +137,7 @@
               {/if}
             </div>
             <button
-              class="px-3 py-1.5 text-[12px] font-medium rounded-lg transition-all {copied ? 'bg-green-600 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'}"
+              class="px-3 py-1.5 text-[12px] font-medium rounded-lg transition-all {copied ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}"
               onclick={copyToClipboard}
             >
               {copied ? '已复制!' : '复制脚本'}
@@ -167,23 +166,21 @@
           <pre class="bg-gray-900 text-gray-100 text-[12px] p-4 rounded-lg overflow-x-auto max-h-96 overflow-y-auto font-mono">{selectedVulhubScenario.script}</pre>
         </div>
       {:else}
-        <div class="bg-orange-50 rounded-lg p-4 sm:p-6 text-center">
-          <p class="text-[13px] text-orange-800 mb-2">选择一个漏洞环境查看部署脚本</p>
-          <p class="text-[12px] text-orange-600">脚本将在云服务器上自动安装 Docker 并启动漏洞环境</p>
+        <div class="bg-blue-50 rounded-lg p-4 sm:p-6 text-center">
+          <p class="text-[13px] text-blue-800 mb-2">选择一个漏洞环境查看部署脚本</p>
+          <p class="text-[12px] text-blue-600">脚本将在云服务器上自动安装 Docker 并启动漏洞环境</p>
         </div>
       {/if}
     </div>
   {:else if specialModuleTab === 'c2'}
-    <div class="bg-white rounded-xl border border-gray-100 p-4 sm:p-6 md:p-8 text-center">
-      <div class="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-        <svg class="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
-        </svg>
+    <div class="bg-white rounded-xl border border-gray-100 p-4 sm:p-6 md:p-8">
+      <div class="text-center py-8">
+        <p class="text-[13px] text-gray-500">暂无可用的 C2 场景</p>
+        <p class="text-[12px] text-gray-400 mt-1">此模块功能开发中...</p>
       </div>
-      <h3 class="text-[16px] sm:text-[18px] font-semibold text-gray-900 mb-2">{t.c2Scenes}</h3>
-      <p class="text-[13px] sm:text-[14px] text-gray-500 mb-4 sm:mb-6">C2 场景管理模块</p>
-      <div class="bg-gray-50 rounded-lg p-4 sm:p-6 text-left">
-        <p class="text-[12px] sm:text-[13px] text-gray-600">此模块功能开发中...</p>
+      <div class="bg-blue-50 rounded-lg p-4 sm:p-6 text-center">
+        <p class="text-[13px] text-blue-800 mb-2">C2 场景管理模块</p>
+        <p class="text-[12px] text-blue-600">此功能正在开发中，敬请期待</p>
       </div>
     </div>
   {:else if specialModuleTab === 'ai'}
@@ -193,14 +190,14 @@
           <input
             type="text"
             placeholder={t.search || '搜索场景...'}
-            class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:ring-offset-1 transition-shadow"
+            class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-shadow"
             bind:value={aiSearchQuery}
           />
           {#if aiScenarios().length > 0}
             <div class="flex flex-wrap gap-2 mt-3">
               {#each aiScenarios() as scenario}
                 <button
-                  class="px-3 py-2 text-[12px] font-medium rounded-lg transition-all {selectedAIScenario?.name === scenario.name ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+                  class="px-3 py-2 text-[12px] font-medium rounded-lg transition-all {selectedAIScenario?.name === scenario.name ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
                   onclick={() => selectAIScenario(scenario)}
                 >
                   {scenario.nameZh || scenario.name}
@@ -210,6 +207,11 @@
           {:else}
             <p class="text-[12px] text-gray-500 mt-3 text-center">未找到匹配的场景</p>
           {/if}
+        </div>
+      {:else}
+        <div class="text-center py-8">
+          <p class="text-[13px] text-gray-500">暂无可用的 AI 场景</p>
+          <p class="text-[12px] text-gray-400 mt-1">请确保已加载 redc-template 模板库</p>
         </div>
       {/if}
       
@@ -227,7 +229,7 @@
               {/if}
             </div>
             <button
-              class="px-3 py-1.5 text-[12px] font-medium rounded-lg transition-all {copied ? 'bg-green-600 text-white' : 'bg-gray-900 text-white hover:bg-gray-800'}"
+              class="px-3 py-1.5 text-[12px] font-medium rounded-lg transition-all {copied ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}"
               onclick={copyToClipboard}
             >
               {copied ? '已复制!' : '复制脚本'}
@@ -244,11 +246,11 @@
           {/if}
         </div>
       {:else}
-        <div class="bg-gray-50 rounded-lg p-6 text-center">
-          <p class="text-[13px] text-gray-500">请选择一个场景查看安装脚本</p>
+        <div class="bg-blue-50 rounded-lg p-4 sm:p-6 text-center">
+          <p class="text-[13px] text-blue-800 mb-2">选择一个 AI 场景查看部署脚本</p>
+          <p class="text-[12px] text-blue-600">脚本将在云服务器上自动安装并启动 AI 服务</p>
         </div>
       {/if}
     </div>
   {/if}
-  </div>
 </div>
