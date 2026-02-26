@@ -1,6 +1,12 @@
 <script>
 
   import { GetResourceSummary, GetBalances } from '../../../wailsjs/go/main/App.js';
+  import { BrowserOpenURL } from '../../../wailsjs/runtime/runtime.js';
+  import { cloudDocs } from '../../lib/cloudDocs.js';
+
+  function openLink(url) {
+    BrowserOpenURL(url);
+  }
 
 let { t } = $props();
   
@@ -160,5 +166,32 @@ let { t } = $props();
         </table>
       </div>
     {/if}
+  </div>
+
+  <!-- 开发文档 -->
+  <div class="bg-white rounded-xl border border-gray-100 p-5">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h3 class="text-[14px] font-semibold text-gray-900">{t.devDocs || '开发文档'}</h3>
+        <p class="text-[12px] text-gray-500">{t.devDocsDesc || '快速访问各云厂商开发文档'}</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      {#each cloudDocs as doc}
+        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+         <div
+           class="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors group cursor-pointer"
+           onclick={() => openLink(doc.url)}
+         >
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 {doc.color === 'orange' ? 'bg-orange-100' : doc.color === 'blue' ? 'bg-blue-100' : doc.color === 'red' ? 'bg-red-100' : 'bg-purple-100'}">
+            <svg class="w-4 h-4 {doc.color === 'orange' ? 'text-orange-600' : doc.color === 'blue' ? 'text-blue-600' : doc.color === 'red' ? 'text-red-600' : 'text-purple-600'}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </div>
+          <span class="text-[12px] font-medium text-gray-700 group-hover:text-gray-900 truncate">{doc.nameZh}</span>
+        </div>
+      {/each}
+    </div>
   </div>
 </div>
