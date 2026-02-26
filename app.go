@@ -1343,7 +1343,7 @@ type ComposeSummary struct {
 // GetBalances returns account balances for selected providers (manual trigger)
 func (a *App) GetBalances(providers []string) ([]BalanceInfo, error) {
 	if len(providers) == 0 {
-		providers = []string{"aliyun", "tencentcloud", "volcengine", "huaweicloud", "ucloud", "vultr"}
+		providers = []string{"aliyun", "tencentcloud", "volcengine", "huaweicloud", "ucloud", "vultr", "aws"}
 	}
 
 	conf, _, err := redc.ReadConfig(redc.ActiveConfigPath)
@@ -1407,6 +1407,95 @@ func (a *App) GetBalances(providers []string) ([]BalanceInfo, error) {
 			} else {
 				result.Amount = amount
 				result.Currency = currency
+			}
+		case "aws":
+			amount, currency, err := redc.QueryAWSBill(conf.Providers.Aws.AccessKey, conf.Providers.Aws.SecretKey, conf.Providers.Aws.Region)
+			if err != nil {
+				result.Error = err.Error()
+			} else {
+				result.Amount = amount
+				result.Currency = currency
+			}
+		default:
+			result.Error = "不支持的云厂商"
+		}
+		results = append(results, result)
+	}
+	return results, nil
+}
+
+// BillInfo represents billing information for a cloud provider
+type BillInfo struct {
+	Provider    string `json:"provider"`
+	Month       string `json:"month"`
+	TotalAmount string `json:"totalAmount"`
+	Currency    string `json:"currency"`
+	StartDate   string `json:"startDate"`
+	EndDate     string `json:"endDate"`
+	Error       string `json:"error"`
+}
+
+// GetBills returns current month bills for selected cloud providers
+func (a *App) GetBills(providers []string) ([]BillInfo, error) {
+	if len(providers) == 0 {
+		providers = []string{"aws", "vultr"}
+	}
+
+	conf, _, err := redc.ReadConfig(redc.ActiveConfigPath)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	startDate := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02")
+	endDate := now.Format("2006-01-02")
+	month := now.Format("2006-01")
+
+	results := make([]BillInfo, 0, len(providers))
+	for _, p := range providers {
+		result := BillInfo{
+			Provider:  p,
+			Month:     month,
+			StartDate: startDate,
+			EndDate:   endDate,
+		}
+
+		switch p {
+		case "aws":
+			if conf.Providers.Aws.AccessKey == "" || conf.Providers.Aws.SecretKey == "" {
+				result.Error = "未配置 AWS 凭据"
+			} else {
+				amount, currency, err := redc.QueryAWSBill(conf.Providers.Aws.AccessKey, conf.Providers.Aws.SecretKey, conf.Providers.Aws.Region)
+				if err != nil {
+					result.Error = err.Error()
+				} else {
+					result.TotalAmount = amount
+					result.Currency = currency
+				}
+			}
+		case "gcp":
+			if conf.Providers.Google.Credentials == "" {
+				result.Error = "未配置 GCP 凭据"
+			} else {
+				amount, currency, err := redc.QueryGCPBillFromConfig(conf.Providers.Google.Credentials, conf.Providers.Google.Project, conf.Providers.Google.Region)
+				if err != nil {
+					result.Error = err.Error()
+				} else {
+					result.TotalAmount = amount
+					result.Currency = currency
+				}
+			}
+		case "vultr":
+			if conf.Providers.Vultr.ApiKey == "" {
+				result.Error = "未配置 Vultr 凭据"
+			} else {
+				amount, currency, err := redc.QueryVultrBill(conf.Providers.Vultr.ApiKey)
+				if err != nil {
+					result.Error = err.Error()
+				} else {
+					result.TotalAmount = amount
+					result.Currency = currency
+				}
 			}
 		default:
 			result.Error = "不支持的云厂商"

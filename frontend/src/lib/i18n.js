@@ -7,7 +7,7 @@ export const i18n = {
     // Dashboard specific
     totalScenes: '总场景数', runningScenes: '运行中', stoppedScenes: '已停止', errorScenes: '异常',
     recentScenes: '最近场景', recentActivity: '最近活动', viewAll: '查看全部',
-    resourceSummary: '资源概览', accountBalance: '账户余额', systemHealth: '系统健康',
+    resourceSummary: '资源概览', accountBalance: '账户余额', currentMonthBill: '当月账单', systemHealth: '系统健康',
     memory: '内存', disk: '磁盘', noRecentScenes: '暂无场景', noResources: '暂无资源',
     noBalanceData: '暂无余额数据', loadFailed: '加载失败',
     vulhubSupport: 'Vulhub', c2Scenes: 'C2 场景', aiScenes: 'AI 场景', redcModules: 'RedC 增强模块',
@@ -193,7 +193,7 @@ export const i18n = {
     // Dashboard specific
     totalScenes: 'Total Scenes', runningScenes: 'Running', stoppedScenes: 'Stopped', errorScenes: 'Error',
     recentScenes: 'Recent Scenes', recentActivity: 'Recent Activity', viewAll: 'View All',
-    resourceSummary: 'Resource Summary', accountBalance: 'Account Balance', systemHealth: 'System Health',
+    resourceSummary: 'Resource Summary', accountBalance: 'Account Balance', currentMonthBill: 'Current Month Bill', systemHealth: 'System Health',
     memory: 'Memory', disk: 'Disk', noRecentScenes: 'No scenes', noResources: 'No resources',
     noBalanceData: 'No balance data', loadFailed: 'Load failed',
     vulhubSupport: 'Vulhub', c2Scenes: 'C2 Scenes', aiScenes: 'AI Scenes', redcModules: 'RedC Modules',

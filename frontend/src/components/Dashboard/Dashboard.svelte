@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { ListCases, GetResourceSummary, GetBalances, ListTemplates, ListProjects, TestTerraformEndpoints, GetTotalRuntime, GetPredictedMonthlyCost } from '../../../wailsjs/go/main/App.js';
+  import { ListCases, GetResourceSummary, GetBalances, GetBills, ListTemplates, ListProjects, TestTerraformEndpoints, GetTotalRuntime, GetPredictedMonthlyCost } from '../../../wailsjs/go/main/App.js';
 
   let { t, onTabChange = () => {} } = $props();
   
@@ -14,6 +14,8 @@
   
   let resourceSummary = $state([]);
   let balances = $state([]);
+  let bills = $state([]);
+  let billsLoading = $state(false);
   let recentCases = $state([]);
   let loading = $state(true);
   
@@ -87,6 +89,17 @@
       } catch (e) {
         console.error('Failed to load balances:', e);
       }
+      
+      // Load bills
+      try {
+        billsLoading = true;
+        bills = await GetBills(['aws', 'vultr']);
+      } catch (e) {
+        console.error('Failed to load bills:', e);
+        bills = [];
+      } finally {
+        billsLoading = false;
+      }
     } catch (e) {
       console.error('Failed to load dashboard data:', e);
     } finally {
@@ -139,9 +152,9 @@
   }
 </script>
 
-<div class="space-y-5">
+<div class="space-y-3">
   <!-- Stats Cards -->
-  <div class="grid grid-cols-4 gap-4">
+  <div class="grid grid-cols-4 gap-3">
     <div class="bg-white rounded-xl border border-gray-100 p-5">
       <div class="flex items-center justify-between mb-3">
         <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
@@ -192,7 +205,7 @@
   </div>
   
   <!-- Quick Stats -->
-  <div class="grid grid-cols-4 gap-4">
+  <div class="grid grid-cols-4 gap-3">
     {#each quickStats as stat}
       <div class="bg-white rounded-xl border border-gray-100 p-4">
         <div class="text-[12px] text-gray-500 mb-2">{stat.label}</div>
@@ -209,7 +222,7 @@
   </div>
   
   <!-- Main Content Grid -->
-  <div class="grid grid-cols-3 gap-5">
+  <div class="grid grid-cols-3 gap-4">
     <!-- Recent Cases -->
     <div class="col-span-2 bg-white rounded-xl border border-gray-100 overflow-hidden">
       <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -293,8 +306,8 @@
     </div>
   </div>
   
-  <!-- Resource Summary & Balances -->
-  <div class="grid grid-cols-2 gap-5">
+  <!-- Resource Summary & Balances & Bill -->
+  <div class="grid grid-cols-3 gap-4">
     <!-- Resource Summary -->
     <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
       <div class="px-5 py-4 border-b border-gray-100">
@@ -348,6 +361,42 @@
                 {/if}
               </div>
             {/each}
+          </div>
+        {/if}
+      </div>
+    </div>
+    
+    <!-- Current Month Bill -->
+    <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+      <div class="px-5 py-4 border-b border-gray-100">
+        <h3 class="text-[15px] font-semibold text-gray-900">{t.currentMonthBill || '当月账单'}</h3>
+      </div>
+      <div class="p-5">
+        {#if billsLoading}
+          <div class="text-center py-8 text-[13px] text-gray-400">
+            {t.loading || '加载中...'}
+          </div>
+        {:else if bills.length === 0}
+          <div class="text-center py-8 text-[13px] text-gray-400">
+            {t.noBalanceData || '暂无账单数据'}
+          </div>
+        {:else}
+          <div class="space-y-3">
+            {#each bills as bill}
+              <div class="flex items-center justify-between pb-2 border-b border-gray-50 last:border-0">
+                <span class="text-[12px] text-gray-500 uppercase">{bill.provider}</span>
+                {#if bill.error}
+                  <span class="text-[11px] text-red-500">{bill.error}</span>
+                {:else}
+                  <span class="text-[14px] font-medium text-gray-900">{bill.currency} {bill.totalAmount}</span>
+                {/if}
+              </div>
+            {/each}
+            {#if bills.length > 0 && bills[0].startDate}
+              <div class="pt-2 mt-2 border-t border-gray-100">
+                <span class="text-[10px] text-gray-400">{bills[0].startDate} ~ {bills[0].endDate}</span>
+              </div>
+            {/if}
           </div>
         {/if}
       </div>

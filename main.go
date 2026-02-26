@@ -22,7 +22,7 @@ func main() {
 	appOptions := &options.App{
 		Title:  "RedC - 红队基础设施管理",
 		Width:  1600,
-		Height: 1000,
+		Height: 1050,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

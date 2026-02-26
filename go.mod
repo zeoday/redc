@@ -4,6 +4,7 @@ go 1.24.0
 
 require (
 	github.com/aliyun/alibaba-cloud-sdk-go v1.63.107
+	github.com/aws/aws-sdk-go v1.40.45
 	github.com/aws/aws-sdk-go-v2 v1.41.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.7
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.7
