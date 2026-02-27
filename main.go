@@ -12,6 +12,7 @@ import (
 )
 
 //go:embed all:frontend/dist
+//go:embed mod/providers
 var assets embed.FS
 
 func main() {

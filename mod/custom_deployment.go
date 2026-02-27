@@ -1,6 +1,7 @@
 package mod
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -17,6 +18,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+//go:embed providers
+var embeddedProviders embed.FS
+
 // CustomDeploymentService 自定义部署服务
 type CustomDeploymentService struct {
 	templateMgr *TemplateManager
@@ -24,6 +28,7 @@ type CustomDeploymentService struct {
 	executor    *DeploymentExecutor
 	configStore *ConfigStore
 }
+
 // EstimateCost 估算部署成本
 // 集成现有的 cost.CostCalculator 根据部署配置估算成本
 func (s *CustomDeploymentService) EstimateCost(config *DeploymentConfig, pricingService *cost.PricingService, costCalculator *cost.CostCalculator) (*CostEstimate, error) {
@@ -131,15 +136,15 @@ func NewCustomDeploymentService() *CustomDeploymentService {
 
 // BaseTemplate 基础模板结构
 type BaseTemplate struct {
-	Name        string             `json:"name"`
-	Description string             `json:"description"`
-	Version     string             `json:"version"`
-	Variables   []TemplateVariable `json:"variables"`
-	Provider    string             `json:"provider"`  // 单一云厂商标识（新模板使用）
-	Providers   []string           `json:"providers"` // 支持的云厂商列表（向后兼容）
-	TemplateType TemplateType      `json:"template"`
-	User        string             `json:"user"`
-	RedcModule  string             `json:"redc_module,omitempty"`
+	Name         string             `json:"name"`
+	Description  string             `json:"description"`
+	Version      string             `json:"version"`
+	Variables    []TemplateVariable `json:"variables"`
+	Provider     string             `json:"provider"`  // 单一云厂商标识（新模板使用）
+	Providers    []string           `json:"providers"` // 支持的云厂商列表（向后兼容）
+	TemplateType TemplateType       `json:"template"`
+	User         string             `json:"user"`
+	RedcModule   string             `json:"redc_module,omitempty"`
 }
 
 // TemplateVariable 模板变量定义
@@ -162,16 +167,16 @@ type VariableValidation struct {
 
 // DeploymentConfig 部署配置
 type DeploymentConfig struct {
-	Name         string            `json:"name"`
-	TemplateName string            `json:"template_name"`
-	Provider     string            `json:"provider"`
-	Region       string            `json:"region"`
-	InstanceType string            `json:"instance_type"`
-	Userdata     string            `json:"userdata,omitempty"`
-	IsSpotInstance bool            `json:"is_spot_instance"`
-	Variables    map[string]string `json:"variables"`
-	CreatedAt    time.Time         `json:"created_at"`
-	UpdatedAt    time.Time         `json:"updated_at"`
+	Name           string            `json:"name"`
+	TemplateName   string            `json:"template_name"`
+	Provider       string            `json:"provider"`
+	Region         string            `json:"region"`
+	InstanceType   string            `json:"instance_type"`
+	Userdata       string            `json:"userdata,omitempty"`
+	IsSpotInstance bool              `json:"is_spot_instance"`
+	Variables      map[string]string `json:"variables"`
+	CreatedAt      time.Time         `json:"created_at"`
+	UpdatedAt      time.Time         `json:"updated_at"`
 }
 
 // ValidationResult 验证结果
@@ -187,11 +192,11 @@ type ValidationError struct {
 	Message string `json:"message"`
 	Code    string `json:"code"`
 }
+
 // Error implements the error interface for ValidationError
 func (e *ValidationError) Error() string {
 	return fmt.Sprintf("%s: %s (code: %s)", e.Field, e.Message, e.Code)
 }
-
 
 // ValidationWarning 验证警告
 type ValidationWarning struct {
@@ -243,6 +248,7 @@ type CustomDeployment struct {
 	Outputs      map[string]interface{} `json:"outputs,omitempty"`
 	ProjectID    string                 `json:"-"` // 不序列化到 JSON，仅用于数据库操作
 }
+
 // GetProviderRegions 获取云厂商支持的地域
 func (s *CustomDeploymentService) GetProviderRegions(provider string) ([]Region, error) {
 	return GetProviderRegions(provider)
@@ -264,7 +270,7 @@ func (s *CustomDeploymentService) CreateCustomDeployment(config *DeploymentConfi
 	if config == nil {
 		return nil, fmt.Errorf("部署配置不能为空")
 	}
-	
+
 	if projectPath == "" {
 		return nil, fmt.Errorf("项目路径不能为空")
 	}
@@ -301,7 +307,7 @@ func (s *CustomDeploymentService) CreateCustomDeployment(config *DeploymentConfi
 
 	// 3. 生成部署 ID
 	deploymentID := GenerateCaseID()
-	
+
 	// 4. 获取模板路径
 	templatePath, err := GetTemplatePath(config.TemplateName)
 	if err != nil {
@@ -328,7 +334,7 @@ func (s *CustomDeploymentService) CreateCustomDeployment(config *DeploymentConfi
 		os.RemoveAll(deploymentPath)
 		return nil, fmt.Errorf("生成 provider 配置失败: %w", err)
 	}
-	
+
 	providerPath := filepath.Join(deploymentPath, "provider.tf")
 	if err := os.WriteFile(providerPath, []byte(providerContent), 0644); err != nil {
 		// 清理失败的部署目录
@@ -389,6 +395,7 @@ func (s *CustomDeploymentService) CreateCustomDeployment(config *DeploymentConfi
 
 	return deployment, nil
 }
+
 // ListCustomDeployments 列出自定义部署
 // 从数据库查询所有自定义部署
 func (s *CustomDeploymentService) ListCustomDeployments(projectID string) ([]*CustomDeployment, error) {
@@ -489,7 +496,7 @@ func (s *CustomDeploymentService) StartCustomDeployment(projectID, deploymentID,
 		deployment.Outputs = map[string]interface{}{
 			"error_message": errorMsg,
 		}
-		
+
 		// 自动清理已创建的资源（避免 EIP 等资源持续扣费）
 		gologger.Warning().Msgf("部署失败，自动清理已创建的资源...")
 		if destroyErr := TfDestroy(deploymentPath, nil); destroyErr != nil {
@@ -497,7 +504,7 @@ func (s *CustomDeploymentService) StartCustomDeployment(projectID, deploymentID,
 		} else {
 			gologger.Info().Msgf("已自动清理部署失败时创建的资源")
 		}
-		
+
 		// 更新状态为错误
 		deployment.State = StateError
 		deployment.UpdatedAt = time.Now()
@@ -514,9 +521,9 @@ func (s *CustomDeploymentService) StartCustomDeployment(projectID, deploymentID,
 		// 将 outputs 转换为 map[string]interface{}
 		outputMap := make(map[string]interface{})
 		for key, output := range outputs {
-			fmt.Printf("[DEBUG StartCustomDeployment] Output key=%s, Sensitive=%v, Type=%v, Value=%v\n", 
+			fmt.Printf("[DEBUG StartCustomDeployment] Output key=%s, Sensitive=%v, Type=%v, Value=%v\n",
 				key, output.Sensitive, output.Type, output.Value)
-			
+
 			// 需要 unmarshal Value (它是 json.RawMessage)
 			var value interface{}
 			if err := json.Unmarshal(output.Value, &value); err != nil {
@@ -640,6 +647,7 @@ func (s *CustomDeploymentService) DeleteCustomDeployment(projectID, deploymentID
 
 	return nil
 }
+
 // DeploymentChangeHistory 部署变更历史记录
 type DeploymentChangeHistory struct {
 	ID           string                 `json:"id"`
@@ -739,6 +747,7 @@ func configToMap(config *DeploymentConfig) map[string]interface{} {
 		"variables":     config.Variables,
 	}
 }
+
 // BatchOperationResult 批量操作结果
 type BatchOperationResult struct {
 	DeploymentID string `json:"deployment_id"`
@@ -886,35 +895,35 @@ func GetProviderRegions(provider string) ([]Region, error) {
 
 // loadRegionsData 加载地域数据
 func loadRegionsData() (map[string][]Region, error) {
-	// Try multiple possible paths for the regions.json file
+	// First try to load from embedded filesystem
+	data, err := embeddedProviders.ReadFile("providers/regions.json")
+	if err == nil {
+		var regions map[string][]Region
+		if err := json.Unmarshal(data, &regions); err != nil {
+			return nil, fmt.Errorf("解析地域配置文件失败: %w", err)
+		}
+		return regions, nil
+	}
+
+	// Fallback: try multiple possible paths for the regions.json file
 	possiblePaths := []string{
 		"mod/providers/regions.json",
 		"providers/regions.json",
 		"../mod/providers/regions.json",
 	}
 
-	var data []byte
-	var err error
-	var foundPath string
-
 	for _, path := range possiblePaths {
 		data, err = os.ReadFile(path)
 		if err == nil {
-			foundPath = path
-			break
+			var regions map[string][]Region
+			if err := json.Unmarshal(data, &regions); err != nil {
+				return nil, fmt.Errorf("解析地域配置文件失败: %w", err)
+			}
+			return regions, nil
 		}
 	}
 
-	if foundPath == "" {
-		return nil, fmt.Errorf("读取地域配置文件失败: 未找到 regions.json 文件")
-	}
-
-	var regions map[string][]Region
-	if err := json.Unmarshal(data, &regions); err != nil {
-		return nil, fmt.Errorf("解析地域配置文件失败: %w", err)
-	}
-
-	return regions, nil
+	return nil, fmt.Errorf("读取地域配置文件失败: 未找到 regions.json 文件")
 }
 
 // GetInstanceTypes 获取实例规格列表（带缓存）
@@ -940,7 +949,7 @@ func GetInstanceTypes(provider, region string) ([]InstanceType, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	regionValid := false
 	for _, r := range regions {
 		if r.Code == region {
@@ -948,7 +957,7 @@ func GetInstanceTypes(provider, region string) ([]InstanceType, error) {
 			break
 		}
 	}
-	
+
 	if !regionValid {
 		return nil, &ValidationError{
 			Field:   "region",
@@ -974,7 +983,7 @@ func fetchInstanceTypesFromProvider(provider, region string) ([]InstanceType, er
 	if err == nil && len(types) > 0 {
 		return types, nil
 	}
-	
+
 	// 如果 API 调用失败，使用静态数据作为后备
 	switch provider {
 	case "alicloud":
@@ -1057,7 +1066,7 @@ func fetchVolcengineInstanceTypesStatic(region string) ([]InstanceType, error) {
 	// 火山引擎不同区域支持的实例规格不同
 	// 这里维护常见区域的实例规格映射
 	// 在实际生产环境中，应该调用火山引擎 SDK 的 DescribeInstanceTypes API
-	
+
 	regionInstanceTypes := map[string][]InstanceType{
 		"cn-beijing": {
 			{Code: "ecs.g3i.large", Name: "通用型 g3i", CPU: 2, Memory: 8192, Description: "2核8GB"},
@@ -1085,7 +1094,7 @@ func fetchVolcengineInstanceTypesStatic(region string) ([]InstanceType, error) {
 			{Code: "ecs.c3i.large", Name: "计算型 c3i", CPU: 2, Memory: 4096, Description: "2核4GB"},
 		},
 	}
-	
+
 	// 查找该区域的实例规格
 	types, exists := regionInstanceTypes[region]
 	if !exists {
@@ -1113,7 +1122,6 @@ func fetchHuaweicloudInstanceTypesStatic(region string) ([]InstanceType, error) 
 
 	return types, nil
 }
-
 
 // copyTemplate 复制模板到目标目录
 func copyTemplate(src, dst string) error {
@@ -1310,6 +1318,7 @@ func LoadProjectCustomDeployments(projectName string) ([]*CustomDeployment, erro
 
 	return deployments, err
 }
+
 // ==========================================
 // DeploymentChangeHistory 数据库操作
 // ==========================================

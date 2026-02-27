@@ -1,6 +1,16 @@
 {
   "changelog": [
     {
+      "version": "3.0.4",
+      "date": "2025-02-27",
+      "changes": [
+        "新增：GUI 版本自动打包发布（macOS/Windows）",
+        "新增：Azure 云厂商支持",
+        "新增：Azure VM 预设场景",
+        "优化：修复打包后 regions.json 文件找不到的问题"
+      ]
+    },
+    {
       "version": "3.0.3",
       "date": "2025-02-27",
       "changes": [
