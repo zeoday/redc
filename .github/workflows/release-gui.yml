@@ -50,16 +50,6 @@ jobs:
           cd frontend
           npm install
 
-      - name: Generate Wails bindings
-        run: |
-          # Create wailsjs directory structure
-          mkdir -p frontend/wailsjs/go/main
-          mkdir -p frontend/wailsjs/runtime
-          # Generate Go bindings from project root
-          wails generate
-          # Ensure runtime files are in the right place
-          ls -la frontend/wailsjs/
-
       - name: Build macOS
         run: wails build -platform darwin/universal
         env:
@@ -109,16 +99,6 @@ jobs:
         run: |
           cd frontend
           npm install
-
-      - name: Generate Wails bindings
-        run: |
-          # Create wailsjs directory structure
-          mkdir -p frontend/wailsjs/go/main
-          mkdir -p frontend/wailsjs/runtime
-          # Generate Go bindings from project root
-          wails generate
-          # Ensure runtime files are in the right place
-          ls -la frontend/wailsjs/
 
       - name: Build Windows
         run: wails build -platform windows/amd64

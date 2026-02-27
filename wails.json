@@ -11,7 +11,7 @@
     "name": "r0fus0d",
     "email": "d2hwakh7bs5e@protonmail.com"
   },
-  "wailsjsdir": "./frontend/wailsjs",
+  "wailsjsdir": "./frontend/wailsjs/wailsjs",
   "version": "2",
   "outputType": "desktop"
 }
