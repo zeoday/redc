@@ -86,6 +86,10 @@ func (a *App) startup(ctx context.Context) {
 			os.Setenv("HTTPS_PROXY", settings.HttpsProxy)
 			os.Setenv("https_proxy", settings.HttpsProxy)
 		}
+		if settings.Socks5Proxy != "" {
+			os.Setenv("ALL_PROXY", settings.Socks5Proxy)
+			os.Setenv("all_proxy", settings.Socks5Proxy)
+		}
 		if settings.NoProxy != "" {
 			os.Setenv("NO_PROXY", settings.NoProxy)
 			os.Setenv("no_proxy", settings.NoProxy)
@@ -248,6 +252,7 @@ type ConfigInfo struct {
 	LogPath      string `json:"logPath"`
 	HttpProxy    string `json:"httpProxy"`
 	HttpsProxy   string `json:"httpsProxy"`
+	Socks5Proxy  string `json:"socks5Proxy"`
 	NoProxy      string `json:"noProxy"`
 	DebugEnabled bool   `json:"debugEnabled"`
 }
@@ -307,6 +312,7 @@ func (a *App) GetConfig() ConfigInfo {
 	// Try to load proxy settings from GUI settings first, fallback to env vars
 	httpProxy := os.Getenv("HTTP_PROXY")
 	httpsProxy := os.Getenv("HTTPS_PROXY")
+	socks5Proxy := os.Getenv("ALL_PROXY")
 	noProxy := os.Getenv("NO_PROXY")
 
 	// Load from GUI settings if available
@@ -316,6 +322,9 @@ func (a *App) GetConfig() ConfigInfo {
 		}
 		if settings.HttpsProxy != "" {
 			httpsProxy = settings.HttpsProxy
+		}
+		if settings.Socks5Proxy != "" {
+			socks5Proxy = settings.Socks5Proxy
 		}
 		if settings.NoProxy != "" {
 			noProxy = settings.NoProxy
@@ -328,6 +337,7 @@ func (a *App) GetConfig() ConfigInfo {
 		LogPath:      logPath,
 		HttpProxy:    httpProxy,
 		HttpsProxy:   httpsProxy,
+		Socks5Proxy:  socks5Proxy,
 		NoProxy:      noProxy,
 		DebugEnabled: redc.Debug,
 	}
@@ -410,7 +420,7 @@ func compareVersions(current, latest string) int {
 }
 
 // SaveProxyConfig saves proxy configuration to environment variables and persists to GUI settings
-func (a *App) SaveProxyConfig(httpProxy, httpsProxy, noProxy string) error {
+func (a *App) SaveProxyConfig(httpProxy, httpsProxy, socks5Proxy, noProxy string) error {
 	// Set environment variables for current process
 	if httpProxy != "" {
 		os.Setenv("HTTP_PROXY", httpProxy)
@@ -426,6 +436,14 @@ func (a *App) SaveProxyConfig(httpProxy, httpsProxy, noProxy string) error {
 	} else {
 		os.Unsetenv("HTTPS_PROXY")
 		os.Unsetenv("https_proxy")
+	}
+
+	if socks5Proxy != "" {
+		os.Setenv("ALL_PROXY", socks5Proxy)
+		os.Setenv("all_proxy", socks5Proxy)
+	} else {
+		os.Unsetenv("ALL_PROXY")
+		os.Unsetenv("all_proxy")
 	}
 
 	if noProxy != "" {
@@ -444,13 +462,14 @@ func (a *App) SaveProxyConfig(httpProxy, httpsProxy, noProxy string) error {
 
 	settings.HttpProxy = httpProxy
 	settings.HttpsProxy = httpsProxy
+	settings.Socks5Proxy = socks5Proxy
 	settings.NoProxy = noProxy
 
 	if err := redc.SaveGUISettings(settings); err != nil {
 		return fmt.Errorf("保存GUI设置失败: %w", err)
 	}
 
-	a.emitLog(fmt.Sprintf("代理配置已更新 - HTTP: %s, HTTPS: %s, NO_PROXY: %s", httpProxy, httpsProxy, noProxy))
+	a.emitLog(fmt.Sprintf("代理配置已更新 - HTTP: %s, HTTPS: %s, SOCKS5: %s, NO_PROXY: %s", httpProxy, httpsProxy, socks5Proxy, noProxy))
 	return nil
 }
 

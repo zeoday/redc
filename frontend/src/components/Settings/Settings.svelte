@@ -2,7 +2,7 @@
   import { SaveProxyConfig, SetDebugLogging, GetTerraformMirrorConfig, SaveTerraformMirrorConfig, TestTerraformEndpoints, SetNotificationEnabled, SetDisableRightClick } from '../../../wailsjs/go/main/App.js';
 
 let { t, config = $bindable({ redcPath: '', projectPath: '', logPath: '' }), terraformMirror = $bindable({ enabled: false, configPath: '', managed: false, fromEnv: false, providers: [] }), debugEnabled = $bindable(false), notificationEnabled = $bindable(false), rightClickDisabled = $bindable(false) } = $props();
-  let proxyForm = $state({ httpProxy: '', httpsProxy: '', noProxy: '' });
+  let proxyForm = $state({ httpProxy: '', httpsProxy: '', socks5Proxy: '', noProxy: '' });
   let proxySaving = $state(false);
   let terraformMirrorForm = $state({ enabled: false, configPath: '', setEnv: false, providers: { aliyun: true, tencent: false, volc: false } });
   let terraformMirrorSaving = $state(false);
@@ -19,6 +19,7 @@ let { t, config = $bindable({ redcPath: '', projectPath: '', logPath: '' }), ter
     proxyForm = {
       httpProxy: config.httpProxy || '',
       httpsProxy: config.httpsProxy || '',
+      socks5Proxy: config.socks5Proxy || '',
       noProxy: config.noProxy || ''
     };
   });
@@ -37,9 +38,10 @@ let { t, config = $bindable({ redcPath: '', projectPath: '', logPath: '' }), ter
   async function handleSaveProxy() {
     proxySaving = true;
     try {
-      await SaveProxyConfig(proxyForm.httpProxy, proxyForm.httpsProxy, proxyForm.noProxy);
+      await SaveProxyConfig(proxyForm.httpProxy, proxyForm.httpsProxy, proxyForm.socks5Proxy, proxyForm.noProxy);
       config.httpProxy = proxyForm.httpProxy;
       config.httpsProxy = proxyForm.httpsProxy;
+      config.socks5Proxy = proxyForm.socks5Proxy;
       config.noProxy = proxyForm.noProxy;
     } catch (e) {
       console.error('Failed to save proxy:', e);
@@ -227,6 +229,16 @@ let { t, config = $bindable({ redcPath: '', projectPath: '', logPath: '' }), ter
           placeholder="http://127.0.0.1:7890" 
           class="w-full h-9 sm:h-10 px-3 text-[12px] sm:text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
           bind:value={proxyForm.httpsProxy} 
+        />
+      </div>
+      <div>
+        <label for="socks5Proxy" class="block text-[11px] sm:text-[12px] font-medium text-gray-500 mb-1.5">{t.socks5Proxy}</label>
+        <input 
+          id="socks5Proxy"
+          type="text" 
+          placeholder="socks5://127.0.0.1:1080" 
+          class="w-full h-9 sm:h-10 px-3 text-[12px] sm:text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
+          bind:value={proxyForm.socks5Proxy} 
         />
       </div>
       <div>

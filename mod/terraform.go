@@ -108,48 +108,44 @@ func NewTerraformExecutor(workingDir string, opts ...TerraformOption) (*Terrafor
 	// 保存 stderr writer 的引用以便后续获取
 	te.stderr = stderrCapture
 
-	// Pass all environment variables including proxy settings to terraform subprocess
-	// Check if proxy is configured
-	proxyVars := []string{"HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy", "NO_PROXY", "no_proxy"}
-	hasProxy := false
-	for _, key := range proxyVars {
-		if os.Getenv(key) != "" {
-			hasProxy = true
-			break
+	// Pass all environment variables including proxy settings and provider credentials to terraform subprocess
+	// Always set environment variables to ensure provider credentials are passed to terraform subprocess
+	// This is needed for all operating systems to pass cloud provider credentials
+	envVars := make(map[string]string)
+	// Copy all current environment variables
+	for _, env := range os.Environ() {
+		if idx := strings.Index(env, "="); idx > 0 {
+			envVars[env[:idx]] = env[idx+1:]
 		}
 	}
 
-	// On macOS, always set environment variables to include DYLD_FALLBACK_LIBRARY_PATH
-	// This fixes the "Failed to read any lines from plugin's stdout" error with Terraform providers
-	needsCustomEnv := hasProxy || runtime.GOOS == "darwin"
-
-	if needsCustomEnv {
-		envVars := make(map[string]string)
-		// Copy all current environment variables
-		for _, env := range os.Environ() {
-			if idx := strings.Index(env, "="); idx > 0 {
-				envVars[env[:idx]] = env[idx+1:]
+	// Debug: log proxy settings being passed to terraform
+	if Debug {
+		proxyKeys := []string{"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"}
+		for _, key := range proxyKeys {
+			if val, ok := envVars[key]; ok && val != "" {
+				gologger.Debug().Msgf("Terraform env: %s=%s", key, val)
 			}
 		}
-
-		// On macOS, ensure library paths are set for provider plugins
-		if runtime.GOOS == "darwin" {
-			if _, exists := envVars["DYLD_FALLBACK_LIBRARY_PATH"]; !exists {
-				// Set default fallback library paths for macOS
-				envVars["DYLD_FALLBACK_LIBRARY_PATH"] = "/usr/local/lib:/usr/lib"
-			}
-			// Also set DYLD_LIBRARY_PATH to help with plugin loading
-			if _, exists := envVars["DYLD_LIBRARY_PATH"]; !exists {
-				envVars["DYLD_LIBRARY_PATH"] = "/usr/local/lib:/usr/lib"
-			}
-			// Enable Terraform plugin debug logging on macOS to diagnose issues
-			if _, exists := envVars["TF_LOG_PROVIDER"]; !exists && Debug {
-				envVars["TF_LOG_PROVIDER"] = "DEBUG"
-			}
-		}
-
-		tf.SetEnv(envVars)
 	}
+
+	// On macOS, ensure library paths are set for provider plugins
+	if runtime.GOOS == "darwin" {
+		if _, exists := envVars["DYLD_FALLBACK_LIBRARY_PATH"]; !exists {
+			// Set default fallback library paths for macOS
+			envVars["DYLD_FALLBACK_LIBRARY_PATH"] = "/usr/local/lib:/usr/lib"
+		}
+		// Also set DYLD_LIBRARY_PATH to help with plugin loading
+		if _, exists := envVars["DYLD_LIBRARY_PATH"]; !exists {
+			envVars["DYLD_LIBRARY_PATH"] = "/usr/local/lib:/usr/lib"
+		}
+		// Enable Terraform plugin debug logging on macOS to diagnose issues
+		if _, exists := envVars["TF_LOG_PROVIDER"]; !exists && Debug {
+			envVars["TF_LOG_PROVIDER"] = "DEBUG"
+		}
+	}
+
+	tf.SetEnv(envVars)
 
 	return te, nil
 }

@@ -32,6 +32,7 @@ type GUISettings struct {
 	DebugEnabled        bool   `json:"debugEnabled"`
 	HttpProxy           string `json:"httpProxy"`
 	HttpsProxy          string `json:"httpsProxy"`
+	Socks5Proxy         string `json:"socks5Proxy"`
 	NoProxy             string `json:"noProxy"`
 }
 
@@ -328,6 +329,7 @@ func LoadGUISettings() (*GUISettings, error) {
 				DebugEnabled:        false,
 				HttpProxy:           "",
 				HttpsProxy:          "",
+				Socks5Proxy:         "",
 				NoProxy:             "",
 			}
 			return LoadedGUISettings, nil
@@ -370,7 +372,7 @@ func SaveGUISettings(settings *GUISettings) error {
 }
 
 // GetProxySettings returns the current proxy settings from GUI settings or environment
-func GetProxySettings() (httpProxy, httpsProxy, noProxy string) {
+func GetProxySettings() (httpProxy, httpsProxy, socks5Proxy, noProxy string) {
 	// Try to load from GUI settings first
 	if settings, err := LoadGUISettings(); err == nil && settings != nil {
 		if settings.HttpProxy != "" {
@@ -378,6 +380,9 @@ func GetProxySettings() (httpProxy, httpsProxy, noProxy string) {
 		}
 		if settings.HttpsProxy != "" {
 			httpsProxy = settings.HttpsProxy
+		}
+		if settings.Socks5Proxy != "" {
+			socks5Proxy = settings.Socks5Proxy
 		}
 		if settings.NoProxy != "" {
 			noProxy = settings.NoProxy
@@ -391,16 +396,22 @@ func GetProxySettings() (httpProxy, httpsProxy, noProxy string) {
 	if httpsProxy == "" {
 		httpsProxy = os.Getenv("HTTPS_PROXY")
 	}
+	if socks5Proxy == "" {
+		socks5Proxy = os.Getenv("ALL_PROXY")
+	}
 	if noProxy == "" {
 		noProxy = os.Getenv("NO_PROXY")
 	}
 
-	return httpProxy, httpsProxy, noProxy
+	return httpProxy, httpsProxy, socks5Proxy, noProxy
 }
 
 // GetProxyURL returns a proxy URL for HTTP client based on the current proxy settings
 func GetProxyURL() string {
-	httpProxy, httpsProxy, _ := GetProxySettings()
+	httpProxy, httpsProxy, socks5Proxy, _ := GetProxySettings()
+	if socks5Proxy != "" {
+		return socks5Proxy
+	}
 	if httpsProxy != "" {
 		return httpsProxy
 	}
