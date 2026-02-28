@@ -353,50 +353,80 @@
         <div class="flex items-center justify-center h-64">
           <div class="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin"></div>
         </div>
-      {:else if activeTab === 'dashboard'}
-        <Dashboard {t} onTabChange={(tab) => activeTab = tab} />
+      {:else}
+        {#key activeTab}
+          <div 
+            class="animate-fade-in"
+            style="animation-duration: 200ms; animation-timing-function: ease-out;"
+          >
+            {#if activeTab === 'dashboard'}
+              <Dashboard {t} onTabChange={(tab) => activeTab = tab} />
 
-      {:else if activeTab === 'cases'}
-        <Cases bind:this={dashboardComponent} {t} onTabChange={(tab) => activeTab = tab} />
+            {:else if activeTab === 'cases'}
+              <Cases bind:this={dashboardComponent} {t} onTabChange={(tab) => activeTab = tab} />
 
-      {:else if activeTab === 'console'}
-        <Console bind:logs {t} />
+            {:else if activeTab === 'console'}
+              <Console bind:logs {t} />
 
-      {:else if activeTab === 'resources'}
-        <CloudResources bind:this={cloudResourcesComponent} {t} />
+            {:else if activeTab === 'resources'}
+              <CloudResources bind:this={cloudResourcesComponent} {t} />
 
-      {:else if activeTab === 'compose'}
-        <Compose {t} />
+            {:else if activeTab === 'compose'}
+              <Compose {t} />
 
-      {:else if activeTab === 'settings'}
-        <Settings {t} bind:config bind:terraformMirror bind:debugEnabled bind:notificationEnabled bind:rightClickDisabled />
+            {:else if activeTab === 'settings'}
+              <Settings {t} bind:config bind:terraformMirror bind:debugEnabled bind:notificationEnabled bind:rightClickDisabled />
 
-      {:else if activeTab === 'registry'}
-        <Registry {t} />
+            {:else if activeTab === 'registry'}
+              <Registry {t} />
 
-      {:else if activeTab === 'ai'}
-        <AIIntegration {t} onTabChange={(tab) => activeTab = tab} />
+            {:else if activeTab === 'ai'}
+              <AIIntegration {t} onTabChange={(tab) => activeTab = tab} />
 
-      {:else if activeTab === 'specialModules'}
-        <SpecialModules {t} />
+            {:else if activeTab === 'specialModules'}
+              <SpecialModules {t} />
 
-      {:else if activeTab === 'credentials'}
-        <Credentials {t} />
+            {:else if activeTab === 'credentials'}
+              <Credentials {t} />
 
-      {:else if activeTab === 'localTemplates'}
-        <LocalTemplates {t} />
+            {:else if activeTab === 'localTemplates'}
+              <LocalTemplates {t} />
 
-      {:else if activeTab === 'customDeployment'}
-        <CustomDeployment {t} />
+            {:else if activeTab === 'customDeployment'}
+              <CustomDeployment {t} />
 
-      {:else if activeTab === 'about'}
-        <About {t} version={appVersion} updateStatus={updateStatus} onCheckUpdate={checkForUpdates} />
+            {:else if activeTab === 'about'}
+              <About {t} version={appVersion} updateStatus={updateStatus} onCheckUpdate={checkForUpdates} />
+            {/if}
+          </div>
+        {/key}
       {/if}
     </main>
   </div>
 </div>
 
 <style>
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 200ms ease-out forwards;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in {
+      animation: none;
+    }
+  }
 
   :global(body) {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
