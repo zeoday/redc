@@ -1499,60 +1499,88 @@ func (a *App) GetBalances(providers []string) ([]BalanceInfo, error) {
 		}
 		switch p {
 		case "aliyun":
-			amount, currency, err := redc.QueryAliyunBalance(conf.Providers.Alicloud.AccessKey, conf.Providers.Alicloud.SecretKey, conf.Providers.Alicloud.Region)
-			if err != nil {
-				result.Error = err.Error()
+			if conf.Providers.Alicloud.AccessKey == "" || conf.Providers.Alicloud.SecretKey == "" {
+				result.Error = "未配置阿里云凭据"
 			} else {
-				result.Amount = amount
-				result.Currency = currency
+				amount, currency, err := redc.QueryAliyunBalance(conf.Providers.Alicloud.AccessKey, conf.Providers.Alicloud.SecretKey, conf.Providers.Alicloud.Region)
+				if err != nil {
+					result.Error = err.Error()
+				} else {
+					result.Amount = amount
+					result.Currency = currency
+				}
 			}
 		case "tencentcloud":
-			amount, currency, err := redc.QueryTencentBalance(conf.Providers.Tencentcloud.SecretId, conf.Providers.Tencentcloud.SecretKey, conf.Providers.Tencentcloud.Region)
-			if err != nil {
-				result.Error = err.Error()
+			if conf.Providers.Tencentcloud.SecretId == "" || conf.Providers.Tencentcloud.SecretKey == "" {
+				result.Error = "未配置腾讯云凭据"
 			} else {
-				result.Amount = amount
-				result.Currency = currency
+				amount, currency, err := redc.QueryTencentBalance(conf.Providers.Tencentcloud.SecretId, conf.Providers.Tencentcloud.SecretKey, conf.Providers.Tencentcloud.Region)
+				if err != nil {
+					result.Error = err.Error()
+				} else {
+					result.Amount = amount
+					result.Currency = currency
+				}
 			}
 		case "volcengine":
-			amount, currency, err := redc.QueryVolcengineBalance(conf.Providers.Volcengine.AccessKey, conf.Providers.Volcengine.SecretKey, conf.Providers.Volcengine.Region)
-			if err != nil {
-				result.Error = err.Error()
+			if conf.Providers.Volcengine.AccessKey == "" || conf.Providers.Volcengine.SecretKey == "" {
+				result.Error = "未配置火山引擎凭据"
 			} else {
-				result.Amount = amount
-				result.Currency = currency
+				amount, currency, err := redc.QueryVolcengineBalance(conf.Providers.Volcengine.AccessKey, conf.Providers.Volcengine.SecretKey, conf.Providers.Volcengine.Region)
+				if err != nil {
+					result.Error = err.Error()
+				} else {
+					result.Amount = amount
+					result.Currency = currency
+				}
 			}
 		case "huaweicloud":
-			amount, currency, err := redc.QueryHuaweiBalance(conf.Providers.Huaweicloud.AccessKey, conf.Providers.Huaweicloud.SecretKey, conf.Providers.Huaweicloud.Region)
-			if err != nil {
-				result.Error = err.Error()
+			if conf.Providers.Huaweicloud.AccessKey == "" || conf.Providers.Huaweicloud.SecretKey == "" {
+				result.Error = "未配置华为云凭据"
 			} else {
-				result.Amount = amount
-				result.Currency = currency
+				amount, currency, err := redc.QueryHuaweiBalance(conf.Providers.Huaweicloud.AccessKey, conf.Providers.Huaweicloud.SecretKey, conf.Providers.Huaweicloud.Region)
+				if err != nil {
+					result.Error = err.Error()
+				} else {
+					result.Amount = amount
+					result.Currency = currency
+				}
 			}
 		case "ucloud":
-			amount, currency, err := redc.QueryUCloudBalance(conf.Providers.UCloud.PublicKey, conf.Providers.UCloud.PrivateKey, conf.Providers.UCloud.Region)
-			if err != nil {
-				result.Error = err.Error()
+			if conf.Providers.UCloud.PublicKey == "" || conf.Providers.UCloud.PrivateKey == "" {
+				result.Error = "未配置 UCloud 凭据"
 			} else {
-				result.Amount = amount
-				result.Currency = currency
+				amount, currency, err := redc.QueryUCloudBalance(conf.Providers.UCloud.PublicKey, conf.Providers.UCloud.PrivateKey, conf.Providers.UCloud.Region)
+				if err != nil {
+					result.Error = err.Error()
+				} else {
+					result.Amount = amount
+					result.Currency = currency
+				}
 			}
 		case "vultr":
-			amount, currency, err := redc.QueryVultrBalance(conf.Providers.Vultr.ApiKey)
-			if err != nil {
-				result.Error = err.Error()
+			if conf.Providers.Vultr.ApiKey == "" {
+				result.Error = "未配置 Vultr 凭据"
 			} else {
-				result.Amount = amount
-				result.Currency = currency
+				amount, currency, err := redc.QueryVultrBalance(conf.Providers.Vultr.ApiKey)
+				if err != nil {
+					result.Error = err.Error()
+				} else {
+					result.Amount = amount
+					result.Currency = currency
+				}
 			}
 		case "aws":
-			amount, currency, err := redc.QueryAWSBill(conf.Providers.Aws.AccessKey, conf.Providers.Aws.SecretKey, conf.Providers.Aws.Region)
-			if err != nil {
-				result.Error = err.Error()
+			if conf.Providers.Aws.AccessKey == "" || conf.Providers.Aws.SecretKey == "" {
+				result.Error = "未配置 AWS 凭据"
 			} else {
-				result.Amount = amount
-				result.Currency = currency
+				amount, currency, err := redc.QueryAWSBill(conf.Providers.Aws.AccessKey, conf.Providers.Aws.SecretKey, conf.Providers.Aws.Region)
+				if err != nil {
+					result.Error = err.Error()
+				} else {
+					result.Amount = amount
+					result.Currency = currency
+				}
 			}
 		default:
 			result.Error = "不支持的云厂商"

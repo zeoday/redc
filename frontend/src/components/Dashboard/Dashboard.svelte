@@ -3,6 +3,26 @@
   import { ListCases, GetResourceSummary, GetBalances, GetBills, ListTemplates, ListProjects, TestTerraformEndpoints, GetTotalRuntime, GetPredictedMonthlyCost } from '../../../wailsjs/go/main/App.js';
 
   let { t, onTabChange = () => {} } = $props();
+
+  // 翻译凭据错误信息
+  function translateError(error) {
+    if (!error) return '';
+    // 中文厂商名映射到英文键名
+    const providerMap = {
+      '阿里云': 'Aliyun',
+      '腾讯云': 'Tencent',
+      '火山引擎': 'Volcengine',
+      '华为云': 'Huawei',
+      'UCloud': 'UCloud',
+      'Vultr': 'Vultr',
+      'AWS': 'AWS',
+      'GCP': 'GCP',
+      'Azure': 'Azure'
+    };
+    let provider = error.replace('未配置', '').replace('凭据', '').trim();
+    const key = 'noCredentials' + (providerMap[provider] || provider);
+    return t[key] || error;
+  }
   
   // Dashboard state
   let stats = $state({
@@ -355,7 +375,7 @@
               <div class="flex items-center justify-between">
                 <span class="text-[12px] text-gray-600">{balance.provider}</span>
                 {#if balance.error}
-                  <span class="text-[11px] text-red-600">{t.loadFailed || '加载失败'}</span>
+                  <span class="text-[11px] text-gray-500">{translateError(balance.error)}</span>
                 {:else}
                   <span class="text-[13px] font-medium text-gray-900">{balance.currency} {balance.amount}</span>
                 {/if}
@@ -386,7 +406,7 @@
               <div class="flex items-center justify-between pb-2 border-b border-gray-50 last:border-0">
                 <span class="text-[12px] text-gray-500 uppercase">{bill.provider}</span>
                 {#if bill.error}
-                  <span class="text-[11px] text-red-500">{bill.error}</span>
+                  <span class="text-[11px] text-gray-500">{translateError(bill.error)}</span>
                 {:else}
                   <span class="text-[14px] font-medium text-gray-900">{bill.currency} {bill.totalAmount}</span>
                 {/if}
