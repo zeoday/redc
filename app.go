@@ -2521,6 +2521,13 @@ func (a *App) AIRecommendTemplates(query string) error {
 		return fmt.Errorf("请先配置 AI 服务")
 	}
 
+	// Get UI language
+	uiLang := a.GetLanguage()
+	langPrompt := "请用中文回复"
+	if uiLang == "en" {
+		langPrompt = "Please reply in English"
+	}
+
 	aiConfig := profile.AIConfig
 	if aiConfig.APIKey == "" || aiConfig.BaseURL == "" || aiConfig.Model == "" {
 		return fmt.Errorf("AI 配置不完整，请检查 API Key、Base URL 和 Model")
@@ -2544,7 +2551,7 @@ func (a *App) AIRecommendTemplates(query string) error {
 
 请根据用户需求，推荐最合适的模板，并说明推荐理由。如果没有完全匹配的模板，可以推荐相近的模板并说明如何调整使用。
 
-请用简洁、友好的语言回复，直接给出推荐结果和理由。`
+` + langPrompt + `，用简洁、友好的语言回复，直接给出推荐结果和理由。`
 
 	messages := []ai.Message{
 		{Role: "system", Content: systemPrompt},
@@ -2776,6 +2783,13 @@ func (a *App) AICostOptimization() error {
 		return fmt.Errorf("当前没有运行中的场景")
 	}
 
+	// Get UI language
+	uiLang := a.GetLanguage()
+	langPrompt := "请用中文回复"
+	if uiLang == "en" {
+		langPrompt = "Please reply in English"
+	}
+
 	// Create AI client
 	client := ai.NewClient(aiConfig.Provider, aiConfig.APIKey, aiConfig.BaseURL, aiConfig.Model)
 
@@ -2806,8 +2820,9 @@ func (a *App) AICostOptimization() error {
 - 如果无法获取成本信息，提供通用的优化方向
 - 如果资源信息不完整，基于模板类型给出建议
 
-请用清晰、专业的语言回复，给出实用的建议。`
+` + langPrompt + `，用清晰、专业的语言回复，给出实用的建议。`
 
+	// langPrompt is used in the system prompt above
 	casesInfo := strings.Join(caseInfoList, "\n\n")
 	userPrompt := fmt.Sprintf(`请分析以下 %d 个运行中的云资源场景，并提供成本优化建议：
 
@@ -2855,6 +2870,13 @@ func (a *App) AnalyzeDeploymentError(deploymentID, errorMessage, provider, templ
 		return fmt.Errorf("AI 配置不完整，请检查 API Key、Base URL 和 Model")
 	}
 
+	// Get UI language
+	uiLang := a.GetLanguage()
+	langPrompt := "请用中文回复"
+	if uiLang == "en" {
+		langPrompt = "Please reply in English"
+	}
+
 	// Create AI client
 	client := ai.NewClient(aiConfig.Provider, aiConfig.APIKey, aiConfig.BaseURL, aiConfig.Model)
 
@@ -2873,7 +2895,7 @@ func (a *App) AnalyzeDeploymentError(deploymentID, errorMessage, provider, templ
 2. 解决方案建议
 3. 如果需要，提供具体的配置修改建议
 
-请用简洁、专业的语言回复，直接给出分析结果和解决方案。`
+` + langPrompt + `，用简洁、专业的语言回复，直接给出分析结果和解决方案。`
 
 	messages := []ai.Message{
 		{Role: "system", Content: systemPrompt},
@@ -2925,6 +2947,13 @@ func (a *App) AnalyzeCaseError(caseName, errorMessage, provider, templateName st
 		return fmt.Errorf("AI 配置不完整，请检查 API Key、Base URL 和 Model")
 	}
 
+	// Get UI language
+	uiLang := a.GetLanguage()
+	langPrompt := "请用中文回复"
+	if uiLang == "en" {
+		langPrompt = "Please reply in English"
+	}
+
 	// Create AI client
 	client := ai.NewClient(aiConfig.Provider, aiConfig.APIKey, aiConfig.BaseURL, aiConfig.Model)
 
@@ -2944,7 +2973,7 @@ func (a *App) AnalyzeCaseError(caseName, errorMessage, provider, templateName st
 2. 解决方案建议
 3. 如果需要，提供修正后的配置示例
 
-注意：请用中文回复，因为用户使用中文。`
+注意：` + langPrompt + `。`
 
 	messages := []ai.Message{
 		{Role: "system", Content: systemPrompt},
