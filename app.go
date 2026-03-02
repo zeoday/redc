@@ -806,12 +806,86 @@ func (a *App) GetLanguage() string {
 	// Load from GUI settings
 	settings, err := redc.LoadGUISettings()
 	if err != nil {
-		return "zh"
+		// No saved settings, detect system language
+		return detectSystemLanguage()
 	}
 	if settings.Language == "" {
-		return "zh"
+		// No language saved, detect system language
+		return detectSystemLanguage()
 	}
 	return settings.Language
+}
+
+// detectSystemLanguage detects the system language and returns appropriate language code
+func detectSystemLanguage() string {
+	// Try to get system locale
+	lang := getSystemLocale()
+	// If locale starts with "zh", use Chinese, otherwise English
+	if len(lang) >= 2 && lang[:2] == "zh" {
+		return "zh"
+	}
+	return "en"
+}
+
+// getSystemLocale returns the system locale language code
+func getSystemLocale() string {
+	// Try to detect OS and get locale
+	// For macOS: check LC_ALL, LC_MESSAGES, LANG environment variables
+	// For Windows: use standard library
+	// For Linux: check environment variables
+
+	// Check common environment variables for locale
+	locales := []string{"LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"}
+	for _, env := range locales {
+		if val := os.Getenv(env); val != "" {
+			// Parse locale like "en_US.UTF-8" or "zh_CN.UTF-8"
+			parts := strings.Split(val, ".")
+			if len(parts) > 0 {
+				lang := strings.ToLower(parts[0])
+				return lang
+			}
+		}
+	}
+
+	// Try runtime.GOOS specific methods
+	switch goruntime.GOOS {
+	case "darwin":
+		// On macOS, try to get user default language using syscall
+		return getMacOSLanguage()
+	case "windows":
+		// On Windows, try to get console code page
+		return getWindowsLanguage()
+	}
+
+	return "en"
+}
+
+// getMacOSLanguage gets the macOS system language
+func getMacOSLanguage() string {
+	// Try using environment variable that macOS sets
+	if lang := os.Getenv("LANG"); lang != "" {
+		return strings.ToLower(strings.Split(lang, "_")[0])
+	}
+	return "en"
+}
+
+// getWindowsLanguage gets the Windows system language
+func getWindowsLanguage() string {
+	// On Windows, try to detect language from environment variables
+	// Check common Windows language settings
+	if lang := os.Getenv("LANG"); lang != "" {
+		return strings.ToLower(strings.Split(lang, "_")[0])
+	}
+	// Check LC_ALL, LC_MESSAGES
+	for _, env := range []string{"LC_ALL", "LC_MESSAGES"} {
+		if val := os.Getenv(env); val != "" {
+			parts := strings.Split(val, ".")
+			if len(parts) > 0 {
+				return strings.ToLower(parts[0])
+			}
+		}
+	}
+	return "en"
 }
 
 // maskValue returns masked value for display (shows last 4 chars if length > 8)
