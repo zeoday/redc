@@ -3,7 +3,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { i18n as i18nData } from './lib/i18n.js';
   import { EventsOn, EventsOff, WindowMinimise, WindowMaximise, WindowUnmaximise, WindowIsMaximised, Quit, Environment } from '../wailsjs/runtime/runtime.js';
-  import { ListCases, ListTemplates, GetConfig, GetVersion, GetMCPStatus, StartMCPServer, StopMCPServer, GetResourceSummary, GetBalances, GetTerraformMirrorConfig, GetNotificationEnabled, GetCurrentProject, ListProjects, SwitchProject, CreateProject, GetDisableRightClick, SetDisableRightClick, CheckForUpdates, GetLanguage, SetLanguage } from '../wailsjs/wailsjs/go/main/App.js';
+  import { ListCases, ListTemplates, GetConfig, GetVersion, GetMCPStatus, StartMCPServer, StopMCPServer, GetResourceSummary, GetBalances, GetTerraformMirrorConfig, GetNotificationEnabled, GetCurrentProject, ListProjects, SwitchProject, CreateProject, GetDisableRightClick, SetDisableRightClick, CheckForUpdates, GetLanguage, SetLanguage, GetShowWelcomeDialog } from '../wailsjs/wailsjs/go/main/App.js';
   import Console from './components/Console/Console.svelte';
   import CloudResources from './components/Resources/CloudResources.svelte';
   import Compose from './components/Compose/Compose.svelte';
@@ -18,6 +18,7 @@
   import Sidebar from './components/Sidebar/Sidebar.svelte';
   import About from './components/About/About.svelte';
   import CustomDeployment from './components/CustomDeployment/CustomDeployment.svelte';
+  import WelcomeDialog from './components/Welcome/WelcomeDialog.svelte';
 
   let cases = $state([]);
   let templates = $state([]);
@@ -31,6 +32,9 @@
   let rightClickDisabled = $state(true);
   let rightClickDisabledSync = true; // 同步变量用于右键处理
   let appVersion = $state('');
+  
+  // 控制欢迎弹框是否可见（用于避免闪烁）
+  let welcomeDialogReady = $state(false);
   
   // 当 rightClickDisabled 变化时更新同步变量
   $effect(() => {
@@ -191,6 +195,11 @@
         GetLanguage(),
         GetVersion()
       ]);
+      // Check if should show welcome dialog
+      const shouldShowWelcome = await GetShowWelcomeDialog();
+      if (shouldShowWelcome) {
+        welcomeDialogReady = true;
+      }
       rightClickDisabledSync = rightClickDisabled;
       debugEnabled = !!config.debugEnabled;
     } catch (e) {
@@ -404,6 +413,9 @@
         {/key}
       {/if}
     </main>
+
+    <!-- Welcome Dialog -->
+    <WelcomeDialog {t} show={welcomeDialogReady} onClose={() => welcomeDialogReady = false} />
   </div>
 </div>
 

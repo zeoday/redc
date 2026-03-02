@@ -35,6 +35,7 @@ type GUISettings struct {
 	Socks5Proxy         string `json:"socks5Proxy"`
 	NoProxy             string `json:"noProxy"`
 	Language            string `json:"language"`
+	WelcomeDialogShown  string `json:"welcomeDialogShown"` // "true" means already shown, user chose to hide
 }
 
 // Config 配置文件结构体，新增厂商配置也需要再这里添加
@@ -332,6 +333,7 @@ func LoadGUISettings() (*GUISettings, error) {
 				HttpsProxy:          "",
 				Socks5Proxy:         "",
 				NoProxy:             "",
+				WelcomeDialogShown:  "",
 			}
 			return LoadedGUISettings, nil
 		}
@@ -343,6 +345,7 @@ func LoadGUISettings() (*GUISettings, error) {
 		return nil, err
 	}
 
+	// If WelcomeDialogShown is empty, it's the first time - show the dialog
 	LoadedGUISettings = &settings
 	return LoadedGUISettings, nil
 }

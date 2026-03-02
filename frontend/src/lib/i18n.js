@@ -57,6 +57,12 @@ export const i18n = {
     edit: '编辑', cancel: '取消', save: '保存', notSet: '未设置', enterNew: '输入新值覆盖', clickLoad: '点击"加载配置"查看凭据',
     confirmDelete: '确认删除', cannotUndo: '此操作不可撤销', confirmDeleteScene: '确定要删除场景', credentialsJson: '凭据 JSON',
     confirmStop: '确认停止', stopWarning: '停止场景将停止所有运行中的资源', confirmStopScene: '确定要停止场景',
+    // Welcome dialog
+    welcomeTitle: '欢迎使用 RedC', welcomeDesc: 'RedC 是一个开源的云资源管理平台，帮助您轻松管理和部署云资源。',
+    welcomeFeature1: '一键部署云资源', welcomeFeature1Desc: '支持多种云厂商，快速创建和管理云资源场景',
+    welcomeFeature2: '成本优化分析', welcomeFeature2Desc: 'AI 智能分析资源使用，提供成本优化建议',
+    welcomeFeature3: '本地模板管理', welcomeFeature3Desc: '支持自定义模板，满足个性化需求',
+    welcomeDontShow: '下次不显示', welcomeGotIt: '知道了',
     // Batch operations
     selected: '已选择', items: '项', clearSelection: '清除选择', selectAll: '全选',
     batchStart: '批量启动', batchStop: '批量停止', batchDelete: '批量删除',
@@ -272,6 +278,12 @@ export const i18n = {
     edit: 'Edit', cancel: 'Cancel', save: 'Save', notSet: 'Not set', enterNew: 'Enter new value', clickLoad: 'Click "Load Config" to view credentials',
     confirmDelete: 'Confirm Delete', cannotUndo: 'This cannot be undone', confirmDeleteScene: 'Are you sure you want to delete scene', region: 'Region', credentialsJson: 'Credentials JSON',
     confirmStop: 'Confirm Stop', stopWarning: 'Stopping the scene will stop all running resources', confirmStopScene: 'Are you sure you want to stop scene',
+    // Welcome dialog
+    welcomeTitle: 'Welcome to RedC', welcomeDesc: 'RedC is an open-source cloud resource management platform that helps you easily manage and deploy cloud resources.',
+    welcomeFeature1: 'One-click Cloud Deployment', welcomeFeature1Desc: 'Support for multiple cloud providers, quickly create and manage cloud resource scenarios',
+    welcomeFeature2: 'Cost Optimization Analysis', welcomeFeature2Desc: 'AI-powered analysis of resource usage, provide cost optimization suggestions',
+    welcomeFeature3: 'Local Template Management', welcomeFeature3Desc: 'Support for custom templates to meet personalized needs',
+    welcomeDontShow: "Don't show again", welcomeGotIt: 'Got it',
     // Batch operations
     selected: 'Selected', items: 'items', clearSelection: 'Clear selection', selectAll: 'Select All',
     deselectAll: 'Deselect All', selectedCount: '{count} selected',

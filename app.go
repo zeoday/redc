@@ -816,6 +816,38 @@ func (a *App) GetLanguage() string {
 	return settings.Language
 }
 
+// SetShowWelcomeDialog sets whether to show welcome dialog
+func (a *App) SetShowWelcomeDialog(shown bool) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	settings, err := redc.LoadGUISettings()
+	if err != nil {
+		return err
+	}
+	if shown {
+		settings.WelcomeDialogShown = "true"
+	} else {
+		settings.WelcomeDialogShown = "hidden"
+	}
+	return redc.SaveGUISettings(settings)
+}
+
+// GetShowWelcomeDialog returns whether to show welcome dialog
+func (a *App) GetShowWelcomeDialog() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	// If WelcomeDialogShown is empty or "hidden", don't show
+	// Only show if it's the first time (empty string)
+	settings, err := redc.LoadGUISettings()
+	if err != nil {
+		return true // First time, show
+	}
+	// Show only if it's empty (first time)
+	return settings.WelcomeDialogShown == ""
+}
+
 // detectSystemLanguage detects the system language and returns appropriate language code
 func detectSystemLanguage() string {
 	// Try to get system locale

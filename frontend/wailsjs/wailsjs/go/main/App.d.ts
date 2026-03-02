@@ -112,6 +112,8 @@ export function GetResourceSummary():Promise<Array<main.ResourceSummary>>;
 
 export function GetScheduledTask(arg1:string):Promise<mod.ScheduledTask>;
 
+export function GetShowWelcomeDialog():Promise<boolean>;
+
 export function GetTemplateFiles(arg1:string):Promise<Record<string, string>>;
 
 export function GetTemplateMetadata(arg1:string):Promise<mod.BaseTemplate>;
@@ -195,6 +197,8 @@ export function SetDisableRightClick(arg1:boolean):Promise<void>;
 export function SetLanguage(arg1:string):Promise<void>;
 
 export function SetNotificationEnabled(arg1:boolean):Promise<void>;
+
+export function SetShowWelcomeDialog(arg1:boolean):Promise<void>;
 
 export function StartCase(arg1:string):Promise<void>;
 
