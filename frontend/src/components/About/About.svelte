@@ -38,7 +38,7 @@
     </div>
     
     <div class="flex items-center gap-3 text-sm text-gray-600 mb-3">
-      <span class="px-3 py-1 bg-gray-100 rounded-full font-medium">{version || 'v3.0.5'}</span>
+      <span class="px-3 py-1 bg-gray-100 rounded-full font-medium">{version || 'v3.0.7'}</span>
       {#if updateStatus && updateStatus.checking}
         <svg class="w-4 h-4 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>

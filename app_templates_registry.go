@@ -239,6 +239,38 @@ func (a *App) FetchRegistryTemplates(registryURL string) ([]RegistryTemplate, er
 	return result, nil
 }
 
+func (a *App) FetchTemplateReadme(templateName string, lang string) (string, error) {
+	readmeFiles := []string{}
+	if lang == "en" {
+		readmeFiles = []string{"README_EN.md", "README.md"}
+	} else {
+		readmeFiles = []string{"README.md", "README_EN.md"}
+	}
+
+	var lastErr error
+	for _, readmeFile := range readmeFiles {
+		readmeURL := fmt.Sprintf("https://raw.githubusercontent.com/wgpsec/redc-template/master/%s/%s", templateName, readmeFile)
+		resp, err := http.Get(readmeURL)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == http.StatusOK {
+			content, err := io.ReadAll(resp.Body)
+			if err != nil {
+				lastErr = err
+				continue
+			}
+			return string(content), nil
+		}
+		lastErr = fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	return "", fmt.Errorf("failed to fetch README: %v", lastErr)
+}
+
 func (a *App) RemoveTemplate(templateName string) error {
 	a.emitLog(i18n.Tf("app_deleting_template", templateName))
 

@@ -1,7 +1,7 @@
 <script>
 
   import { onMount, onDestroy } from 'svelte';
-  import { FetchRegistryTemplates, PullTemplate, ListTemplates } from '../../../wailsjs/go/main/App.js';
+  import { FetchRegistryTemplates, PullTemplate, ListTemplates, FetchTemplateReadme, GetLanguage } from '../../../wailsjs/wailsjs/go/main/App.js';
   import { normalizeVersion, compareVersions, hasUpdate } from '../../utils/version.js';
 
   // Registry state
@@ -14,6 +14,101 @@ let { t } = $props();
   let registryNotice = $state({ type: '', message: '' });
   let registryNoticeTimer = null;
   let templates = $state([]);
+
+  // Readme modal state
+  let readmeModal = $state({ show: false, content: '', html: '', loading: false, templateName: '' });
+
+  // Simple markdown to HTML converter
+  function parseMarkdown(md) {
+    if (!md) return '';
+    
+    // First escape HTML (but preserve code blocks placeholder)
+    const codeBlocks = [];
+    let idx = 0;
+    
+    // Replace code blocks with placeholders to protect them
+    md = md.replace(/```[\s\S]*?```/g, (match) => {
+      const placeholder = `__CODEBLOCK_${idx}__`;
+      codeBlocks.push(match);
+      idx++;
+      return placeholder;
+    });
+    
+    // Now escape HTML in the rest
+    md = md.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    
+    // Step 3: Restore code blocks with escaped content
+    codeBlocks.forEach((block, i) => {
+      // Extract code content (remove ``` and optional language)
+      let code = block.replace(/^```[a-z]*\n?/, '').replace(/```$/, '').trim();
+      // Escape any remaining markdown characters in code
+      code = code.replace(/^# /gm, '&#35; ').replace(/^\* /gm, '&#42; ').replace(/^- /gm, '&#45; ');
+      const codeHtml = `<pre class="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-3 text-[12px] font-mono leading-relaxed"><code>${code}</code></pre>`;
+      md = md.replace(`__CODEBLOCK_${i}__`, codeHtml);
+    });
+    
+    // Process inline code
+    md = md.replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1.5 py-0.5 rounded text-[12px] font-mono text-pink-600">$1</code>');
+    
+    // Process headers (only at line start)
+    md = md.replace(/^#### (.*$)/gm, '<h4 class="text-sm font-semibold mt-5 mb-2 text-gray-800">$1</h4>');
+    md = md.replace(/^### (.*$)/gm, '<h3 class="text-sm font-semibold mt-5 mb-2 text-gray-800">$1</h3>');
+    md = md.replace(/^## (.*$)/gm, '<h2 class="text-base font-bold mt-6 mb-3 text-gray-900">$1</h2>');
+    md = md.replace(/^# (.*$)/gm, '<h1 class="text-lg font-bold mt-6 mb-3 text-gray-900">$1</h1>');
+    
+    // Process bold and italic
+    md = md.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    md = md.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>');
+    md = md.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    md = md.replace(/___(.*?)___/g, '<strong><em>$1</em></strong>');
+    md = md.replace(/__(.*?)__/g, '<strong class="font-semibold">$1</strong>');
+    md = md.replace(/_(.*?)_/g, '<em>$1</em>');
+    
+    // Process links
+    md = md.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:text-blue-800 hover:underline underline-offset-2" target="_blank" rel="noopener">$1</a>');
+    
+    // Process blockquotes
+    md = md.replace(/^> (.*$)/gm, '<blockquote class="border-l-4 border-gray-300 pl-4 py-1 my-3 text-gray-600 italic">$1</blockquote>');
+    
+    // Process horizontal rules
+    md = md.replace(/^---$/gm, '<hr class="my-6 border-gray-200">');
+    md = md.replace(/^\*\*\*$/gm, '<hr class="my-6 border-gray-200">');
+    
+    // Process unordered lists - more specific pattern to avoid matching code
+    md = md.replace(/^(\* |-)(?!\*)(.*$)/gm, '<li class="ml-4 list-disc text-gray-700">$2</li>');
+    
+    // Process ordered lists
+    md = md.replace(/^\d+\.(?!\.)(.*$)/gm, '<li class="ml-4 list-decimal text-gray-700">$1</li>');
+    
+    // Remove newlines between list items to allow proper grouping
+    md = md.replace(/<\/li>\n<li/g, '</li><li');
+    md = md.replace(/<\/li>\s*<br>/g, '</li>');
+    md = md.replace(/<br>\s*<li/g, '<li');
+    
+    // Wrap consecutive list items in ul/ol tags
+    md = md.replace(/(<li[^>]*>[^<]*<\/li>)+/g, (match) => {
+      // Clean up any remaining <br> tags
+      match = match.replace(/<br\s*\/?>/g, '');
+      if (match.includes('list-disc')) {
+        return `<ul class="my-2">${match}</ul>`;
+      } else {
+        return `<ol class="my-2 list-inside">${match}</ol>`;
+      }
+    });
+    
+    // Process paragraphs - split by double newlines
+    const paragraphs = md.split(/\n\n+/);
+    let result = paragraphs.map(p => {
+      p = p.trim();
+      if (!p) return '';
+      // Skip if already wrapped in HTML tags (including lists)
+      if (p.match(/^<(h[1-4]|ul|ol|pre|blockquote|hr)/i)) return p;
+      // Wrap in paragraph
+      return `<p class="my-2 text-gray-700 leading-relaxed">${p.replace(/\n/g, '<br>')}</p>`;
+    }).join('\n');
+    
+    return result;
+  }
 
   // Batch operation state
   let selectedTemplates = $state(new Set());
@@ -118,6 +213,22 @@ let { t } = $props();
       pullingTemplates[templateName] = false;
       pullingTemplates = pullingTemplates;
     }
+  }
+
+  async function handleShowReadme(templateName) {
+    readmeModal = { show: true, content: '', html: '', loading: true, templateName };
+    try {
+      const lang = await GetLanguage();
+      const content = await FetchTemplateReadme(templateName, lang || 'zh');
+      const html = parseMarkdown(content);
+      readmeModal = { ...readmeModal, content, html, loading: false };
+    } catch (e) {
+      readmeModal = { ...readmeModal, content: e.message || String(e), html: `<p class="text-red-500">${e.message || String(e)}</p>`, loading: false };
+    }
+  }
+
+  function closeReadmeModal() {
+    readmeModal = { show: false, content: '', html: '', loading: false, templateName: '' };
   }
 
   // Listen for refresh events to update pulling status
@@ -382,16 +493,24 @@ let { t } = $props();
                   <span class="w-3 h-3 border-2 border-amber-200 border-t-amber-600 rounded-full animate-spin"></span>
                   {t.pulling}
                 </span>
-              {:else if tmpl.installed && hasUpdate(tmpl)}
-                <button 
-                  class="px-3 py-1.5 text-[12px] font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                  onclick={() => handlePullTemplate(tmpl.name, true)}
-                >{t.update}</button>
-              {:else if !tmpl.installed}
-                <button 
-                  class="px-3 py-1.5 text-[12px] font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
-                  onclick={() => handlePullTemplate(tmpl.name, false)}
-                >{t.pull}</button>
+              {:else}
+                <div class="flex gap-2">
+                  <button 
+                    class="px-3 py-1.5 text-[12px] font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                    onclick={() => handleShowReadme(tmpl.name)}
+                  >{t.viewReadme || '查看'}</button>
+                  {#if tmpl.installed && hasUpdate(tmpl)}
+                    <button 
+                      class="px-3 py-1.5 text-[12px] font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                      onclick={() => handlePullTemplate(tmpl.name, true)}
+                    >{t.update}</button>
+                  {:else if !tmpl.installed}
+                    <button 
+                      class="px-3 py-1.5 text-[12px] font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
+                      onclick={() => handlePullTemplate(tmpl.name, false)}
+                    >{t.pull}</button>
+                  {/if}
+                </div>
               {/if}
             </div>
           </div>
@@ -479,6 +598,40 @@ let { t } = $props();
           class="px-4 py-2 text-[13px] font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
           onclick={confirmBatchUpdate}
         >{t.update}</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if readmeModal.show}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-visible" onclick={closeReadmeModal} role="dialog" aria-modal="true" aria-labelledby="readme-modal-title" tabindex="-1">
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <div class="bg-white rounded-xl border border-gray-200 max-w-3xl w-full mx-4 max-h-[80vh] flex flex-col" onclick={(e) => e.stopPropagation()}>
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div>
+          <h2 id="readme-modal-title" class="text-[15px] font-medium text-gray-900">{t.readme || 'README'}</h2>
+          <p class="text-[12px] text-gray-500">{readmeModal.templateName}</p>
+        </div>
+        <button class="text-gray-400 hover:text-gray-600 transition-colors" onclick={closeReadmeModal} aria-label={t.close || '关闭'}>
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="px-6 py-4 overflow-auto flex-1">
+        {#if readmeModal.loading}
+          <div class="flex items-center justify-center py-8">
+            <svg class="animate-spin h-6 w-6 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+        {:else}
+          <div class="text-[13px] text-gray-700">
+            {@html readmeModal.html || readmeModal.content}
+          </div>
+        {/if}
       </div>
     </div>
   </div>

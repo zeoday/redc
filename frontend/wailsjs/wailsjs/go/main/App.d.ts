@@ -72,6 +72,8 @@ export function ExportTemplates(arg1:Array<string>):Promise<string>;
 
 export function FetchRegistryTemplates(arg1:string):Promise<Array<main.RegistryTemplate>>;
 
+export function FetchTemplateReadme(arg1:string,arg2:string):Promise<string>;
+
 export function GetActiveProfile():Promise<mod.ProfileInfo>;
 
 export function GetBalances(arg1:Array<string>):Promise<Array<main.BalanceInfo>>;

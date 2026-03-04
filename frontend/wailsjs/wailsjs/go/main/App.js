@@ -134,6 +134,10 @@ export function FetchRegistryTemplates(arg1) {
   return window['go']['main']['App']['FetchRegistryTemplates'](arg1);
 }
 
+export function FetchTemplateReadme(arg1, arg2) {
+  return window['go']['main']['App']['FetchTemplateReadme'](arg1, arg2);
+}
+
 export function GetActiveProfile() {
   return window['go']['main']['App']['GetActiveProfile']();
 }
