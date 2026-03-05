@@ -398,6 +398,136 @@ func (s *MCPServer) getTools() []Tool {
 				Required: []string{"case_id", "command"},
 			},
 		},
+		{
+			Name:        "get_ssh_info",
+			Description: "Get SSH connection information for a case (IP, port, username)",
+			InputSchema: ToolSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"case_id": {
+						Type:        "string",
+						Description: "Case ID to get SSH info",
+					},
+				},
+				Required: []string{"case_id"},
+			},
+		},
+		{
+			Name:        "upload_file",
+			Description: "Upload a local file to a case server via SCP/SFTP",
+			InputSchema: ToolSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"case_id": {
+						Type:        "string",
+						Description: "Case ID to upload file to",
+					},
+					"local_path": {
+						Type:        "string",
+						Description: "Local file path to upload",
+					},
+					"remote_path": {
+						Type:        "string",
+						Description: "Remote destination path on the server",
+					},
+				},
+				Required: []string{"case_id", "local_path", "remote_path"},
+			},
+		},
+		{
+			Name:        "download_file",
+			Description: "Download a file from a case server to local machine via SCP/SFTP",
+			InputSchema: ToolSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"case_id": {
+						Type:        "string",
+						Description: "Case ID to download file from",
+					},
+					"remote_path": {
+						Type:        "string",
+						Description: "Remote file path on the server",
+					},
+					"local_path": {
+						Type:        "string",
+						Description: "Local destination path",
+					},
+				},
+				Required: []string{"case_id", "remote_path", "local_path"},
+			},
+		},
+		{
+			Name:        "get_template_info",
+			Description: "Get detailed information about a locally installed template (including metadata, variables, files)",
+			InputSchema: ToolSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"template_name": {
+						Type:        "string",
+						Description: "Template name (e.g., aliyun/ecs)",
+					},
+				},
+				Required: []string{"template_name"},
+			},
+		},
+		{
+			Name:        "delete_template",
+			Description: "Delete a locally installed template",
+			InputSchema: ToolSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"template_name": {
+						Type:        "string",
+						Description: "Template name to delete (e.g., aliyun/ecs)",
+					},
+				},
+				Required: []string{"template_name"},
+			},
+		},
+		{
+			Name:        "get_case_outputs",
+			Description: "Get terraform outputs for a case (IP addresses, instance IDs, etc.)",
+			InputSchema: ToolSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"case_id": {
+						Type:        "string",
+						Description: "Case ID to get outputs",
+					},
+				},
+				Required: []string{"case_id"},
+			},
+		},
+		{
+			Name:        "get_config",
+			Description: "Get redc current configuration (project path, proxy settings, etc.)",
+			InputSchema: ToolSchema{
+				Type:       "object",
+				Properties: map[string]Property{},
+			},
+		},
+		{
+			Name:        "validate_config",
+			Description: "Validate cloud provider configuration (check if credentials, region, instance type are valid)",
+			InputSchema: ToolSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"provider": {
+						Type:        "string",
+						Description: "Cloud provider name (e.g., aliyun, tencentcloud, aws, volcengine, huaweicloud)",
+					},
+					"region": {
+						Type:        "string",
+						Description: "Region ID (e.g., cn-hangzhou)",
+					},
+					"instance_type": {
+						Type:        "string",
+						Description: "Instance type (e.g., ecs.t6-c1m1.large)",
+					},
+				},
+				Required: []string{"provider"},
+			},
+		},
 	}
 }
 
@@ -568,6 +698,76 @@ func (s *MCPServer) executeTool(name string, args map[string]interface{}) (ToolR
 			return ToolResult{}, fmt.Errorf("missing or invalid 'command' parameter")
 		}
 		return s.toolExecCommand(caseID, command)
+
+	case "get_ssh_info":
+		caseID, ok := args["case_id"].(string)
+		if !ok {
+			return ToolResult{}, fmt.Errorf("missing or invalid 'case_id' parameter")
+		}
+		return s.toolGetSSHInfo(caseID)
+
+	case "upload_file":
+		caseID, ok := args["case_id"].(string)
+		if !ok {
+			return ToolResult{}, fmt.Errorf("missing or invalid 'case_id' parameter")
+		}
+		localPath, ok := args["local_path"].(string)
+		if !ok {
+			return ToolResult{}, fmt.Errorf("missing or invalid 'local_path' parameter")
+		}
+		remotePath, ok := args["remote_path"].(string)
+		if !ok {
+			return ToolResult{}, fmt.Errorf("missing or invalid 'remote_path' parameter")
+		}
+		return s.toolUploadFile(caseID, localPath, remotePath)
+
+	case "download_file":
+		caseID, ok := args["case_id"].(string)
+		if !ok {
+			return ToolResult{}, fmt.Errorf("missing or invalid 'case_id' parameter")
+		}
+		remotePath, ok := args["remote_path"].(string)
+		if !ok {
+			return ToolResult{}, fmt.Errorf("missing or invalid 'remote_path' parameter")
+		}
+		localPath, ok := args["local_path"].(string)
+		if !ok {
+			return ToolResult{}, fmt.Errorf("missing or invalid 'local_path' parameter")
+		}
+		return s.toolDownloadFile(caseID, remotePath, localPath)
+
+	case "get_template_info":
+		templateName, ok := args["template_name"].(string)
+		if !ok {
+			return ToolResult{}, fmt.Errorf("missing or invalid 'template_name' parameter")
+		}
+		return s.toolGetTemplateInfo(templateName)
+
+	case "delete_template":
+		templateName, ok := args["template_name"].(string)
+		if !ok {
+			return ToolResult{}, fmt.Errorf("missing or invalid 'template_name' parameter")
+		}
+		return s.toolDeleteTemplate(templateName)
+
+	case "get_case_outputs":
+		caseID, ok := args["case_id"].(string)
+		if !ok {
+			return ToolResult{}, fmt.Errorf("missing or invalid 'case_id' parameter")
+		}
+		return s.toolGetCaseOutputs(caseID)
+
+	case "get_config":
+		return s.toolGetConfig()
+
+	case "validate_config":
+		provider, ok := args["provider"].(string)
+		if !ok {
+			return ToolResult{}, fmt.Errorf("missing or invalid 'provider' parameter")
+		}
+		region, _ := args["region"].(string)
+		instanceType, _ := args["instance_type"].(string)
+		return s.toolValidateConfig(provider, region, instanceType)
 
 	default:
 		return ToolResult{}, fmt.Errorf("unknown tool: %s", name)
@@ -847,6 +1047,282 @@ func (s *MCPServer) toolExecCommand(caseID string, command string) (ToolResult, 
 		Content: []ContentItem{{
 			Type: "text",
 			Text: output,
+		}},
+	}, nil
+}
+
+func (s *MCPServer) toolGetSSHInfo(caseID string) (ToolResult, error) {
+	c, err := s.project.GetCase(caseID)
+	if err != nil {
+		return ToolResult{}, fmt.Errorf("case not found: %v", err)
+	}
+
+	sshConfig, err := c.GetSSHConfig()
+	if err != nil {
+		return ToolResult{}, fmt.Errorf("failed to get SSH config: %v", err)
+	}
+
+	output := fmt.Sprintf("SSH Connection Info for Case '%s':\n\n", c.Name)
+	output += fmt.Sprintf("| Field | Value |\n")
+	output += fmt.Sprintf("|-------|-------|\n")
+	output += fmt.Sprintf("| IP Address | %s |\n", sshConfig.Host)
+	output += fmt.Sprintf("| Port | %d |\n", sshConfig.Port)
+	output += fmt.Sprintf("| Username | %s |\n", sshConfig.User)
+	output += fmt.Sprintf("| Password | %s |\n", sshConfig.Password)
+	output += fmt.Sprintf("| Key Path | %s |\n", sshConfig.KeyPath)
+
+	return ToolResult{
+		Content: []ContentItem{{
+			Type: "text",
+			Text: output,
+		}},
+	}, nil
+}
+
+func (s *MCPServer) toolUploadFile(caseID string, localPath string, remotePath string) (ToolResult, error) {
+	c, err := s.project.GetCase(caseID)
+	if err != nil {
+		return ToolResult{}, fmt.Errorf("case not found: %v", err)
+	}
+
+	sshConfig, err := c.GetSSHConfig()
+	if err != nil {
+		return ToolResult{}, fmt.Errorf("failed to get SSH config: %v", err)
+	}
+
+	client, err := sshutil.NewClient(sshConfig)
+	if err != nil {
+		return ToolResult{}, fmt.Errorf("failed to create SSH client: %v", err)
+	}
+	defer client.Close()
+
+	err = client.Upload(localPath, remotePath)
+	if err != nil {
+		return ToolResult{}, fmt.Errorf("failed to upload file: %v", err)
+	}
+
+	output := fmt.Sprintf("File uploaded successfully!\n\n")
+	output += fmt.Sprintf("- Case: %s\n", c.Name)
+	output += fmt.Sprintf("- Local Path: %s\n", localPath)
+	output += fmt.Sprintf("- Remote Path: %s\n", remotePath)
+
+	return ToolResult{
+		Content: []ContentItem{{
+			Type: "text",
+			Text: output,
+		}},
+	}, nil
+}
+
+func (s *MCPServer) toolDownloadFile(caseID string, remotePath string, localPath string) (ToolResult, error) {
+	c, err := s.project.GetCase(caseID)
+	if err != nil {
+		return ToolResult{}, fmt.Errorf("case not found: %v", err)
+	}
+
+	sshConfig, err := c.GetSSHConfig()
+	if err != nil {
+		return ToolResult{}, fmt.Errorf("failed to get SSH config: %v", err)
+	}
+
+	client, err := sshutil.NewClient(sshConfig)
+	if err != nil {
+		return ToolResult{}, fmt.Errorf("failed to create SSH client: %v", err)
+	}
+	defer client.Close()
+
+	err = client.Download(remotePath, localPath)
+	if err != nil {
+		return ToolResult{}, fmt.Errorf("failed to download file: %v", err)
+	}
+
+	output := fmt.Sprintf("File downloaded successfully!\n\n")
+	output += fmt.Sprintf("- Case: %s\n", c.Name)
+	output += fmt.Sprintf("- Remote Path: %s\n", remotePath)
+	output += fmt.Sprintf("- Local Path: %s\n", localPath)
+
+	return ToolResult{
+		Content: []ContentItem{{
+			Type: "text",
+			Text: output,
+		}},
+	}, nil
+}
+
+func (s *MCPServer) toolGetTemplateInfo(templateName string) (ToolResult, error) {
+	_, err := redc.GetTemplatePath(templateName)
+	if err != nil {
+		return ToolResult{}, fmt.Errorf("template not found: %v", err)
+	}
+
+	tm := redc.NewTemplateManager()
+	templates, err := redc.ListLocalTemplates()
+	if err != nil {
+		return ToolResult{}, fmt.Errorf("failed to list templates: %v", err)
+	}
+
+	var baseTemplate *redc.RedcTmpl
+	for _, t := range templates {
+		if t.Name == templateName {
+			baseTemplate = t
+			break
+		}
+	}
+	if baseTemplate == nil {
+		return ToolResult{}, fmt.Errorf("template '%s' not found in local templates", templateName)
+	}
+
+	templateVariables, err := tm.GetTemplateVariables(templateName)
+	if err != nil {
+		templateVariables = []redc.TemplateVariable{}
+	}
+
+	output := fmt.Sprintf("# Template: %s\n\n", templateName)
+	output += fmt.Sprintf("| Field | Value |\n")
+	output += fmt.Sprintf("|-------|-------|\n")
+	output += fmt.Sprintf("| Name | %s |\n", baseTemplate.Name)
+	output += fmt.Sprintf("| Description | %s |\n", baseTemplate.Description)
+	output += fmt.Sprintf("| User | %s |\n", baseTemplate.User)
+	output += fmt.Sprintf("| Version | %s |\n", baseTemplate.Version)
+	output += fmt.Sprintf("| Template Type | %s |\n", baseTemplate.TemplateType)
+
+	if len(templateVariables) > 0 {
+		output += fmt.Sprintf("\n## Variables\n\n")
+		output += fmt.Sprintf("| Name | Type | Required | Default | Description |\n")
+		output += fmt.Sprintf("|------|------|----------|---------|-------------|\n")
+		for _, v := range templateVariables {
+			output += fmt.Sprintf("| %s | %s | %v | %s | %s |\n", v.Name, v.Type, v.Required, v.DefaultValue, v.Description)
+		}
+	}
+
+	return ToolResult{
+		Content: []ContentItem{{
+			Type: "text",
+			Text: output,
+		}},
+	}, nil
+}
+
+func (s *MCPServer) toolDeleteTemplate(templateName string) (ToolResult, error) {
+	err := redc.RemoveTemplate(templateName)
+	if err != nil {
+		return ToolResult{}, fmt.Errorf("failed to delete template: %v", err)
+	}
+
+	output := fmt.Sprintf("Template '%s' deleted successfully!\n", templateName)
+
+	return ToolResult{
+		Content: []ContentItem{{
+			Type: "text",
+			Text: output,
+		}},
+	}, nil
+}
+
+func (s *MCPServer) toolGetCaseOutputs(caseID string) (ToolResult, error) {
+	c, err := s.project.GetCase(caseID)
+	if err != nil {
+		return ToolResult{}, fmt.Errorf("case not found: %v", err)
+	}
+
+	if c.State != "running" {
+		return ToolResult{}, fmt.Errorf("case is not running, current state: %s", c.State)
+	}
+
+	outputs, err := c.TfOutput()
+	if err != nil {
+		return ToolResult{}, fmt.Errorf("failed to get outputs: %v", err)
+	}
+
+	if len(outputs) == 0 {
+		return ToolResult{}, fmt.Errorf("no outputs found for this case")
+	}
+
+	result := fmt.Sprintf("# Terraform Outputs for Case '%s'\n\n", c.Name)
+	result += fmt.Sprintf("| Key | Value |\n")
+	result += fmt.Sprintf("|-----|-------|\n")
+	for k, v := range outputs {
+		result += fmt.Sprintf("| %s | %s |\n", k, v)
+	}
+
+	return ToolResult{
+		Content: []ContentItem{{
+			Type: "text",
+			Text: result,
+		}},
+	}, nil
+}
+
+func (s *MCPServer) toolGetConfig() (ToolResult, error) {
+	result := fmt.Sprintf("# Redc Configuration\n\n")
+	result += fmt.Sprintf("| Field | Value |\n")
+	result += fmt.Sprintf("|-------|-------|\n")
+	result += fmt.Sprintf("| Redc Path | %s |\n", redc.RedcPath)
+	result += fmt.Sprintf("| Project Path | %s |\n", redc.ProjectPath)
+
+	httpProxy := os.Getenv("HTTP_PROXY")
+	httpsProxy := os.Getenv("HTTPS_PROXY")
+	socks5Proxy := os.Getenv("ALL_PROXY")
+	noProxy := os.Getenv("NO_PROXY")
+
+	if httpProxy != "" {
+		result += fmt.Sprintf("| HTTP Proxy | %s |\n", httpProxy)
+	}
+	if httpsProxy != "" {
+		result += fmt.Sprintf("| HTTPS Proxy | %s |\n", httpsProxy)
+	}
+	if socks5Proxy != "" {
+		result += fmt.Sprintf("| SOCKS5 Proxy | %s |\n", socks5Proxy)
+	}
+	if noProxy != "" {
+		result += fmt.Sprintf("| No Proxy | %s |\n", noProxy)
+	}
+
+	return ToolResult{
+		Content: []ContentItem{{
+			Type: "text",
+			Text: result,
+		}},
+	}, nil
+}
+
+func (s *MCPServer) toolValidateConfig(provider string, region string, instanceType string) (ToolResult, error) {
+	validator := redc.NewConfigValidator()
+
+	result := fmt.Sprintf("# Config Validation Results\n\n")
+
+	err := validator.ValidateProvider(provider)
+	if err != nil {
+		result += fmt.Sprintf("| Provider | ❌ Invalid |\n")
+		result += fmt.Sprintf("| Error | %s |\n", err.Error())
+	} else {
+		result += fmt.Sprintf("| Provider | ✅ Valid (%s) |\n", provider)
+	}
+
+	if region != "" {
+		err = validator.ValidateRegion(provider, region)
+		if err != nil {
+			result += fmt.Sprintf("| Region | ❌ Invalid |\n")
+			result += fmt.Sprintf("| Error | %s |\n", err.Error())
+		} else {
+			result += fmt.Sprintf("| Region | ✅ Valid (%s) |\n", region)
+		}
+	}
+
+	if instanceType != "" && region != "" {
+		err = validator.ValidateInstanceType(provider, region, instanceType)
+		if err != nil {
+			result += fmt.Sprintf("| Instance Type | ❌ Invalid |\n")
+			result += fmt.Sprintf("| Error | %s |\n", err.Error())
+		} else {
+			result += fmt.Sprintf("| Instance Type | ✅ Valid (%s) |\n", instanceType)
+		}
+	}
+
+	return ToolResult{
+		Content: []ContentItem{{
+			Type: "text",
+			Text: result,
 		}},
 	}, nil
 }

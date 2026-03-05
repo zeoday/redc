@@ -30,6 +30,14 @@ The redc MCP server exposes the following capabilities:
 8. **kill_case** - Kill (destroy) a case by ID
 9. **get_case_status** - Get the status of a specific case
 10. **exec_command** - Execute a command on a case
+11. **get_ssh_info** - Get SSH connection information for a case (IP, port, username, password, key path)
+12. **upload_file** - Upload a local file to a case server via SFTP
+13. **download_file** - Download a file from a case server to local machine via SFTP
+14. **get_template_info** - Get detailed information about a locally installed template (metadata, variables)
+15. **delete_template** - Delete a locally installed template
+16. **get_case_outputs** - Get terraform outputs for a case (IP addresses, instance IDs, etc.)
+17. **get_config** - Get redc current configuration (project path, proxy settings)
+18. **validate_config** - Validate cloud provider configuration (credentials, region, instance type)
 
 ### Resources
 
@@ -215,6 +223,138 @@ Response:
     "arguments": {
       "case_id": "8a57078ee856",
       "command": "whoami"
+    }
+  }
+}
+```
+
+### Get SSH Info
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "tools/call",
+  "params": {
+    "name": "get_ssh_info",
+    "arguments": {
+      "case_id": "8a57078ee856"
+    }
+  }
+}
+```
+
+### Upload File
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "method": "tools/call",
+  "params": {
+    "name": "upload_file",
+    "arguments": {
+      "case_id": "8a57078ee856",
+      "local_path": "/local/path/to/file.txt",
+      "remote_path": "/remote/path/file.txt"
+    }
+  }
+}
+```
+
+### Download File
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 8,
+  "method": "tools/call",
+  "params": {
+    "name": "download_file",
+    "arguments": {
+      "case_id": "8a57078ee856",
+      "remote_path": "/remote/path/file.txt",
+      "local_path": "/local/path/file.txt"
+    }
+  }
+}
+```
+
+### Get Template Info
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 9,
+  "method": "tools/call",
+  "params": {
+    "name": "get_template_info",
+    "arguments": {
+      "template_name": "aliyun/ecs"
+    }
+  }
+}
+```
+
+### Delete Template
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 10,
+  "method": "tools/call",
+  "params": {
+    "name": "delete_template",
+    "arguments": {
+      "template_name": "aliyun/ecs"
+    }
+  }
+}
+```
+
+### Get Case Outputs
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 11,
+  "method": "tools/call",
+  "params": {
+    "name": "get_case_outputs",
+    "arguments": {
+      "case_id": "8a57078ee856"
+    }
+  }
+}
+```
+
+### Get Config
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 12,
+  "method": "tools/call",
+  "params": {
+    "name": "get_config",
+    "arguments": {}
+  }
+}
+```
+
+### Validate Config
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 13,
+  "method": "tools/call",
+  "params": {
+    "name": "validate_config",
+    "arguments": {
+      "provider": "aliyun",
+      "region": "cn-hangzhou",
+      "instance_type": "ecs.t6-c1m1.large"
     }
   }
 }

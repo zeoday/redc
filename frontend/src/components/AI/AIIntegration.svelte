@@ -637,6 +637,38 @@
           <span class="w-1 h-1 rounded-full bg-gray-400"></span>
           exec_command
         </div>
+        <div class="flex items-center gap-2 text-gray-700">
+          <span class="w-1 h-1 rounded-full bg-gray-400"></span>
+          get_ssh_info
+        </div>
+        <div class="flex items-center gap-2 text-gray-700">
+          <span class="w-1 h-1 rounded-full bg-gray-400"></span>
+          upload_file
+        </div>
+        <div class="flex items-center gap-2 text-gray-700">
+          <span class="w-1 h-1 rounded-full bg-gray-400"></span>
+          download_file
+        </div>
+        <div class="flex items-center gap-2 text-gray-700">
+          <span class="w-1 h-1 rounded-full bg-gray-400"></span>
+          get_template_info
+        </div>
+        <div class="flex items-center gap-2 text-gray-700">
+          <span class="w-1 h-1 rounded-full bg-gray-400"></span>
+          delete_template
+        </div>
+        <div class="flex items-center gap-2 text-gray-700">
+          <span class="w-1 h-1 rounded-full bg-gray-400"></span>
+          get_case_outputs
+        </div>
+        <div class="flex items-center gap-2 text-gray-700">
+          <span class="w-1 h-1 rounded-full bg-gray-400"></span>
+          get_config
+        </div>
+        <div class="flex items-center gap-2 text-gray-700">
+          <span class="w-1 h-1 rounded-full bg-gray-400"></span>
+          validate_config
+        </div>
       </div>
     </div>
   </div>
