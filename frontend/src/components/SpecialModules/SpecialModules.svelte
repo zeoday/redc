@@ -1,14 +1,16 @@
 <script>
   import { onMount } from 'svelte';
-  import { loadUserdataTemplates, getTemplatesByCategory, getAIScenarios, getVulhubScenarios } from '../../lib/userdataTemplates.js';
+  import { loadUserdataTemplates, getTemplatesByCategory, getAIScenarios, getVulhubScenarios, getC2Scenarios } from '../../lib/userdataTemplates.js';
   
   let { t, onTabChange } = $props();
   let specialModuleTab = $state('vulhub');
   let selectedAIScenario = $state(null);
   let selectedVulhubScenario = $state(null);
+  let selectedC2Scenario = $state(null);
   let copied = $state(false);
   let aiSearchQuery = $state('');
   let vulhubSearchQuery = $state('');
+  let c2SearchQuery = $state('');
   let templates = $state([]);
   let templatesLoading = $state(true);
   
@@ -42,12 +44,28 @@
     return scenarios;
   });
   
+  let c2Scenarios = $derived(() => {
+    let scenarios = getC2Scenarios(templates);
+    if (c2SearchQuery) {
+      const query = c2SearchQuery.toLowerCase();
+      scenarios = scenarios.filter(s => 
+        (s.nameZh || s.name).toLowerCase().includes(query) ||
+        s.name.toLowerCase().includes(query)
+      );
+    }
+    return scenarios;
+  });
+  
   function selectAIScenario(scenario) {
     selectedAIScenario = scenario;
   }
   
   function selectVulhubScenario(scenario) {
     selectedVulhubScenario = scenario;
+  }
+  
+  function selectC2Scenario(scenario) {
+    selectedC2Scenario = scenario;
   }
   
   async function copyToClipboard() {
@@ -197,7 +215,11 @@
     </div>
   {:else if specialModuleTab === 'c2'}
     <div class="bg-white rounded-xl border border-gray-100 p-4 sm:p-6 md:p-8">
-      {#if templates.length === 0}
+      {#if templatesLoading}
+        <div class="flex items-center justify-center h-32">
+          <div class="w-6 h-6 border-2 border-gray-100 border-t-orange-500 rounded-full animate-spin"></div>
+        </div>
+      {:else if templates.length === 0}
         <div class="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-4">
           <div class="flex items-start gap-3">
             <svg class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -215,14 +237,44 @@
           </div>
         </div>
       {:else}
-        <div class="text-center py-8">
-          <p class="text-[13px] text-gray-500">暂无可用的 C2 场景</p>
-          <p class="text-[12px] text-gray-400 mt-1">此模块功能开发中...</p>
+        <div class="mb-4">
+          <input
+            type="text"
+            placeholder={t.searchPlaceholder || '搜索...'}
+            class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
+            bind:value={c2SearchQuery}
+          />
+          {#if c2Scenarios().length > 0}
+            <div class="flex flex-wrap gap-2 mt-3">
+              {#each c2Scenarios() as scenario}
+                <button
+                  class="px-3 py-2 text-[12px] font-medium rounded-lg transition-all {selectedC2Scenario?.name === scenario.name ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+                  onclick={() => selectC2Scenario(scenario)}
+                >
+                  {scenario.nameZh || scenario.name}
+                </button>
+              {/each}
+            </div>
+          {:else}
+            <p class="text-[12px] text-gray-500 mt-3 text-center">未找到匹配的 C2 场景</p>
+          {/if}
         </div>
-        <div class="bg-blue-50 rounded-lg p-4 sm:p-6 text-center">
-          <p class="text-[13px] text-blue-800 mb-2">C2 场景管理模块</p>
-          <p class="text-[12px] text-blue-600">此功能正在开发中，敬请期待</p>
-        </div>
+        
+        {#if selectedC2Scenario}
+          <div class="border-t border-gray-100 pt-4">
+            {#if selectedC2Scenario.description}
+              <p class="text-[13px] text-gray-700 mb-3">{selectedC2Scenario.description}</p>
+            {/if}
+            {#if selectedC2Scenario.script}
+              <pre class="bg-gray-900 text-gray-100 text-[12px] p-4 rounded-lg overflow-x-auto max-h-96 overflow-y-auto font-mono">{selectedC2Scenario.script}</pre>
+            {/if}
+          </div>
+        {:else}
+          <div class="bg-blue-50 rounded-lg p-4 sm:p-6 text-center">
+            <p class="text-[13px] text-blue-800 mb-2">选择一个 C2 场景查看部署脚本</p>
+            <p class="text-[12px] text-blue-600">脚本将在云服务器上自动安装 C2 工具</p>
+          </div>
+        {/if}
       {/if}
     </div>
   {:else if specialModuleTab === 'ai'}

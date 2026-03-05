@@ -30,6 +30,11 @@ export function getVulhubScenarios(templates) {
   return templates.filter(t => t.category === 'vulhub');
 }
 
+export function getC2Scenarios(templates) {
+  if (!Array.isArray(templates)) return [];
+  return templates.filter(t => t.category === 'c2');
+}
+
 export function getGroupedTemplates(templates) {
   if (!Array.isArray(templates)) return {};
   const groups = {};
@@ -48,5 +53,6 @@ export const userdataCategoryNames = {
   ai: 'AI 应用',
   security: '安全工具',
   vulhub: '漏洞环境',
+  c2: 'C2 场景',
   other: '其他'
 };
