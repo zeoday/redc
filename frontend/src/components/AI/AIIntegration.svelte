@@ -526,31 +526,37 @@
     </div>
 
     <div class="space-y-3">
-      <div class="flex gap-2">
-        <input 
-          type="text" 
-          placeholder={t.generateTemplatePlaceholder || '例如：在 AWS 上部署一个 Ghost CMS 博客...'}
-          class="flex-1 h-9 sm:h-10 px-3 text-[12px] sm:text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
+      <div>
+        <textarea 
+          placeholder={t.generateTemplatePlaceholder || '例如：在 AWS 上部署一个 Ghost CMS 博客... 支持多行输入，按 Ctrl/Cmd + Enter 发送，或点击"生成"按钮'}
+          class="w-full h-24 px-3 py-2 text-[12px] sm:text-[13px] bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-shadow resize-none"
           bind:value={templateQuery}
-          onkeydown={(e) => e.key === 'Enter' && handleGenerateTemplate()}
-        />
-        <button 
-          class="px-4 h-9 sm:h-10 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 text-[12px] sm:text-[13px] font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer"
-          onclick={handleGenerateTemplate}
-          disabled={templateLoading || !templateQuery.trim()}
-        >
-          {#if templateLoading}
-            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          {:else}
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          {/if}
-          {t.generate || '生成'}
-        </button>
+          onkeydown={(e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+              e.preventDefault();
+              handleGenerateTemplate();
+            }
+          }}
+        ></textarea>
+        <div class="flex justify-end mt-2">
+          <button 
+            class="px-4 h-9 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 text-[12px] sm:text-[13px] font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+            onclick={handleGenerateTemplate}
+            disabled={templateLoading || !templateQuery.trim()}
+          >
+            {#if templateLoading}
+              <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            {:else}
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            {/if}
+            {t.generate || '生成'}
+          </button>
+        </div>
       </div>
 
       {#if generatedTemplate || templateGenerating}
@@ -591,31 +597,37 @@
     </div>
 
     <div class="space-y-3">
-      <div class="flex gap-2">
-        <input 
-          type="text" 
-          placeholder={t.recommendPlaceholder || '例如：我需要一个阿里云的测试环境...'}
-          class="flex-1 h-9 sm:h-10 px-3 text-[12px] sm:text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
+      <div>
+        <textarea 
+          placeholder={t.recommendPlaceholder || '例如：我需要一个阿里云的测试环境，用于性能测试... 支持多行输入，按 Ctrl/Cmd + Enter 发送，或点击"推荐"按钮'}
+          class="w-full h-24 px-3 py-2 text-[12px] sm:text-[13px] bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-shadow resize-none"
           bind:value={recommendQuery}
-          onkeydown={(e) => e.key === 'Enter' && handleRecommend()}
-        />
-        <button 
-          class="px-4 h-9 sm:h-10 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 text-[12px] sm:text-[13px] font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer"
-          onclick={handleRecommend}
-          disabled={recommendLoading || !recommendQuery.trim()}
-        >
-          {#if recommendLoading}
-            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          {:else}
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-            </svg>
-          {/if}
-          {t.recommend || '推荐'}
-        </button>
+          onkeydown={(e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+              e.preventDefault();
+              handleRecommend();
+            }
+          }}
+        ></textarea>
+        <div class="flex justify-end mt-2">
+          <button 
+            class="px-4 h-9 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 text-[12px] sm:text-[13px] font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+            onclick={handleRecommend}
+            disabled={recommendLoading || !recommendQuery.trim()}
+          >
+            {#if recommendLoading}
+              <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            {:else}
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+            {/if}
+            {t.recommend || '推荐'}
+          </button>
+        </div>
       </div>
 
       {#if showRecommendResults && aiRecommendText}
