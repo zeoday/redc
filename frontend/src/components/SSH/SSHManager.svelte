@@ -356,17 +356,17 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
 </svelte:head>
 
-<div class="h-full flex flex-col bg-gray-900 text-gray-200">
+<div class="h-full flex flex-col bg-white text-gray-900">
   <!-- Main layout -->
   <div class="flex-1 flex overflow-hidden">
     <!-- Left: Terminal area -->
     <div class="flex-1 flex flex-col min-w-0">
       <!-- Tab bar -->
-      <div class="flex-shrink-0 flex items-center bg-gray-800 border-b border-gray-700 px-2 h-10 gap-1 overflow-x-auto">
+      <div class="flex-shrink-0 flex items-center bg-gray-50 border-b border-gray-200 px-2 h-10 gap-1 overflow-x-auto">
         {#each sessions as session, i (session.id)}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-[12px] font-medium cursor-pointer select-none transition-colors max-w-[200px] {i === activeSessionIndex ? 'bg-gray-900 text-white border border-gray-700 border-b-gray-900 -mb-px' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'}"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-[12px] font-medium cursor-pointer select-none transition-colors max-w-[200px] {i === activeSessionIndex ? 'bg-white text-gray-900 border border-gray-200 border-b-white -mb-px shadow-sm' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'}"
             role="tab"
             tabindex="0"
             aria-selected={i === activeSessionIndex}
@@ -374,16 +374,16 @@
             onkeydown={(e) => { if (e.key === 'Enter') activeSessionIndex = i; }}
           >
             {#if session.connected}
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0"></span>
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"></span>
             {:else if session.connecting}
-              <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0"></span>
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse flex-shrink-0"></span>
             {:else}
-              <span class="w-1.5 h-1.5 rounded-full bg-gray-500 flex-shrink-0"></span>
+              <span class="w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0"></span>
             {/if}
             <span class="truncate">{sessionLabel(session)}</span>
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <span
-              class="ml-1 w-4 h-4 flex items-center justify-center rounded hover:bg-gray-600 text-gray-500 hover:text-gray-200 cursor-pointer flex-shrink-0"
+              class="ml-1 w-4 h-4 flex items-center justify-center rounded hover:bg-red-50 text-gray-400 hover:text-red-500 cursor-pointer flex-shrink-0"
               role="button"
               tabindex="0"
               aria-label="Close session"
@@ -399,7 +399,7 @@
 
         <!-- New session button -->
         <button
-          class="flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors flex-shrink-0 cursor-pointer"
+          class="flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors flex-shrink-0 cursor-pointer"
           onclick={() => showNewSessionDialog = true}
           title={t.sshNewSession || '新建会话'}
         >
@@ -414,7 +414,7 @@
         {#if activeSession}
           <!-- Userdata toggle -->
           <button
-            class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-medium transition-colors flex-shrink-0 cursor-pointer {rightPanel === 'userdata' ? 'bg-emerald-600/20 text-emerald-400' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'}"
+            class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-medium transition-colors flex-shrink-0 cursor-pointer {rightPanel === 'userdata' ? 'bg-red-50 text-red-600' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'}"
             onclick={() => togglePanel('userdata')}
             title={t.execUserdata || '命令片段'}
           >
@@ -426,7 +426,7 @@
 
           <!-- File manager button -->
           <button
-            class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-medium transition-colors flex-shrink-0 cursor-pointer text-gray-400 hover:text-gray-200 hover:bg-gray-700/50"
+            class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-medium transition-colors flex-shrink-0 cursor-pointer text-gray-500 hover:text-gray-900 hover:bg-gray-100"
             onclick={() => showFileManagerModal = true}
             title={t.fileManager || '文件管理器'}
           >
@@ -439,7 +439,7 @@
 
         <!-- Port forwarding toggle -->
         <button
-          class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-medium transition-colors flex-shrink-0 cursor-pointer {rightPanel === 'portForward' ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'}"
+          class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-medium transition-colors flex-shrink-0 cursor-pointer {rightPanel === 'portForward' ? 'bg-red-50 text-red-600' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'}"
           onclick={() => togglePanel('portForward')}
           title={t.sshPortForward || '端口转发'}
         >
@@ -448,25 +448,25 @@
           </svg>
           {t.sshPortForward || '端口转发'}
           {#if portForwards.length > 0}
-            <span class="px-1.5 py-0.5 bg-blue-500/20 text-blue-300 text-[10px] rounded-full">{portForwards.length}</span>
+            <span class="px-1.5 py-0.5 bg-red-100 text-red-600 text-[10px] font-medium rounded-full">{portForwards.length}</span>
           {/if}
         </button>
       </div>
 
       <!-- Terminal containers -->
-      <div class="flex-1 relative overflow-hidden">
+      <div class="flex-1 relative overflow-hidden bg-gray-900 {sessions.length === 0 ? '!bg-white' : ''} rounded-b-lg m-0">
         {#if sessions.length === 0}
-          <div class="absolute inset-0 flex items-center justify-center">
+          <div class="absolute inset-0 flex items-center justify-center bg-white">
             <div class="text-center">
-              <div class="w-16 h-16 rounded-2xl bg-gray-800 flex items-center justify-center mx-auto mb-4">
-                <svg class="w-8 h-8 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <div class="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
                 </svg>
               </div>
-              <p class="text-gray-500 text-[14px] mb-1">{t.sshNoSessions || '暂无 SSH 会话'}</p>
-              <p class="text-gray-600 text-[12px] mb-4">{t.sshCreateHint || '点击下方按钮或从场景页面打开 SSH 终端'}</p>
+              <p class="text-gray-900 text-[14px] font-medium mb-1">{t.sshNoSessions || '暂无 SSH 会话'}</p>
+              <p class="text-gray-400 text-[12px] mb-4">{t.sshCreateHint || '点击下方按钮或从场景页面打开 SSH 终端'}</p>
               <button
-                class="h-10 px-5 bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-medium rounded-lg transition-colors cursor-pointer"
+                class="h-10 px-5 bg-red-600 hover:bg-red-700 text-white text-[13px] font-medium rounded-lg transition-colors cursor-pointer"
                 onclick={() => showNewSessionDialog = true}
               >
                 {t.sshNewSession || '新建会话'}
@@ -486,11 +486,11 @@
 
     <!-- Right panel: Userdata -->
     {#if rightPanel === 'userdata' && activeSession}
-      <div class="w-80 flex-shrink-0 bg-gray-800 border-l border-gray-700 flex flex-col overflow-hidden">
-        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-700">
-          <h3 class="text-[13px] font-semibold text-white">{t.execUserdata || '命令片段'}</h3>
+      <div class="w-80 flex-shrink-0 bg-white border-l border-gray-200 flex flex-col overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+          <h3 class="text-[13px] font-semibold text-gray-900">{t.execUserdata || '命令片段'}</h3>
           <button
-            class="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
+            class="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
             onclick={() => rightPanel = 'none'}
           >
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -501,35 +501,35 @@
 
         <div class="flex-1 overflow-y-auto p-3 space-y-2">
           {#if userdataTemplatesLoading}
-            <div class="text-center py-8 text-gray-500 text-[13px]">{t.loading || '加载中...'}</div>
+            <div class="text-center py-8 text-gray-400 text-[13px]">{t.loading || '加载中...'}</div>
           {:else if userdataTemplates.length === 0}
-            <div class="text-center py-8 text-gray-500 text-[13px]">{t.noTemplates || '暂无可用模板'}</div>
+            <div class="text-center py-8 text-gray-400 text-[13px]">{t.noTemplates || '暂无可用模板'}</div>
           {:else}
             <div class="space-y-2">
               {#each Object.entries(groupedUserdataTemplates()) as [category, categoryTemplates]}
-                <div class="border border-gray-600 rounded-lg overflow-hidden">
+                <div class="border border-gray-200 rounded-lg overflow-hidden">
                   <button
-                    class="w-full flex items-center justify-between px-3 py-2 bg-gray-700 hover:bg-gray-600 transition-colors cursor-pointer"
+                    class="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
                     onclick={() => expandedCategories[category] = !expandedCategories[category]}
                   >
-                    <span class="text-[12px] font-medium text-gray-300">
+                    <span class="text-[12px] font-medium text-gray-700">
                       {userdataCategoryNames[category] || category}
-                      <span class="ml-1 text-gray-500">({categoryTemplates.length})</span>
+                      <span class="ml-1 text-gray-400">({categoryTemplates.length})</span>
                     </span>
-                    <svg class="w-4 h-4 text-gray-500 transition-transform {expandedCategories[category] ? 'rotate-180' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg class="w-4 h-4 text-gray-400 transition-transform {expandedCategories[category] ? 'rotate-180' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
                   {#if expandedCategories[category]}
-                    <div class="space-y-1 p-2 bg-gray-800">
+                    <div class="space-y-1 p-2 bg-white">
                       {#each categoryTemplates as template}
                         <button
-                          class="w-full text-left px-3 py-2 text-[12px] bg-gray-700 hover:bg-gray-600 border border-gray-600 hover:border-emerald-500 rounded transition-colors cursor-pointer {selectedUserdataTemplate === template ? 'border-emerald-500 bg-emerald-900/30' : ''}"
+                          class="w-full text-left px-3 py-2 text-[12px] bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:border-red-300 rounded transition-colors cursor-pointer {selectedUserdataTemplate === template ? 'border-red-400 bg-red-50' : ''}"
                           onclick={() => selectedUserdataTemplate = template}
                         >
-                          <span class="font-medium text-gray-200">{template.nameZh || template.name}</span>
+                          <span class="font-medium text-gray-900">{template.nameZh || template.name}</span>
                           {#if template.description}
-                            <span class="block text-gray-500 text-[10px] truncate">{template.description}</span>
+                            <span class="block text-gray-400 text-[10px] truncate">{template.description}</span>
                           {/if}
                         </button>
                       {/each}
@@ -541,11 +541,11 @@
 
             {#if selectedUserdataTemplate}
               <div class="mt-3">
-                <span class="block text-[12px] font-medium text-gray-300 mb-2">{t.scriptPreview || '脚本预览'}</span>
+                <span class="block text-[12px] font-medium text-gray-700 mb-2">{t.scriptPreview || '脚本预览'}</span>
                 <pre class="bg-gray-900 text-gray-300 text-[11px] p-2 rounded-lg overflow-auto max-h-40 font-mono">{selectedUserdataTemplate?.script || ''}</pre>
               </div>
               <button
-                class="w-full h-10 mt-2 text-[13px] font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                class="w-full h-10 mt-2 text-[13px] font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 onclick={uploadAndShowCommand}
                 disabled={!selectedUserdataTemplate?.script || !activeSession?.connected || uploading}
               >
@@ -569,11 +569,11 @@
 
     <!-- Right panel: Port forwarding -->
     {#if rightPanel === 'portForward'}
-      <div class="w-80 flex-shrink-0 bg-gray-800 border-l border-gray-700 flex flex-col overflow-hidden">
-        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-700">
-          <h3 class="text-[13px] font-semibold text-white">{t.sshPortForward || '端口转发'}</h3>
+      <div class="w-80 flex-shrink-0 bg-white border-l border-gray-200 flex flex-col overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+          <h3 class="text-[13px] font-semibold text-gray-900">{t.sshPortForward || '端口转发'}</h3>
           <button
-            class="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
+            class="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
             onclick={() => rightPanel = 'none'}
           >
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -584,19 +584,19 @@
 
         <div class="flex-1 overflow-y-auto p-3 space-y-2">
           {#if portForwards.length === 0}
-            <p class="text-[12px] text-gray-500 text-center py-4">{t.sshNoForwards || '暂无活跃的端口转发'}</p>
+            <p class="text-[12px] text-gray-400 text-center py-4">{t.sshNoForwards || '暂无活跃的端口转发'}</p>
           {/if}
           {#each portForwards as pf}
-            <div class="bg-gray-900 rounded-lg p-3 border border-gray-700">
+            <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
               <div class="flex items-center justify-between">
                 <div class="min-w-0">
-                  <p class="text-[12px] font-mono text-emerald-400 truncate">
+                  <p class="text-[12px] font-mono text-red-600 truncate">
                     localhost:{pf.localPort} → {pf.remoteHost}:{pf.remotePort}
                   </p>
-                  <p class="text-[10px] text-gray-500 mt-0.5 truncate">Case: {pf.caseId?.substring(0, 12)}</p>
+                  <p class="text-[10px] text-gray-400 mt-0.5 truncate">Case: {pf.caseId?.substring(0, 12)}</p>
                 </div>
                 <button
-                  class="ml-2 flex-shrink-0 px-2 py-1 text-[11px] text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded transition-colors cursor-pointer"
+                  class="ml-2 flex-shrink-0 px-2 py-1 text-[11px] text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors cursor-pointer"
                   onclick={() => handleStopPortForward(pf.id)}
                 >
                   {t.sshStopForward || '停止'}
@@ -606,17 +606,17 @@
           {/each}
         </div>
 
-        <div class="flex-shrink-0 border-t border-gray-700 p-3 space-y-2">
-          <p class="text-[12px] font-medium text-gray-300">{t.sshStartForward || '新建转发'}</p>
+        <div class="flex-shrink-0 border-t border-gray-200 p-3 space-y-2">
+          <p class="text-[12px] font-medium text-gray-700">{t.sshStartForward || '新建转发'}</p>
           {#if activeSession}
-            <div class="flex items-center gap-2 px-3 py-1.5 bg-gray-900/60 border border-gray-700 rounded-lg">
-              <span class="text-[11px] text-gray-500 flex-shrink-0">{t.sshCurrentSession || '当前会话'}:</span>
-              <span class="text-[12px] text-emerald-400 truncate">{sessionLabel(activeSession)}</span>
+            <div class="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
+              <span class="text-[11px] text-gray-400 flex-shrink-0">{t.sshCurrentSession || '当前会话'}:</span>
+              <span class="text-[12px] text-red-600 font-medium truncate">{sessionLabel(activeSession)}</span>
             </div>
           {:else}
             <input
               type="text"
-              class="w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded-lg text-[12px] text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              class="w-full px-3 py-1.5 bg-gray-50 border border-gray-300 rounded-lg text-[12px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
               placeholder={t.sshCaseId || '场景/部署 ID'}
               bind:value={pfCaseId}
             />
@@ -624,28 +624,28 @@
           <div class="grid grid-cols-2 gap-2">
             <input
               type="number"
-              class="px-3 py-1.5 bg-gray-900 border border-gray-600 rounded-lg text-[12px] text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              class="px-3 py-1.5 bg-gray-50 border border-gray-300 rounded-lg text-[12px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
               placeholder={t.sshLocalPort || '本地端口'}
               bind:value={pfLocalPort}
             />
             <input
               type="number"
-              class="px-3 py-1.5 bg-gray-900 border border-gray-600 rounded-lg text-[12px] text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              class="px-3 py-1.5 bg-gray-50 border border-gray-300 rounded-lg text-[12px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
               placeholder={t.sshRemotePort || '远程端口'}
               bind:value={pfRemotePort}
             />
           </div>
           <input
             type="text"
-            class="w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded-lg text-[12px] text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            class="w-full px-3 py-1.5 bg-gray-50 border border-gray-300 rounded-lg text-[12px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
             placeholder={t.sshRemoteHost || '远程主机 (默认 127.0.0.1)'}
             bind:value={pfRemoteHost}
           />
           {#if pfError}
-            <p class="text-[11px] text-red-400">{pfError}</p>
+            <p class="text-[11px] text-red-500">{pfError}</p>
           {/if}
           <button
-            class="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            class="w-full h-10 bg-red-600 hover:bg-red-700 text-white text-[13px] font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             onclick={handleStartPortForward}
             disabled={pfLoading}
           >
@@ -670,7 +670,7 @@
 {#if showNewSessionDialog}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+    class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
     onclick={(e) => { if (e.target === e.currentTarget) showNewSessionDialog = false; }}
     onkeydown={(e) => { if (e.key === 'Escape') showNewSessionDialog = false; }}
   >
@@ -681,7 +681,7 @@
           <label class="block text-[12px] font-medium text-gray-700 mb-1">{t.sshCaseId || '场景/部署 ID'}</label>
           <input
             type="text"
-            class="w-full px-3 py-2 text-[13px] border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900"
+            class="w-full px-3 py-2 text-[13px] border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
             placeholder={t.sshCaseIdPlaceholder || '输入场景或部署 ID'}
             bind:value={newSessionCaseId}
             onkeydown={(e) => { if (e.key === 'Enter') handleNewSessionSubmit(); }}
@@ -691,7 +691,7 @@
           <label class="block text-[12px] font-medium text-gray-700 mb-1">{t.sshDisplayName || '显示名称 (可选)'}</label>
           <input
             type="text"
-            class="w-full px-3 py-2 text-[13px] border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900"
+            class="w-full px-3 py-2 text-[13px] border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
             placeholder={t.sshDisplayNamePlaceholder || '在标签页中显示的名称'}
             bind:value={newSessionCaseName}
             onkeydown={(e) => { if (e.key === 'Enter') handleNewSessionSubmit(); }}
@@ -706,7 +706,7 @@
           {t.cancel || '取消'}
         </button>
         <button
-          class="h-10 px-5 text-[13px] font-medium text-white bg-emerald-500 rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          class="h-10 px-5 text-[13px] font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           onclick={handleNewSessionSubmit}
           disabled={!newSessionCaseId.trim()}
         >
