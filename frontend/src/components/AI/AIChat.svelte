@@ -1,10 +1,10 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { marked } from 'marked';
-  import { AIChatStream, SaveTemplateFiles } from '../../../wailsjs/wailsjs/go/main/App.js';
+  import { AIChatStream, AgentChatStream, SaveTemplateFiles } from '../../../wailsjs/wailsjs/go/main/App.js';
   import { EventsOn, EventsOff } from '../../../wailsjs/runtime/runtime.js';
 
-  let { t, onTabChange = () => {} } = $props();
+  let { t, onTabChange = () => {}, visible = true } = $props();
 
   // Configure marked
   marked.setOptions({ breaks: true, gfm: true });
@@ -26,6 +26,7 @@
   let error = $state('');
   let successMessage = $state('');
   let messagesContainer = $state(null);
+  let agentToolCalls = $state([]);  // { id, toolName, toolArgs, status: 'calling'|'success'|'error', content }
 
   // Conversation history state
   let conversations = $state([]);   // Array of { id, title, mode, messages, updatedAt }
@@ -37,13 +38,14 @@
 
   const modes = [
     { id: 'free', labelKey: 'aiChatFreeChat', icon: 'M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z' },
+    { id: 'agent', labelKey: 'aiChatAgent', icon: 'M11.42 15.17l-5.1-5.1a1.5 1.5 0 010-2.12l.88-.88a1.5 1.5 0 012.12 0L12 9.75l5.3-5.3a1.5 1.5 0 012.12 0l.88.88a1.5 1.5 0 010 2.12l-7.18 7.18a1.5 1.5 0 01-2.12 0zM3.75 21h16.5' },
     { id: 'generate', labelKey: 'aiChatGenTemplate', icon: 'M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5' },
     { id: 'recommend', labelKey: 'aiChatRecommend', icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
     { id: 'cost', labelKey: 'aiChatCostOpt', icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
   ];
 
-  const modeLabels = { free: 'aiChatFreeChat', generate: 'aiChatGenTemplate', recommend: 'aiChatRecommend', cost: 'aiChatCostOpt' };
-  const welcomeMessages = { free: 'aiChatWelcomeFree', generate: 'aiChatWelcomeGenerate', recommend: 'aiChatWelcomeRecommend', cost: 'aiChatWelcomeCost' };
+  const modeLabels = { free: 'aiChatFreeChat', agent: 'aiChatAgent', generate: 'aiChatGenTemplate', recommend: 'aiChatRecommend', cost: 'aiChatCostOpt' };
+  const welcomeMessages = { free: 'aiChatWelcomeFree', agent: 'aiChatWelcomeAgent', generate: 'aiChatWelcomeGenerate', recommend: 'aiChatWelcomeRecommend', cost: 'aiChatWelcomeCost' };
 
   function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
@@ -178,6 +180,13 @@
     // Don't save empty conversation to list yet — will save on first message
   }
 
+  // Storage event handler (kept at module level for cleanup)
+  function handleStorage(e) {
+    if (e.key === 'ai-chat-pending-terminal' && e.newValue) {
+      checkPendingTerminalText();
+    }
+  }
+
   onMount(() => {
     loadConversations();
 
@@ -204,12 +213,15 @@
     EventsOn('ai-chat-complete', (data) => {
       if (data.conversationId === currentConversationId) {
         if (data.success && streamingContent) {
+          // For agent mode, include tool call cards in the message
+          const toolCards = agentToolCalls.length > 0 ? [...agentToolCalls] : undefined;
           messages = [...messages, {
             id: generateId(),
             role: 'assistant',
             content: streamingContent,
             timestamp: Date.now(),
-            mode
+            mode,
+            toolCalls: toolCards
           }];
         } else if (!data.success) {
           error = t.aiChatStreamError || 'AI 响应失败，请重试';
@@ -217,26 +229,55 @@
         streamingContent = '';
         isStreaming = false;
         currentConversationId = '';
+        agentToolCalls = [];
         syncCurrentConversation();
       }
     });
 
-    // Check for pending terminal text from SSH Manager
+    EventsOn('ai-agent-tool-call', (data) => {
+      if (data.conversationId === currentConversationId) {
+        agentToolCalls = [...agentToolCalls, {
+          id: data.toolCallId,
+          toolName: data.toolName,
+          toolArgs: data.toolArgs,
+          status: 'calling',
+          content: ''
+        }];
+        scrollToBottom();
+      }
+    });
+
+    EventsOn('ai-agent-tool-result', (data) => {
+      if (data.conversationId === currentConversationId) {
+        agentToolCalls = agentToolCalls.map(tc =>
+          tc.id === data.toolCallId
+            ? { ...tc, status: data.success ? 'success' : 'error', content: data.content }
+            : tc
+        );
+        scrollToBottom();
+      }
+    });
+
+    // Check for pending terminal text on initial mount
     checkPendingTerminalText();
 
-    // Listen for future sends (when user switches back to AI Chat tab)
-    const handleStorage = (e) => {
-      if (e.key === 'ai-chat-pending-terminal' && e.newValue) {
-        checkPendingTerminalText();
-      }
-    };
+    // Listen for cross-tab storage events
     window.addEventListener('storage', handleStorage);
+  });
 
-    return () => {
-      EventsOff('ai-chat-chunk');
-      EventsOff('ai-chat-complete');
-      window.removeEventListener('storage', handleStorage);
-    };
+  onDestroy(() => {
+    EventsOff('ai-chat-chunk');
+    EventsOff('ai-chat-complete');
+    EventsOff('ai-agent-tool-call');
+    EventsOff('ai-agent-tool-result');
+    window.removeEventListener('storage', handleStorage);
+  });
+
+  // Check for pending terminal text when tab becomes visible
+  $effect(() => {
+    if (visible) {
+      checkPendingTerminalText();
+    }
   });
 
   // Auto-scroll
@@ -301,6 +342,7 @@
 
     isStreaming = true;
     streamingContent = '';
+    agentToolCalls = [];
     const convId = generateId();
     currentConversationId = convId;
 
@@ -311,12 +353,17 @@
       .map(m => ({ role: m.role, content: m.content }));
 
     try {
-      await AIChatStream(convId, mode, chatMessages);
+      if (mode === 'agent') {
+        await AgentChatStream(convId, chatMessages);
+      } else {
+        await AIChatStream(convId, mode, chatMessages);
+      }
     } catch (e) {
       error = e.message || String(e);
       isStreaming = false;
       streamingContent = '';
       currentConversationId = '';
+      agentToolCalls = [];
     }
 
     syncCurrentConversation();
@@ -384,9 +431,29 @@
     if (isToday) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
+
+  // Tool name display mapping
+  const toolNameMap = {
+    list_templates: '列出模板', search_templates: '搜索模板', pull_template: '下载模板',
+    list_cases: '列出场景', plan_case: '规划场景', start_case: '启动场景',
+    stop_case: '停止场景', kill_case: '销毁场景', get_case_status: '查看状态',
+    exec_command: '执行命令', get_ssh_info: '获取 SSH 信息',
+    upload_file: '上传文件', download_file: '下载文件',
+    get_template_info: '模板详情', delete_template: '删除模板',
+    get_case_outputs: '获取输出', get_config: '获取配置', validate_config: '验证配置'
+  };
+
+  function getToolDisplayName(name) {
+    return toolNameMap[name] || name;
+  }
+
+  function formatToolArgs(args) {
+    if (!args || typeof args !== 'object') return '';
+    return Object.entries(args).map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`).join(', ');
+  }
 </script>
 
-<div class="flex flex-col h-[calc(100vh-8rem)]">
+<div class="flex flex-col h-full px-6 pt-6 pb-4">
   <!-- Mode selector + history toggle -->
   <div class="flex items-center gap-2 mb-4 flex-shrink-0">
     {#each modes as m}
@@ -520,6 +587,30 @@
                     </svg>
                   </div>
                   <div class="flex-1 min-w-0">
+                    <!-- Saved tool call cards (agent mode history) -->
+                    {#if msg.toolCalls && msg.toolCalls.length > 0}
+                      <div class="mb-2 space-y-1.5">
+                        {#each msg.toolCalls as tc}
+                          <div class="flex items-start gap-2 px-3 py-2 rounded-lg border {tc.status === 'success' ? 'bg-emerald-50 border-emerald-200' : tc.status === 'error' ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}">
+                            <span class="text-[11px] mt-0.5">
+                              {#if tc.status === 'success'}✅{:else if tc.status === 'error'}❌{:else}⏳{/if}
+                            </span>
+                            <div class="flex-1 min-w-0">
+                              <div class="text-[12px] font-medium text-gray-700">🔧 {getToolDisplayName(tc.toolName)}</div>
+                              {#if tc.toolArgs && Object.keys(tc.toolArgs).length > 0}
+                                <div class="text-[11px] text-gray-500 font-mono truncate">{formatToolArgs(tc.toolArgs)}</div>
+                              {/if}
+                              {#if tc.content}
+                                <details class="mt-1">
+                                  <summary class="text-[11px] text-gray-400 cursor-pointer hover:text-gray-600">{t.agentViewResult || '查看结果'}</summary>
+                                  <pre class="mt-1 text-[11px] text-gray-600 bg-white rounded p-2 max-h-32 overflow-auto whitespace-pre-wrap">{tc.content}</pre>
+                                </details>
+                              {/if}
+                            </div>
+                          </div>
+                        {/each}
+                      </div>
+                    {/if}
                     <div class="px-4 py-2.5 rounded-2xl rounded-tl-md bg-white border border-gray-100">
                       <div class="md-content text-[13px] text-gray-900 leading-relaxed">
                         {@html renderMarkdown(msg.content)}
@@ -568,6 +659,33 @@
                   </svg>
                 </div>
                 <div class="flex-1 min-w-0">
+                  <!-- Live agent tool call cards -->
+                  {#if agentToolCalls.length > 0}
+                    <div class="mb-2 space-y-1.5">
+                      {#each agentToolCalls as tc (tc.id)}
+                        <div class="flex items-start gap-2 px-3 py-2 rounded-lg border {tc.status === 'success' ? 'bg-emerald-50 border-emerald-200' : tc.status === 'error' ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}">
+                          <span class="text-[11px] mt-0.5">
+                            {#if tc.status === 'calling'}
+                              <svg class="w-3.5 h-3.5 animate-spin text-amber-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                            {:else if tc.status === 'success'}✅
+                            {:else}❌{/if}
+                          </span>
+                          <div class="flex-1 min-w-0">
+                            <div class="text-[12px] font-medium text-gray-700">🔧 {getToolDisplayName(tc.toolName)}</div>
+                            {#if tc.toolArgs && Object.keys(tc.toolArgs).length > 0}
+                              <div class="text-[11px] text-gray-500 font-mono truncate">{formatToolArgs(tc.toolArgs)}</div>
+                            {/if}
+                            {#if tc.content}
+                              <details class="mt-1">
+                                <summary class="text-[11px] text-gray-400 cursor-pointer hover:text-gray-600">{t.agentViewResult || '查看结果'}</summary>
+                                <pre class="mt-1 text-[11px] text-gray-600 bg-white rounded p-2 max-h-32 overflow-auto whitespace-pre-wrap">{tc.content}</pre>
+                              </details>
+                            {/if}
+                          </div>
+                        </div>
+                      {/each}
+                    </div>
+                  {/if}
                   <div class="px-4 py-2.5 rounded-2xl rounded-tl-md bg-white border border-gray-100">
                     {#if streamingContent}
                       <div class="md-content text-[13px] text-gray-900 leading-relaxed">
@@ -580,7 +698,13 @@
                           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        <span class="text-[12px] text-gray-400">{t.aiChatStreaming || 'AI 思考中...'}</span>
+                        <span class="text-[12px] text-gray-400">
+                          {#if mode === 'agent' && agentToolCalls.length > 0}
+                            {t.agentProcessing || 'Agent 执行中...'}
+                          {:else}
+                            {t.aiChatStreaming || 'AI 思考中...'}
+                          {/if}
+                        </span>
                       </div>
                     {/if}
                   </div>

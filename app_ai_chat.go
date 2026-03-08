@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"red-cloud/i18n"
 	redc "red-cloud/mod"
 	"red-cloud/mod/ai"
+	"red-cloud/mod/mcp"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -109,7 +111,170 @@ func (a *App) AIChatStream(conversationId, mode string, messages []AIChatMessage
 	return nil
 }
 
-// gatherRunningCasesInfo collects information about running cases for cost optimization
+// AgentChatStream runs the agentic loop: AI + MCP tool calling + streaming final answer
+func (a *App) AgentChatStream(conversationId string, messages []AIChatMessage) error {
+	profile, err := redc.GetActiveProfile()
+	if err != nil || profile.AIConfig == nil {
+		return fmt.Errorf("%s", i18n.T("app_ai_not_configured"))
+	}
+	aiConfig := profile.AIConfig
+	if aiConfig.APIKey == "" || aiConfig.BaseURL == "" || aiConfig.Model == "" {
+		return fmt.Errorf("%s", i18n.T("app_ai_config_incomplete"))
+	}
+
+	a.mu.Lock()
+	project := a.project
+	a.mu.Unlock()
+	if project == nil {
+		return fmt.Errorf("%s", i18n.T("app_project_not_loaded"))
+	}
+
+	uiLang := a.GetLanguage()
+	langPrompt := "请用中文回复"
+	if uiLang == "en" {
+		langPrompt = "Please reply in English"
+	}
+	systemPrompt := fmt.Sprintf(ai.AgentSystemPrompt, langPrompt)
+
+	// Build tool definitions from MCP server
+	mcpServer := mcp.NewMCPServer(project)
+	mcpTools := mcpServer.GetTools()
+	toolDefs := make([]ai.ToolDefinition, 0, len(mcpTools))
+	for _, t := range mcpTools {
+		params := map[string]interface{}{
+			"type":       t.InputSchema.Type,
+			"properties": t.InputSchema.Properties,
+		}
+		if len(t.InputSchema.Required) > 0 {
+			params["required"] = t.InputSchema.Required
+		}
+		toolDefs = append(toolDefs, ai.ToolDefinition{
+			Type: "function",
+			Function: ai.ToolFunctionDef{
+				Name:        t.Name,
+				Description: t.Description,
+				Parameters:  params,
+			},
+		})
+	}
+
+	// Build initial message list: system + history
+	aiMessages := make([]ai.Message, 0, len(messages)+1)
+	aiMessages = append(aiMessages, ai.Message{Role: "system", Content: systemPrompt})
+	for _, m := range messages {
+		aiMessages = append(aiMessages, ai.Message{Role: m.Role, Content: m.Content})
+	}
+
+	client := ai.NewClient(aiConfig.Provider, aiConfig.APIKey, aiConfig.BaseURL, aiConfig.Model)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	// Agentic loop: max 10 rounds of tool use
+	const maxRounds = 10
+	for round := 0; round < maxRounds; round++ {
+		resp, err := client.ChatWithTools(ctx, aiMessages, toolDefs)
+		if err != nil {
+			runtime.EventsEmit(a.ctx, "ai-chat-complete", map[string]interface{}{
+				"conversationId": conversationId,
+				"success":        false,
+			})
+			return fmt.Errorf(i18n.Tf("app_ai_analysis_failed", err))
+		}
+
+		// No tool calls → stream the final answer
+		if len(resp.ToolCalls) == 0 {
+			// Append assistant message to history first
+			aiMessages = append(aiMessages, ai.Message{Role: "assistant", Content: resp.Content})
+
+			// Stream the final text word-by-word to give a streaming feel
+			words := strings.Split(resp.Content, "")
+			chunkSize := 8
+			for i := 0; i < len(words); i += chunkSize {
+				end := i + chunkSize
+				if end > len(words) {
+					end = len(words)
+				}
+				runtime.EventsEmit(a.ctx, "ai-chat-chunk", map[string]string{
+					"conversationId": conversationId,
+					"chunk":          strings.Join(words[i:end], ""),
+				})
+			}
+			runtime.EventsEmit(a.ctx, "ai-chat-complete", map[string]interface{}{
+				"conversationId": conversationId,
+				"success":        true,
+			})
+			return nil
+		}
+
+		// Append assistant message with tool_calls to history
+		aiMessages = append(aiMessages, ai.Message{
+			Role:      "assistant",
+			Content:   resp.Content,
+			ToolCalls: resp.ToolCalls,
+		})
+
+		// Execute each tool call
+		for _, tc := range resp.ToolCalls {
+			// Parse tool arguments
+			var args map[string]interface{}
+			if tc.Function.Arguments != "" {
+				if jsonErr := json.Unmarshal([]byte(tc.Function.Arguments), &args); jsonErr != nil {
+					args = map[string]interface{}{}
+				}
+			}
+
+			// Emit tool-call event to frontend
+			runtime.EventsEmit(a.ctx, "ai-agent-tool-call", map[string]interface{}{
+				"conversationId": conversationId,
+				"toolCallId":     tc.ID,
+				"toolName":       tc.Function.Name,
+				"toolArgs":       args,
+			})
+
+			// Execute via MCP
+			result, execErr := mcpServer.ExecuteTool(tc.Function.Name, args)
+			var resultContent string
+			success := execErr == nil
+			if execErr != nil {
+				resultContent = fmt.Sprintf("工具执行失败: %v", execErr)
+			} else if len(result.Content) > 0 {
+				var parts []string
+				for _, item := range result.Content {
+					parts = append(parts, item.Text)
+				}
+				resultContent = strings.Join(parts, "\n")
+			}
+
+			// Emit result event to frontend
+			runtime.EventsEmit(a.ctx, "ai-agent-tool-result", map[string]interface{}{
+				"conversationId": conversationId,
+				"toolCallId":     tc.ID,
+				"toolName":       tc.Function.Name,
+				"success":        success,
+				"content":        resultContent,
+			})
+
+			// Add tool result to message history
+			aiMessages = append(aiMessages, ai.Message{
+				Role:       "tool",
+				Content:    resultContent,
+				ToolCallID: tc.ID,
+				Name:       tc.Function.Name,
+			})
+		}
+	}
+
+	// Exceeded max rounds
+	runtime.EventsEmit(a.ctx, "ai-chat-chunk", map[string]string{
+		"conversationId": conversationId,
+		"chunk":          "\n\n⚠️ 已达到最大工具调用轮次（10轮），操作结束。",
+	})
+	runtime.EventsEmit(a.ctx, "ai-chat-complete", map[string]interface{}{
+		"conversationId": conversationId,
+		"success":        true,
+	})
+	return nil
+}
 func (a *App) gatherRunningCasesInfo() (string, int) {
 	a.mu.Lock()
 	project := a.project

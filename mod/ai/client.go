@@ -72,12 +72,104 @@ func NewClient(provider, apiKey, baseURL, model string) *Client {
 
 // Message represents a chat message
 type Message struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role       string          `json:"role"`
+	Content    string          `json:"content,omitempty"`
+	ToolCallID string          `json:"tool_call_id,omitempty"`
+	ToolCalls  []ToolCall      `json:"tool_calls,omitempty"`
+	Name       string          `json:"name,omitempty"`
+}
+
+// ToolCall represents an OpenAI tool call in a message
+type ToolCall struct {
+	ID       string       `json:"id"`
+	Type     string       `json:"type"`
+	Function ToolFunction `json:"function"`
+}
+
+// ToolFunction holds the name and arguments of a tool call
+type ToolFunction struct {
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
+}
+
+// ToolDefinition describes a tool for the OpenAI API
+type ToolDefinition struct {
+	Type     string           `json:"type"`
+	Function ToolFunctionDef  `json:"function"`
+}
+
+// ToolFunctionDef describes the function within a tool definition
+type ToolFunctionDef struct {
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	Parameters  map[string]interface{} `json:"parameters"`
+}
+
+// ToolCallResponse is the full (non-streaming) response that may include tool_calls
+type ToolCallResponse struct {
+	Content   string     `json:"content"`
+	ToolCalls []ToolCall `json:"tool_calls"`
 }
 
 // StreamCallback is called for each chunk of the stream
 type StreamCallback func(chunk string) error
+
+// ChatWithTools sends a non-streaming chat request with tool definitions, returns full response
+func (c *Client) ChatWithTools(ctx context.Context, messages []Message, tools []ToolDefinition) (*ToolCallResponse, error) {
+	reqBody := map[string]interface{}{
+		"model":       c.Model,
+		"messages":    messages,
+		"tools":       tools,
+		"tool_choice": "auto",
+	}
+
+	bodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", c.BaseURL+"/chat/completions", bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+c.APIKey)
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	var apiResp struct {
+		Choices []struct {
+			Message struct {
+				Content   string     `json:"content"`
+				ToolCalls []ToolCall `json:"tool_calls"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+	if len(apiResp.Choices) == 0 {
+		return nil, fmt.Errorf("empty response from API")
+	}
+
+	msg := apiResp.Choices[0].Message
+	return &ToolCallResponse{
+		Content:   msg.Content,
+		ToolCalls: msg.ToolCalls,
+	}, nil
+}
 
 // ChatStream sends a chat request and streams the response
 func (c *Client) ChatStream(ctx context.Context, messages []Message, callback StreamCallback) error {

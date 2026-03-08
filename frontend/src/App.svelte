@@ -375,12 +375,17 @@
         <SSHManager {t} onTabChange={(tab) => activeTab = tab} />
       </div>
 
+      <!-- AIChat rendered outside {#key} to persist event listeners and state across tab switches -->
+      <div class="-m-6 h-[calc(100%+3rem)]" style:display={activeTab === 'aiChat' && !isLoading ? 'block' : 'none'}>
+        <AIChat {t} onTabChange={(tab) => activeTab = tab} visible={activeTab === 'aiChat' && !isLoading} />
+      </div>
+
       {#if isLoading}
         <div class="flex items-center justify-center h-64">
           <div class="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin"></div>
         </div>
       {:else}
-        {#if activeTab !== 'sshManager'}
+        {#if activeTab !== 'sshManager' && activeTab !== 'aiChat'}
         {#key activeTab}
           <div 
             class="animate-fade-in"
@@ -409,9 +414,6 @@
 
             {:else if activeTab === 'ai'}
               <AIIntegration {t} onTabChange={(tab) => activeTab = tab} />
-
-            {:else if activeTab === 'aiChat'}
-              <AIChat {t} onTabChange={(tab) => activeTab = tab} />
 
             {:else if activeTab === 'specialModules'}
               <SpecialModules {t} onTabChange={(tab) => activeTab = tab} />

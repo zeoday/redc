@@ -14,6 +14,8 @@ export function AIGenerateTemplate(arg1:string):Promise<void>;
 
 export function AIRecommendTemplates(arg1:string):Promise<void>;
 
+export function AgentChatStream(arg1:string,arg2:Array<main.AIChatMessage>):Promise<void>;
+
 export function AnalyzeCaseError(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
 export function AnalyzeDeploymentError(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;

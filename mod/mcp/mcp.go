@@ -805,6 +805,21 @@ func (s *MCPServer) executeTool(name string, args map[string]interface{}) (ToolR
 	}
 }
 
+// ExecuteTool is the public API for calling MCP tools directly (used by AI Agent)
+func (s *MCPServer) ExecuteTool(name string, args map[string]interface{}) (ToolResult, error) {
+	return s.executeTool(name, args)
+}
+
+// GetTools returns the list of available MCP tools (used by AI Agent to build tool schema)
+func (s *MCPServer) GetTools() []Tool {
+	return s.getTools()
+}
+
+// GetMCPServer returns the underlying MCPServer from the manager (used by AI Agent)
+func (m *MCPServerManager) GetMCPServer() *MCPServer {
+	return m.server
+}
+
 // Tool implementations
 func (s *MCPServer) toolListTemplates() (ToolResult, error) {
 	dirs, err := redc.ScanTemplateDirs(redc.TemplateDir, redc.MaxTfDepth)

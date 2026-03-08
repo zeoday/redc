@@ -18,6 +18,10 @@ export function AIRecommendTemplates(arg1) {
   return window['go']['main']['App']['AIRecommendTemplates'](arg1);
 }
 
+export function AgentChatStream(arg1, arg2) {
+  return window['go']['main']['App']['AgentChatStream'](arg1, arg2);
+}
+
 export function AnalyzeCaseError(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['AnalyzeCaseError'](arg1, arg2, arg3, arg4);
 }
