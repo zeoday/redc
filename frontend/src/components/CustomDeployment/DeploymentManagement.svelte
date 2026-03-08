@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import CustomDeploymentList from './CustomDeploymentList.svelte';
 
-  let { t } = $props();
+  let { t, onTabChange = () => {} } = $props();
 
   let listComponent: any;
 
@@ -29,6 +29,7 @@
       t={t}
       onSelectDeployment={handleSelectDeployment}
       onRefresh={handleRefresh}
+      {onTabChange}
     />
   </div>
 </div>

@@ -55,11 +55,17 @@ func NewClient(conf *SSHConfig) (*Client, error) {
 		maxRetries = 3
 	}
 
+	// Ensure a reasonable timeout
+	timeout := conf.Timeout
+	if timeout == 0 {
+		timeout = 10 * time.Second
+	}
+
 	config := &ssh.ClientConfig{
 		User:            conf.User,
 		Auth:            authMethods,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // 红队场景通常忽略 HostKey 检查
-		Timeout:         conf.Timeout,
+		Timeout:         timeout,
 		HostKeyAlgorithms: []string{
 			ssh.KeyAlgoRSASHA256,
 			ssh.KeyAlgoRSASHA512,
@@ -72,6 +78,7 @@ func NewClient(conf *SSHConfig) (*Client, error) {
 		Config: ssh.Config{
 			Ciphers: []string{
 				"aes128-gcm@openssh.com",
+				"aes256-gcm@openssh.com",
 				"chacha20-poly1305@openssh.com",
 				"aes128-ctr", "aes192-ctr", "aes256-ctr",
 			},
@@ -79,6 +86,7 @@ func NewClient(conf *SSHConfig) (*Client, error) {
 				"curve25519-sha256",
 				"curve25519-sha256@libssh.org",
 				"ecdh-sha2-nistp256",
+				"diffie-hellman-group14-sha256",
 				"diffie-hellman-group14-sha1",
 				"diffie-hellman-group1-sha1",
 			},
@@ -93,20 +101,10 @@ func NewClient(conf *SSHConfig) (*Client, error) {
 			// 连接成功，直接返回
 			return &Client{client}, nil
 		}
-		//var netErr net.Error
-		//if errors.As(err, &netErr) && netErr.Timeout() {
-		//	gologger.Error().Msgf("SSH 网络连接超时")
-		//}
-		//if errors.Is(err, syscall.ECONNREFUSED) {
-		//	gologger.Error().Msgf("连接被拒绝 (端口可能未开放或被防火墙拦截): %s\n", addr)
-		//}
+		gologger.Error().Msgf("SSH连接失败 (%d/%d): %s -> %s", i+1, maxRetries, addr, err.Error())
 		// 如果不是最后一次尝试，则等待一段时间重试
 		if i < maxRetries-1 {
-			// 第二次尝试才进行提示
-			if i >= 1 {
-				gologger.Error().Msgf("SSH连接错误，正在重试 (%d/%d)... %s\n", i+1, maxRetries, err.Error())
-			}
-			time.Sleep(30 * time.Second)
+			time.Sleep(5 * time.Second)
 		}
 
 	}

@@ -9,7 +9,7 @@
   import ImportExportDialog from './ImportExportDialog.svelte';
   import DeploymentManagement from './DeploymentManagement.svelte';
 
-  let { t } = $props();
+  let { t, onTabChange = () => {} } = $props();
   
   // Tab state
   let activeTab = $state('create'); // 'create' or 'manage'
@@ -458,7 +458,7 @@
 
   {:else if activeTab === 'manage'}
     <!-- Deployment Management Tab -->
-    <DeploymentManagement {t} />
+    <DeploymentManagement {t} {onTabChange} />
   {/if}
 </div>
 

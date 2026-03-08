@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -29,9 +30,33 @@ type FileTransferResult struct {
 	Error   string `json:"error,omitempty"`
 }
 
+// PortForwardSession tracks an active SSH port forward
+type PortForwardSession struct {
+	ID         string
+	CaseID     string
+	LocalPort  int
+	RemoteHost string
+	RemotePort int
+	listener   net.Listener
+	client     *sshutil.Client
+	stopCh     chan struct{}
+}
+
+type PortForwardInfo struct {
+	ID         string `json:"id"`
+	CaseID     string `json:"caseId"`
+	LocalPort  int    `json:"localPort"`
+	RemoteHost string `json:"remoteHost"`
+	RemotePort int    `json:"remotePort"`
+	Status     string `json:"status"`
+}
+
 var (
 	terminalSessions   = make(map[string]*sshutil.TerminalSession)
 	terminalSessionsMu sync.Mutex
+
+	portForwardSessions   = make(map[string]*PortForwardSession)
+	portForwardSessionsMu sync.Mutex
 )
 
 // ExecCommand 在指定场景或自定义部署上执行命令并返回结果
@@ -629,4 +654,137 @@ func (a *App) WriteRemoteFileContent(caseID string, remotePath string, content s
 	defer client.Close()
 
 	return client.WriteFileContent(remotePath, []byte(content))
+}
+
+// StartPortForward starts an SSH local port forward (like ssh -L localPort:remoteHost:remotePort)
+func (a *App) StartPortForward(caseID string, localPort int, remoteHost string, remotePort int) (PortForwardInfo, error) {
+	sshConfig, err := a.getSSHConfig(caseID)
+	if err != nil {
+		return PortForwardInfo{}, fmt.Errorf("获取SSH配置失败: %w", err)
+	}
+
+	client, err := sshutil.NewClient(sshConfig)
+	if err != nil {
+		return PortForwardInfo{}, fmt.Errorf("SSH连接失败: %w", err)
+	}
+
+	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", localPort))
+	if err != nil {
+		client.Close()
+		return PortForwardInfo{}, fmt.Errorf("本地端口 %d 监听失败: %w", localPort, err)
+	}
+
+	id := fmt.Sprintf("pf-%s-%d-%d", caseID, localPort, time.Now().Unix())
+	stopCh := make(chan struct{})
+
+	session := &PortForwardSession{
+		ID:         id,
+		CaseID:     caseID,
+		LocalPort:  localPort,
+		RemoteHost: remoteHost,
+		RemotePort: remotePort,
+		listener:   listener,
+		client:     client,
+		stopCh:     stopCh,
+	}
+
+	portForwardSessionsMu.Lock()
+	portForwardSessions[id] = session
+	portForwardSessionsMu.Unlock()
+
+	go func() {
+		defer func() {
+			listener.Close()
+			client.Close()
+			portForwardSessionsMu.Lock()
+			delete(portForwardSessions, id)
+			portForwardSessionsMu.Unlock()
+			runtime.EventsEmit(a.ctx, "port-forward-closed", id)
+		}()
+
+		for {
+			localConn, err := listener.Accept()
+			if err != nil {
+				select {
+				case <-stopCh:
+					return
+				default:
+					return
+				}
+			}
+
+			remoteAddr := fmt.Sprintf("%s:%d", remoteHost, remotePort)
+			remoteConn, err := client.Client.Dial("tcp", remoteAddr)
+			if err != nil {
+				localConn.Close()
+				continue
+			}
+
+			// Bidirectional copy
+			go func() {
+				defer localConn.Close()
+				defer remoteConn.Close()
+				done := make(chan struct{}, 2)
+				go func() { io.Copy(remoteConn, localConn); done <- struct{}{} }()
+				go func() { io.Copy(localConn, remoteConn); done <- struct{}{} }()
+				<-done
+			}()
+		}
+	}()
+
+	return PortForwardInfo{
+		ID:         id,
+		CaseID:     caseID,
+		LocalPort:  localPort,
+		RemoteHost: remoteHost,
+		RemotePort: remotePort,
+		Status:     "active",
+	}, nil
+}
+
+// StopPortForward stops a port forward session
+func (a *App) StopPortForward(id string) error {
+	portForwardSessionsMu.Lock()
+	session, ok := portForwardSessions[id]
+	portForwardSessionsMu.Unlock()
+
+	if !ok {
+		return fmt.Errorf("端口转发会话未找到: %s", id)
+	}
+
+	close(session.stopCh)
+	session.listener.Close()
+	return nil
+}
+
+// ListPortForwards returns all active port forward sessions
+func (a *App) ListPortForwards() []PortForwardInfo {
+	portForwardSessionsMu.Lock()
+	defer portForwardSessionsMu.Unlock()
+
+	var result []PortForwardInfo
+	for _, s := range portForwardSessions {
+		result = append(result, PortForwardInfo{
+			ID:         s.ID,
+			CaseID:     s.CaseID,
+			LocalPort:  s.LocalPort,
+			RemoteHost: s.RemoteHost,
+			RemotePort: s.RemotePort,
+			Status:     "active",
+		})
+	}
+	return result
+}
+
+// GetSSHInfoForCase returns SSH connection info for display (host, port, user)
+func (a *App) GetSSHInfoForCase(caseID string) (map[string]interface{}, error) {
+	sshConfig, err := a.getSSHConfig(caseID)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{
+		"host": sshConfig.Host,
+		"port": sshConfig.Port,
+		"user": sshConfig.User,
+	}, nil
 }

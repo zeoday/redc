@@ -19,6 +19,7 @@
   import Sidebar from './components/Sidebar/Sidebar.svelte';
   import About from './components/About/About.svelte';
   import CustomDeployment from './components/CustomDeployment/CustomDeployment.svelte';
+  import SSHManager from './components/SSH/SSHManager.svelte';
   import WelcomeDialog from './components/Welcome/WelcomeDialog.svelte';
 
   let cases = $state([]);
@@ -305,7 +306,7 @@
     <!-- Header -->
     <header class="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-6" style="--wails-draggable:drag">
       <h1 class="text-[15px] font-medium text-gray-900">
-        {#if activeTab === 'dashboard'}{t.dashboard}{:else if activeTab === 'cases'}{t.sceneManage}{:else if activeTab === 'console'}{t.console}{:else if activeTab === 'resources'}{t.resources}{:else if activeTab === 'compose'}{t.compose}{:else if activeTab === 'registry'}{t.templateRepo}{:else if activeTab === 'localTemplates'}{t.localTmplManage}{:else if activeTab === 'ai'}{t.aiIntegration}{:else if activeTab === 'aiChat'}{t.aiChat}{:else if activeTab === 'credentials'}{t.credentials}{:else if activeTab === 'specialModules'}{t.specialModules}{:else if activeTab === 'customDeployment'}{t.customDeployment}{:else if activeTab === 'about'}{t.about || '关于'}{:else}{t.settings}{/if}
+        {#if activeTab === 'dashboard'}{t.dashboard}{:else if activeTab === 'cases'}{t.sceneManage}{:else if activeTab === 'console'}{t.console}{:else if activeTab === 'resources'}{t.resources}{:else if activeTab === 'compose'}{t.compose}{:else if activeTab === 'registry'}{t.templateRepo}{:else if activeTab === 'localTemplates'}{t.localTmplManage}{:else if activeTab === 'ai'}{t.aiIntegration}{:else if activeTab === 'aiChat'}{t.aiChat}{:else if activeTab === 'sshManager'}{t.sshManager || 'SSH 终端管理'}{:else if activeTab === 'credentials'}{t.credentials}{:else if activeTab === 'specialModules'}{t.specialModules}{:else if activeTab === 'customDeployment'}{t.customDeployment}{:else if activeTab === 'about'}{t.about || '关于'}{:else}{t.settings}{/if}
       </h1>
       <div class="flex items-center gap-2" style="--wails-draggable:no-drag">
         <!-- Window Controls (Windows only) -->
@@ -374,6 +375,12 @@
           <div class="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin"></div>
         </div>
       {:else}
+        <!-- SSHManager rendered outside {#key} to persist across tab switches -->
+        <div class="-m-6 h-[calc(100%+3rem)]" style:display={activeTab === 'sshManager' ? 'block' : 'none'}>
+          <SSHManager {t} onTabChange={(tab) => activeTab = tab} />
+        </div>
+
+        {#if activeTab !== 'sshManager'}
         {#key activeTab}
           <div 
             class="animate-fade-in"
@@ -416,13 +423,14 @@
               <LocalTemplates {t} />
 
             {:else if activeTab === 'customDeployment'}
-              <CustomDeployment {t} />
+              <CustomDeployment {t} onTabChange={(tab) => activeTab = tab} />
 
             {:else if activeTab === 'about'}
               <About {t} version={appVersion} updateStatus={updateStatus} onCheckUpdate={checkForUpdates} />
             {/if}
           </div>
         {/key}
+        {/if}
       {/if}
     </main>
 

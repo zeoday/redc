@@ -1,0 +1,734 @@
+<script>
+  import { onMount, onDestroy } from 'svelte';
+  import { StartSSHTerminal, WriteToTerminal, ResizeTerminal, CloseTerminal, StartPortForward, StopPortForward, ListPortForwards, GetSSHInfoForCase, UploadUserdataScript } from '../../../wailsjs/wailsjs/go/main/App.js';
+  import { EventsOn, EventsOff } from '../../../wailsjs/runtime/runtime.js';
+  import FileManager from '../Cases/FileManager.svelte';
+  import { loadUserdataTemplates, getGroupedTemplates, userdataCategoryNames } from '../../lib/userdataTemplates.js';
+
+  let { t, onTabChange } = $props();
+
+  // --- Session state ---
+  let sessions = $state([]);
+  let activeSessionIndex = $state(-1);
+  let showNewSessionDialog = $state(false);
+  let newSessionCaseId = $state('');
+  let newSessionCaseName = $state('');
+
+  // --- Right panel state: 'none' | 'portForward' | 'userdata' | 'fileManager' ---
+  let rightPanel = $state('none');
+
+  // --- Port forwarding state ---
+  let portForwards = $state([]);
+  let pfCaseId = $state('');
+  let pfLocalPort = $state('');
+  let pfRemoteHost = $state('');
+  let pfRemotePort = $state('');
+  let pfLoading = $state(false);
+  let pfError = $state('');
+
+  // --- Userdata state ---
+  let userdataTemplates = $state([]);
+  let userdataTemplatesLoading = $state(true);
+  let selectedUserdataTemplate = $state(null);
+  let uploading = $state(false);
+  let expandedCategories = $state({});
+  let groupedUserdataTemplates = $derived(() => getGroupedTemplates(userdataTemplates));
+
+  // --- File manager modal ---
+  let showFileManagerModal = $state(false);
+
+  // --- xterm modules (loaded once) ---
+  let xtermModules = $state(null);
+
+  const TERMINAL_THEME = {
+    background: '#111827', foreground: '#d1d5db', cursor: '#60a5fa',
+    black: '#1f2937', red: '#f87171', green: '#4ade80', yellow: '#fbbf24',
+    blue: '#60a5fa', magenta: '#c084fc', cyan: '#22d3ee', white: '#9ca3af',
+    brightBlack: '#4b5563', brightRed: '#fca5a5', brightGreen: '#86efac',
+    brightYellow: '#fcd34d', brightBlue: '#93c5fd', brightMagenta: '#d8b4fe',
+    brightCyan: '#67e8f9', brightWhite: '#f3f4f6',
+  };
+
+  let activeSession = $derived(activeSessionIndex >= 0 && activeSessionIndex < sessions.length ? sessions[activeSessionIndex] : null);
+
+  onMount(async () => {
+    try {
+      const [xtermMod, fitMod] = await Promise.all([
+        import('xterm'),
+        import('xterm-addon-fit'),
+      ]);
+      xtermModules = { Terminal: xtermMod.Terminal, FitAddon: fitMod.FitAddon };
+    } catch (err) {
+      console.error('Failed to load xterm:', err);
+    }
+
+    // Check for pending session from other pages
+    try {
+      const pending = localStorage.getItem('ssh-pending-session');
+      if (pending) {
+        localStorage.removeItem('ssh-pending-session');
+        const { caseId, caseName } = JSON.parse(pending);
+        if (caseId) {
+          await createSession(caseId, caseName || caseId);
+        }
+      }
+    } catch (_) {}
+
+    await refreshPortForwards();
+
+    // Load userdata templates
+    try {
+      userdataTemplates = await loadUserdataTemplates();
+    } catch (_) {}
+    userdataTemplatesLoading = false;
+
+    EventsOn('port-forward-closed', (id) => {
+      portForwards = portForwards.filter(pf => pf.id !== id);
+    });
+  });
+
+  onDestroy(() => {
+    for (const session of sessions) {
+      cleanupSession(session);
+    }
+    EventsOff('port-forward-closed');
+  });
+
+  // --- Visibility management ---
+  $effect(() => {
+    const idx = activeSessionIndex;
+    for (let i = 0; i < sessions.length; i++) {
+      const s = sessions[i];
+      if (s.containerEl) {
+        s.containerEl.style.display = i === idx ? 'block' : 'none';
+      }
+      if (i === idx && s.fitAddon && s.terminal) {
+        try { s.fitAddon.fit(); } catch (_) {}
+      }
+    }
+  });
+
+  async function createSession(caseId, caseName) {
+    if (!xtermModules) return;
+
+    let host = '', user = '';
+    try {
+      const info = await GetSSHInfoForCase(caseId);
+      host = info.host || '';
+      user = info.user || '';
+    } catch (_) {}
+
+    const session = {
+      id: crypto.randomUUID(),
+      caseId,
+      caseName: caseName || caseId,
+      sessionId: null,
+      terminal: null,
+      fitAddon: null,
+      containerEl: null,
+      resizeObserver: null,
+      connected: false,
+      connecting: true,
+      error: '',
+      host,
+      user,
+    };
+
+    sessions = [...sessions, session];
+    const idx = sessions.length - 1;
+    activeSessionIndex = idx;
+
+    await tick();
+
+    const reactiveSession = sessions[idx];
+    initSessionTerminal(reactiveSession);
+  }
+
+  function tick() {
+    return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  }
+
+  function initSessionTerminal(session) {
+    const { Terminal, FitAddon } = xtermModules;
+
+    const terminal = new Terminal({
+      cursorBlink: true,
+      fontSize: 14,
+      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      theme: TERMINAL_THEME,
+      allowProposedApi: true,
+    });
+
+    const fitAddon = new FitAddon();
+    terminal.loadAddon(fitAddon);
+
+    session.terminal = terminal;
+    session.fitAddon = fitAddon;
+
+    if (session.containerEl) {
+      terminal.open(session.containerEl);
+      fitAddon.fit();
+    } else {
+      console.error('SSHManager: containerEl is null');
+    }
+
+    terminal.onData((data) => {
+      if (session.sessionId && session.connected) {
+        WriteToTerminal(session.sessionId, data).catch(() => {});
+      }
+    });
+
+    if (session.containerEl) {
+      const resizeObserver = new ResizeObserver(() => {
+        if (session.fitAddon && session.terminal) {
+          try {
+            session.fitAddon.fit();
+            if (session.sessionId && session.connected) {
+              ResizeTerminal(session.sessionId, session.terminal.rows, session.terminal.cols).catch(() => {});
+            }
+          } catch (_) {}
+        }
+      });
+      resizeObserver.observe(session.containerEl);
+      session.resizeObserver = resizeObserver;
+    }
+
+    connectSession(session);
+  }
+
+  async function connectSession(session) {
+    session.connecting = true;
+    session.error = '';
+    sessions = [...sessions];
+
+    session.terminal?.writeln('\x1b[1;34m' + (t.sshConnecting || '正在连接 SSH...') + '\x1b[0m');
+
+    const rows = session.terminal?.rows || 24;
+    const cols = session.terminal?.cols || 80;
+
+    try {
+      const sid = await StartSSHTerminal(session.caseId, rows, cols);
+      session.sessionId = sid;
+
+      EventsOn(`terminal-output-${sid}`, (data) => {
+        session.terminal?.write(data);
+      });
+      EventsOn(`terminal-error-${sid}`, (err) => {
+        session.terminal?.writeln(`\r\n\x1b[1;31m${err}\x1b[0m`);
+        session.error = err;
+        sessions = [...sessions];
+      });
+      EventsOn(`terminal-closed-${sid}`, () => {
+        session.terminal?.writeln('\r\n\x1b[1;33m' + (t.sshConnectionClosed || '连接已关闭') + '\x1b[0m');
+        session.connected = false;
+        sessions = [...sessions];
+      });
+
+      session.connected = true;
+      session.terminal?.writeln('\x1b[1;32m' + (t.sshConnected || '已连接') + '\x1b[0m\r\n');
+    } catch (err) {
+      session.error = err.message || String(err);
+      session.terminal?.writeln(`\r\n\x1b[1;31m${session.error}\x1b[0m`);
+    } finally {
+      session.connecting = false;
+      sessions = [...sessions];
+    }
+  }
+
+  function cleanupSession(session) {
+    if (session.sessionId) {
+      EventsOff(`terminal-output-${session.sessionId}`);
+      EventsOff(`terminal-error-${session.sessionId}`);
+      EventsOff(`terminal-closed-${session.sessionId}`);
+      CloseTerminal(session.sessionId).catch(() => {});
+    }
+    if (session.resizeObserver) session.resizeObserver.disconnect();
+    session.terminal?.dispose();
+  }
+
+  function closeSession(index) {
+    const session = sessions[index];
+    if (!session) return;
+    cleanupSession(session);
+    sessions = sessions.filter((_, i) => i !== index);
+    if (activeSessionIndex >= sessions.length) {
+      activeSessionIndex = sessions.length - 1;
+    } else if (activeSessionIndex > index) {
+      activeSessionIndex--;
+    }
+  }
+
+  function handleNewSessionSubmit() {
+    const caseId = newSessionCaseId.trim();
+    if (!caseId) return;
+    createSession(caseId, newSessionCaseName.trim() || caseId);
+    newSessionCaseId = '';
+    newSessionCaseName = '';
+    showNewSessionDialog = false;
+  }
+
+  function sessionLabel(session) {
+    if (session.caseName && session.caseName !== session.caseId) return session.caseName;
+    if (session.user && session.host) return `${session.user}@${session.host}`;
+    return session.caseId?.substring(0, 12) || 'SSH';
+  }
+
+  function togglePanel(panel) {
+    rightPanel = rightPanel === panel ? 'none' : panel;
+    // Refit terminal after panel toggle
+    requestAnimationFrame(() => {
+      const s = activeSession;
+      if (s?.fitAddon && s?.terminal) {
+        try { s.fitAddon.fit(); } catch (_) {}
+      }
+    });
+  }
+
+  // --- Userdata: upload script to terminal ---
+  async function uploadAndShowCommand() {
+    if (!selectedUserdataTemplate?.script || !activeSession?.connected) return;
+
+    uploading = true;
+    const fileName = `${selectedUserdataTemplate.name || 'userdata'}.sh`;
+
+    try {
+      const result = await UploadUserdataScript(activeSession.caseId, selectedUserdataTemplate.script, fileName);
+      if (result.success) {
+        activeSession.terminal?.writeln(`\r\n\x1b[32m${t.scriptUploadedTo || '脚本已上传到'}: /tmp/${fileName}\x1b[0m`);
+        activeSession.terminal?.writeln(`\x1b[33m${t.execScriptCmd || '执行命令'}: bash /tmp/${fileName}\x1b[0m\r\n`);
+      } else {
+        activeSession.terminal?.writeln(`\r\n\x1b[31m${t.uploadFailed || '上传失败'}: ${result.error}\x1b[0m\r\n`);
+      }
+    } catch (err) {
+      activeSession.terminal?.writeln(`\r\n\x1b[31m${t.uploadFailed || '上传失败'}: ${err.message}\x1b[0m\r\n`);
+    } finally {
+      uploading = false;
+    }
+  }
+
+  // --- Port Forwarding ---
+  async function refreshPortForwards() {
+    try {
+      portForwards = await ListPortForwards() || [];
+    } catch (_) {
+      portForwards = [];
+    }
+  }
+
+  async function handleStartPortForward() {
+    const caseId = activeSession?.caseId || pfCaseId.trim();
+    const lp = parseInt(pfLocalPort, 10);
+    const rh = pfRemoteHost.trim() || '127.0.0.1';
+    const rp = parseInt(pfRemotePort, 10);
+
+    if (!caseId || !lp || !rp) {
+      pfError = t.sshAllFieldsRequired || '请填写所有字段';
+      return;
+    }
+
+    pfLoading = true;
+    pfError = '';
+    try {
+      const info = await StartPortForward(caseId, lp, rh, rp);
+      portForwards = [...portForwards, info];
+      pfCaseId = '';
+      pfLocalPort = '';
+      pfRemoteHost = '';
+      pfRemotePort = '';
+    } catch (err) {
+      pfError = err.message || String(err);
+    } finally {
+      pfLoading = false;
+    }
+  }
+
+  async function handleStopPortForward(id) {
+    try {
+      await StopPortForward(id);
+      portForwards = portForwards.filter(pf => pf.id !== id);
+    } catch (err) {
+      console.error('StopPortForward failed:', err);
+    }
+  }
+</script>
+
+<svelte:head>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+</svelte:head>
+
+<div class="h-full flex flex-col bg-gray-900 text-gray-200">
+  <!-- Main layout -->
+  <div class="flex-1 flex overflow-hidden">
+    <!-- Left: Terminal area -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <!-- Tab bar -->
+      <div class="flex-shrink-0 flex items-center bg-gray-800 border-b border-gray-700 px-2 h-10 gap-1 overflow-x-auto">
+        {#each sessions as session, i (session.id)}
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-[12px] font-medium cursor-pointer select-none transition-colors max-w-[200px] {i === activeSessionIndex ? 'bg-gray-900 text-white border border-gray-700 border-b-gray-900 -mb-px' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'}"
+            role="tab"
+            tabindex="0"
+            aria-selected={i === activeSessionIndex}
+            onclick={() => activeSessionIndex = i}
+            onkeydown={(e) => { if (e.key === 'Enter') activeSessionIndex = i; }}
+          >
+            {#if session.connected}
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0"></span>
+            {:else if session.connecting}
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0"></span>
+            {:else}
+              <span class="w-1.5 h-1.5 rounded-full bg-gray-500 flex-shrink-0"></span>
+            {/if}
+            <span class="truncate">{sessionLabel(session)}</span>
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <span
+              class="ml-1 w-4 h-4 flex items-center justify-center rounded hover:bg-gray-600 text-gray-500 hover:text-gray-200 cursor-pointer flex-shrink-0"
+              role="button"
+              tabindex="0"
+              aria-label="Close session"
+              onclick={(e) => { e.stopPropagation(); closeSession(i); }}
+              onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); closeSession(i); } }}
+            >
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </span>
+          </div>
+        {/each}
+
+        <!-- New session button -->
+        <button
+          class="flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors flex-shrink-0 cursor-pointer"
+          onclick={() => showNewSessionDialog = true}
+          title={t.sshNewSession || '新建会话'}
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+
+        <div class="flex-1"></div>
+
+        <!-- Toolbar buttons -->
+        {#if activeSession}
+          <!-- Userdata toggle -->
+          <button
+            class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-medium transition-colors flex-shrink-0 cursor-pointer {rightPanel === 'userdata' ? 'bg-emerald-600/20 text-emerald-400' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'}"
+            onclick={() => togglePanel('userdata')}
+            title={t.execUserdata || '命令片段'}
+          >
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+            </svg>
+            {t.execUserdata || '命令片段'}
+          </button>
+
+          <!-- File manager button -->
+          <button
+            class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-medium transition-colors flex-shrink-0 cursor-pointer text-gray-400 hover:text-gray-200 hover:bg-gray-700/50"
+            onclick={() => showFileManagerModal = true}
+            title={t.fileManager || '文件管理器'}
+          >
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+            </svg>
+            {t.fileManager || '文件管理器'}
+          </button>
+        {/if}
+
+        <!-- Port forwarding toggle -->
+        <button
+          class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-medium transition-colors flex-shrink-0 cursor-pointer {rightPanel === 'portForward' ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'}"
+          onclick={() => togglePanel('portForward')}
+          title={t.sshPortForward || '端口转发'}
+        >
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+          </svg>
+          {t.sshPortForward || '端口转发'}
+          {#if portForwards.length > 0}
+            <span class="px-1.5 py-0.5 bg-blue-500/20 text-blue-300 text-[10px] rounded-full">{portForwards.length}</span>
+          {/if}
+        </button>
+      </div>
+
+      <!-- Terminal containers -->
+      <div class="flex-1 relative overflow-hidden">
+        {#if sessions.length === 0}
+          <div class="absolute inset-0 flex items-center justify-center">
+            <div class="text-center">
+              <div class="w-16 h-16 rounded-2xl bg-gray-800 flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+              </div>
+              <p class="text-gray-500 text-[14px] mb-1">{t.sshNoSessions || '暂无 SSH 会话'}</p>
+              <p class="text-gray-600 text-[12px] mb-4">{t.sshCreateHint || '点击下方按钮或从场景页面打开 SSH 终端'}</p>
+              <button
+                class="h-10 px-5 bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-medium rounded-lg transition-colors cursor-pointer"
+                onclick={() => showNewSessionDialog = true}
+              >
+                {t.sshNewSession || '新建会话'}
+              </button>
+            </div>
+          </div>
+        {/if}
+
+        {#each sessions as session, i (session.id)}
+          <div
+            class="ssh-terminal-container absolute inset-0"
+            bind:this={session.containerEl}
+          ></div>
+        {/each}
+      </div>
+    </div>
+
+    <!-- Right panel: Userdata -->
+    {#if rightPanel === 'userdata' && activeSession}
+      <div class="w-80 flex-shrink-0 bg-gray-800 border-l border-gray-700 flex flex-col overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+          <h3 class="text-[13px] font-semibold text-white">{t.execUserdata || '命令片段'}</h3>
+          <button
+            class="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
+            onclick={() => rightPanel = 'none'}
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-3 space-y-2">
+          {#if userdataTemplatesLoading}
+            <div class="text-center py-8 text-gray-500 text-[13px]">{t.loading || '加载中...'}</div>
+          {:else if userdataTemplates.length === 0}
+            <div class="text-center py-8 text-gray-500 text-[13px]">{t.noTemplates || '暂无可用模板'}</div>
+          {:else}
+            <div class="space-y-2">
+              {#each Object.entries(groupedUserdataTemplates()) as [category, categoryTemplates]}
+                <div class="border border-gray-600 rounded-lg overflow-hidden">
+                  <button
+                    class="w-full flex items-center justify-between px-3 py-2 bg-gray-700 hover:bg-gray-600 transition-colors cursor-pointer"
+                    onclick={() => expandedCategories[category] = !expandedCategories[category]}
+                  >
+                    <span class="text-[12px] font-medium text-gray-300">
+                      {userdataCategoryNames[category] || category}
+                      <span class="ml-1 text-gray-500">({categoryTemplates.length})</span>
+                    </span>
+                    <svg class="w-4 h-4 text-gray-500 transition-transform {expandedCategories[category] ? 'rotate-180' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {#if expandedCategories[category]}
+                    <div class="space-y-1 p-2 bg-gray-800">
+                      {#each categoryTemplates as template}
+                        <button
+                          class="w-full text-left px-3 py-2 text-[12px] bg-gray-700 hover:bg-gray-600 border border-gray-600 hover:border-emerald-500 rounded transition-colors cursor-pointer {selectedUserdataTemplate === template ? 'border-emerald-500 bg-emerald-900/30' : ''}"
+                          onclick={() => selectedUserdataTemplate = template}
+                        >
+                          <span class="font-medium text-gray-200">{template.nameZh || template.name}</span>
+                          {#if template.description}
+                            <span class="block text-gray-500 text-[10px] truncate">{template.description}</span>
+                          {/if}
+                        </button>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+
+            {#if selectedUserdataTemplate}
+              <div class="mt-3">
+                <span class="block text-[12px] font-medium text-gray-300 mb-2">{t.scriptPreview || '脚本预览'}</span>
+                <pre class="bg-gray-900 text-gray-300 text-[11px] p-2 rounded-lg overflow-auto max-h-40 font-mono">{selectedUserdataTemplate?.script || ''}</pre>
+              </div>
+              <button
+                class="w-full h-10 mt-2 text-[13px] font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                onclick={uploadAndShowCommand}
+                disabled={!selectedUserdataTemplate?.script || !activeSession?.connected || uploading}
+              >
+                {#if uploading}
+                  <span class="flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    {t.uploading || '上传中...'}
+                  </span>
+                {:else}
+                  {t.uploadAndExec || '上传并执行'}
+                {/if}
+              </button>
+            {/if}
+          {/if}
+        </div>
+      </div>
+    {/if}
+
+    <!-- Right panel: Port forwarding -->
+    {#if rightPanel === 'portForward'}
+      <div class="w-80 flex-shrink-0 bg-gray-800 border-l border-gray-700 flex flex-col overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+          <h3 class="text-[13px] font-semibold text-white">{t.sshPortForward || '端口转发'}</h3>
+          <button
+            class="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
+            onclick={() => rightPanel = 'none'}
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-3 space-y-2">
+          {#if portForwards.length === 0}
+            <p class="text-[12px] text-gray-500 text-center py-4">{t.sshNoForwards || '暂无活跃的端口转发'}</p>
+          {/if}
+          {#each portForwards as pf}
+            <div class="bg-gray-900 rounded-lg p-3 border border-gray-700">
+              <div class="flex items-center justify-between">
+                <div class="min-w-0">
+                  <p class="text-[12px] font-mono text-emerald-400 truncate">
+                    localhost:{pf.localPort} → {pf.remoteHost}:{pf.remotePort}
+                  </p>
+                  <p class="text-[10px] text-gray-500 mt-0.5 truncate">Case: {pf.caseId?.substring(0, 12)}</p>
+                </div>
+                <button
+                  class="ml-2 flex-shrink-0 px-2 py-1 text-[11px] text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded transition-colors cursor-pointer"
+                  onclick={() => handleStopPortForward(pf.id)}
+                >
+                  {t.sshStopForward || '停止'}
+                </button>
+              </div>
+            </div>
+          {/each}
+        </div>
+
+        <div class="flex-shrink-0 border-t border-gray-700 p-3 space-y-2">
+          <p class="text-[12px] font-medium text-gray-300">{t.sshStartForward || '新建转发'}</p>
+          {#if activeSession}
+            <div class="flex items-center gap-2 px-3 py-1.5 bg-gray-900/60 border border-gray-700 rounded-lg">
+              <span class="text-[11px] text-gray-500 flex-shrink-0">{t.sshCurrentSession || '当前会话'}:</span>
+              <span class="text-[12px] text-emerald-400 truncate">{sessionLabel(activeSession)}</span>
+            </div>
+          {:else}
+            <input
+              type="text"
+              class="w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded-lg text-[12px] text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              placeholder={t.sshCaseId || '场景/部署 ID'}
+              bind:value={pfCaseId}
+            />
+          {/if}
+          <div class="grid grid-cols-2 gap-2">
+            <input
+              type="number"
+              class="px-3 py-1.5 bg-gray-900 border border-gray-600 rounded-lg text-[12px] text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              placeholder={t.sshLocalPort || '本地端口'}
+              bind:value={pfLocalPort}
+            />
+            <input
+              type="number"
+              class="px-3 py-1.5 bg-gray-900 border border-gray-600 rounded-lg text-[12px] text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              placeholder={t.sshRemotePort || '远程端口'}
+              bind:value={pfRemotePort}
+            />
+          </div>
+          <input
+            type="text"
+            class="w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded-lg text-[12px] text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            placeholder={t.sshRemoteHost || '远程主机 (默认 127.0.0.1)'}
+            bind:value={pfRemoteHost}
+          />
+          {#if pfError}
+            <p class="text-[11px] text-red-400">{pfError}</p>
+          {/if}
+          <button
+            class="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            onclick={handleStartPortForward}
+            disabled={pfLoading}
+          >
+            {#if pfLoading}
+              <span class="flex items-center justify-center gap-2">
+                <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </span>
+            {:else}
+              {t.sshStartForward || '开始转发'}
+            {/if}
+          </button>
+        </div>
+      </div>
+    {/if}
+  </div>
+</div>
+
+<!-- New session dialog -->
+{#if showNewSessionDialog}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+    onclick={(e) => { if (e.target === e.currentTarget) showNewSessionDialog = false; }}
+    onkeydown={(e) => { if (e.key === 'Escape') showNewSessionDialog = false; }}
+  >
+    <div class="bg-white rounded-xl border border-gray-100 w-full max-w-sm p-5 shadow-2xl">
+      <h3 class="text-[15px] font-semibold text-gray-900 mb-4">{t.sshNewSession || '新建会话'}</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-[12px] font-medium text-gray-700 mb-1">{t.sshCaseId || '场景/部署 ID'}</label>
+          <input
+            type="text"
+            class="w-full px-3 py-2 text-[13px] border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900"
+            placeholder={t.sshCaseIdPlaceholder || '输入场景或部署 ID'}
+            bind:value={newSessionCaseId}
+            onkeydown={(e) => { if (e.key === 'Enter') handleNewSessionSubmit(); }}
+          />
+        </div>
+        <div>
+          <label class="block text-[12px] font-medium text-gray-700 mb-1">{t.sshDisplayName || '显示名称 (可选)'}</label>
+          <input
+            type="text"
+            class="w-full px-3 py-2 text-[13px] border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900"
+            placeholder={t.sshDisplayNamePlaceholder || '在标签页中显示的名称'}
+            bind:value={newSessionCaseName}
+            onkeydown={(e) => { if (e.key === 'Enter') handleNewSessionSubmit(); }}
+          />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-5">
+        <button
+          class="h-10 px-5 text-[13px] font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+          onclick={() => showNewSessionDialog = false}
+        >
+          {t.cancel || '取消'}
+        </button>
+        <button
+          class="h-10 px-5 text-[13px] font-medium text-white bg-emerald-500 rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          onclick={handleNewSessionSubmit}
+          disabled={!newSessionCaseId.trim()}
+        >
+          {t.sshConnect || '连接'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- File Manager Modal -->
+{#if showFileManagerModal && activeSession}
+  <FileManager {t} caseId={activeSession.caseId} caseName={activeSession.caseName} onClose={() => showFileManagerModal = false} />
+{/if}
+
+<style>
+  .ssh-terminal-container :global(.xterm) {
+    height: 100%;
+    padding: 8px;
+  }
+
+  .ssh-terminal-container :global(.xterm-viewport) {
+    overflow-y: auto;
+  }
+</style>

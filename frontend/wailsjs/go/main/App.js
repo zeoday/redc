@@ -210,6 +210,10 @@ export function GetScheduledTask(arg1) {
   return window['go']['main']['App']['GetScheduledTask'](arg1);
 }
 
+export function GetSSHInfoForCase(arg1) {
+  return window['go']['main']['App']['GetSSHInfoForCase'](arg1);
+}
+
 export function GetTemplateFiles(arg1) {
   return window['go']['main']['App']['GetTemplateFiles'](arg1);
 }
@@ -264,6 +268,10 @@ export function ListConfigTemplates() {
 
 export function ListCustomDeployments() {
   return window['go']['main']['App']['ListCustomDeployments']();
+}
+
+export function ListPortForwards() {
+  return window['go']['main']['App']['ListPortForwards']();
 }
 
 export function ListProfiles() {
@@ -386,6 +394,10 @@ export function StartMCPServer(arg1, arg2) {
   return window['go']['main']['App']['StartMCPServer'](arg1, arg2);
 }
 
+export function StartPortForward(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['StartPortForward'](arg1, arg2, arg3, arg4);
+}
+
 export function StartSSHTerminal(arg1, arg2, arg3) {
   return window['go']['main']['App']['StartSSHTerminal'](arg1, arg2, arg3);
 }
@@ -400,6 +412,10 @@ export function StopCustomDeployment(arg1) {
 
 export function StopMCPServer() {
   return window['go']['main']['App']['StopMCPServer']();
+}
+
+export function StopPortForward(arg1) {
+  return window['go']['main']['App']['StopPortForward'](arg1);
 }
 
 export function SwitchProject(arg1) {

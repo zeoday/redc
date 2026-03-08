@@ -159,6 +159,14 @@ export const i18n = {
     sshOperations: 'SSH 运维', execCommand: '执行命令', command: '命令', execute: '执行',
     scriptUploadedTo: '脚本已上传到', execScriptCmd: '执行命令',
     connecting: '连接中...', sshConnecting: '正在连接 SSH...', sshConnected: '已连接', sshDisconnected: '未连接', sshConnectionClosed: '连接已关闭',
+    // SSH Manager
+    sshManager: 'SSH 终端', sshNewSession: '新建会话', sshPortForward: '端口转发',
+    sshConnect: '连接', sshDisconnect: '断开', sshLocalPort: '本地端口', sshRemoteHost: '远程主机', sshRemotePort: '远程端口',
+    sshStartForward: '开始转发', sshStopForward: '停止转发', sshNoSessions: '暂无 SSH 会话',
+    sshCaseId: '场景/部署 ID', sshSessionWarning: '切换到其他页面将关闭所有终端会话',
+    sshCreateHint: '点击下方按钮或从场景页面打开 SSH 终端', sshDisplayName: '显示名称 (可选)', sshDisplayNamePlaceholder: '在标签页中显示的名称',
+    sshCaseIdPlaceholder: '输入场景或部署 ID', sshNoForwards: '暂无活跃的端口转发', sshAllFieldsRequired: '请填写所有字段', sshCurrentSession: '当前会话',
+    execUserdata: '命令片段', noTemplates: '暂无可用模板', scriptPreview: '脚本预览', uploading: '上传中...', uploadAndExec: '上传并执行', loading: '加载中...',
     // Scheduled Tasks
     execSuccess: '执行成功', execFailed: '执行失败',
     uploadFile: '上传文件', downloadFile: '下载文件',
@@ -447,6 +455,14 @@ export const i18n = {
     execUserdata: 'Execute Userdata', executing: 'Executing...',
     sshConnecting: 'Connecting to SSH...', sshConnected: 'Connected', sshDisconnected: 'Disconnected', sshConnectionClosed: 'Connection closed',
     webTerminal: 'Web Terminal', noTemplates: 'No templates available', scriptPreview: 'Script Preview', uploading: 'Uploading...', uploadAndExec: 'Upload & Execute',
+    // SSH Manager
+    sshManager: 'SSH Terminal', sshNewSession: 'New Session', sshPortForward: 'Port Forwarding',
+    sshConnect: 'Connect', sshDisconnect: 'Disconnect', sshLocalPort: 'Local Port', sshRemoteHost: 'Remote Host', sshRemotePort: 'Remote Port',
+    sshStartForward: 'Start Forward', sshStopForward: 'Stop Forward', sshNoSessions: 'No SSH sessions',
+    sshCaseId: 'Case / Deployment ID', sshSessionWarning: 'Switching to other pages will close all terminal sessions',
+    sshCreateHint: 'Click the button below or open SSH from a scenario page', sshDisplayName: 'Display Name (optional)', sshDisplayNamePlaceholder: 'Name shown in tab',
+    sshCaseIdPlaceholder: 'Enter case or deployment ID', sshNoForwards: 'No active port forwards', sshAllFieldsRequired: 'All fields are required', sshCurrentSession: 'Current session',
+    loading: 'Loading...',
     // Scheduled Tasks
     execSuccess: 'Exec Success', execFailed: 'Exec Failed',
     uploadFile: 'Upload File', downloadFile: 'Download File',

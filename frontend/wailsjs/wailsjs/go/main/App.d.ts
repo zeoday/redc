@@ -116,6 +116,8 @@ export function GetRemoteFileContent(arg1:string,arg2:string):Promise<string>;
 
 export function GetResourceSummary():Promise<Array<main.ResourceSummary>>;
 
+export function GetSSHInfoForCase(arg1:string):Promise<Record<string, any>>;
+
 export function GetScheduledTask(arg1:string):Promise<mod.ScheduledTask>;
 
 export function GetShowWelcomeDialog():Promise<boolean>;
@@ -147,6 +149,8 @@ export function ListComposeTemplates():Promise<Array<mod.ComposeTemplate>>;
 export function ListConfigTemplates():Promise<Array<string>>;
 
 export function ListCustomDeployments():Promise<Array<mod.CustomDeployment>>;
+
+export function ListPortForwards():Promise<Array<main.PortForwardInfo>>;
 
 export function ListProfiles():Promise<Array<mod.ProfileInfo>>;
 
@@ -212,6 +216,8 @@ export function StartCustomDeployment(arg1:string):Promise<void>;
 
 export function StartMCPServer(arg1:string,arg2:string):Promise<void>;
 
+export function StartPortForward(arg1:string,arg2:number,arg3:string,arg4:number):Promise<main.PortForwardInfo>;
+
 export function StartSSHTerminal(arg1:string,arg2:number,arg3:number):Promise<string>;
 
 export function StopCase(arg1:string):Promise<void>;
@@ -219,6 +225,8 @@ export function StopCase(arg1:string):Promise<void>;
 export function StopCustomDeployment(arg1:string):Promise<void>;
 
 export function StopMCPServer():Promise<void>;
+
+export function StopPortForward(arg1:string):Promise<void>;
 
 export function SwitchProject(arg1:string):Promise<void>;
 

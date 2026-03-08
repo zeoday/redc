@@ -344,6 +344,28 @@ export namespace main {
 	        this.protocolVersion = source["protocolVersion"];
 	    }
 	}
+	export class PortForwardInfo {
+	    id: string;
+	    caseId: string;
+	    localPort: number;
+	    remoteHost: string;
+	    remotePort: number;
+	    status: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PortForwardInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.caseId = source["caseId"];
+	        this.localPort = source["localPort"];
+	        this.remoteHost = source["remoteHost"];
+	        this.remotePort = source["remotePort"];
+	        this.status = source["status"];
+	    }
+	}
 	export class ProjectInfo {
 	    name: string;
 	    path: string;

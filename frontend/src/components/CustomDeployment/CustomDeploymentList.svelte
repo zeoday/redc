@@ -5,7 +5,7 @@
   import SSHModal from '../Cases/SSHModal.svelte';
   import ScheduleDialog from '../Cases/ScheduleDialog.svelte';
 
-  let { t, onSelectDeployment = () => {}, onRefresh = () => {} } = $props();
+  let { t, onSelectDeployment = () => {}, onRefresh = () => {}, onTabChange = () => {} } = $props();
 
   interface CustomDeployment {
     id: string;
