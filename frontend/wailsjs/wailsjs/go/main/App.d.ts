@@ -100,6 +100,8 @@ export function GetCurrentProject():Promise<string>;
 
 export function GetDeploymentHistory(arg1:string):Promise<Array<mod.DeploymentChangeHistory>>;
 
+export function GetDeploymentPlanPreview(arg1:string):Promise<main.PlanPreview>;
+
 export function GetDisableRightClick():Promise<boolean>;
 
 export function GetInstanceTypes(arg1:string,arg2:string):Promise<Array<mod.InstanceType>>;

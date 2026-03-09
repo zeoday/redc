@@ -84,6 +84,8 @@ export function GetCaseOutputs(arg1:string):Promise<Record<string, string>>;
 
 export function GetCasePlanPreview(arg1:string):Promise<main.PlanPreview>;
 
+export function GetDeploymentPlanPreview(arg1:string):Promise<main.PlanPreview>;
+
 export function GetConfig():Promise<main.ConfigInfo>;
 
 export function GetCostEstimate(arg1:string,arg2:Record<string, string>):Promise<cost.CostEstimate>;

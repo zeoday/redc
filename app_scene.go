@@ -303,13 +303,35 @@ func (a *App) GetCasePlanPreview(caseID string) (*PlanPreview, error) {
 		return nil, fmt.Errorf("case not found or path is empty")
 	}
 
-	// Check plan file exists
-	planFile := filepath.Join(c.Path, redc.RedcPlanPath)
+	return buildPlanPreview(c.Path)
+}
+
+// GetDeploymentPlanPreview returns structured plan preview data for a custom deployment
+func (a *App) GetDeploymentPlanPreview(deploymentID string) (*PlanPreview, error) {
+	a.mu.Lock()
+	if a.project == nil {
+		a.mu.Unlock()
+		return nil, fmt.Errorf("%s", i18n.T("app_project_not_loaded"))
+	}
+	project := a.project
+	a.mu.Unlock()
+
+	deploymentPath := filepath.Join(project.ProjectPath, deploymentID)
+	if _, err := os.Stat(deploymentPath); err != nil {
+		return nil, fmt.Errorf("deployment path not found")
+	}
+
+	return buildPlanPreview(deploymentPath)
+}
+
+// buildPlanPreview builds plan preview data from a terraform working directory
+func buildPlanPreview(workDir string) (*PlanPreview, error) {
+	planFile := filepath.Join(workDir, redc.RedcPlanPath)
 	if _, err := os.Stat(planFile); err != nil {
 		return nil, fmt.Errorf("plan file not found")
 	}
 
-	te, err := redc.NewTerraformExecutor(c.Path)
+	te, err := redc.NewTerraformExecutor(workDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create terraform executor: %w", err)
 	}
@@ -322,7 +344,6 @@ func (a *App) GetCasePlanPreview(caseID string) (*PlanPreview, error) {
 		Edges:     []PlanEdge{},
 	}
 
-	// 1. Parse plan file for resource changes
 	resourceChanges, err := te.GetPlanResourceChanges(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse plan: %w", err)
@@ -339,7 +360,6 @@ func (a *App) GetCasePlanPreview(caseID string) (*PlanPreview, error) {
 			actions[i] = string(a)
 		}
 
-		// Skip no-op
 		if len(actions) == 1 && actions[0] == "no-op" {
 			continue
 		}
@@ -355,7 +375,6 @@ func (a *App) GetCasePlanPreview(caseID string) (*PlanPreview, error) {
 		}
 		preview.Resources = append(preview.Resources, prc)
 
-		// Count by action
 		if len(actions) == 1 {
 			switch actions[0] {
 			case "create":
@@ -370,7 +389,6 @@ func (a *App) GetCasePlanPreview(caseID string) (*PlanPreview, error) {
 		}
 	}
 
-	// 2. Get dependency graph via terraform graph
 	dot, err := te.GetGraph(ctx)
 	if err == nil && dot != "" {
 		preview.Edges = parseDOTEdges(dot)

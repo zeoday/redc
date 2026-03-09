@@ -190,6 +190,10 @@ export function GetDeploymentHistory(arg1) {
   return window['go']['main']['App']['GetDeploymentHistory'](arg1);
 }
 
+export function GetDeploymentPlanPreview(arg1) {
+  return window['go']['main']['App']['GetDeploymentPlanPreview'](arg1);
+}
+
 export function GetDisableRightClick() {
   return window['go']['main']['App']['GetDisableRightClick']();
 }

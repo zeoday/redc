@@ -162,6 +162,10 @@ export function GetCasePlanPreview(arg1) {
   return window['go']['main']['App']['GetCasePlanPreview'](arg1);
 }
 
+export function GetDeploymentPlanPreview(arg1) {
+  return window['go']['main']['App']['GetDeploymentPlanPreview'](arg1);
+}
+
 export function GetConfig() {
   return window['go']['main']['App']['GetConfig']();
 }
