@@ -428,13 +428,14 @@ func (a *App) ListCases() ([]CaseInfo, error) {
 	result := make([]CaseInfo, 0, len(cases))
 	for _, c := range cases {
 		result = append(result, CaseInfo{
-			ID:         c.Id,
-			Name:       c.Name,
-			Type:       c.Type,
-			State:      c.State,
-			StateTime:  c.StateTime,
-			CreateTime: c.CreateTime,
-			Operator:   c.Operator,
+			ID:             c.Id,
+			Name:           c.Name,
+			Type:           c.Type,
+			State:          c.State,
+			StateTime:      c.StateTime,
+			CreateTime:     c.CreateTime,
+			Operator:       c.Operator,
+			IsSpotInstance: detectSpotFromTfFiles(c.Path),
 		})
 	}
 	return result, nil

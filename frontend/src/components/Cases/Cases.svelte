@@ -1286,6 +1286,11 @@ let { t, onTabChange = () => {} } = $props();
                 <span class="w-1.5 h-1.5 rounded-full {(stateConfig[c.state] || stateConfig['pending']).dot}"></span>
                 {(stateConfig[c.state] || stateConfig['pending']).label}
               </span>
+              {#if c.isSpotInstance}
+                <span class="ml-1.5 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded">
+                  {t.spotInstance || '抢占式'}
+                </span>
+              {/if}
             </td>
             <td class="px-5 py-3.5">
               <span class="text-[12px] text-gray-500">{c.stateTime}</span>
@@ -1696,6 +1701,11 @@ let { t, onTabChange = () => {} } = $props();
           </svg>
           <h3 class="text-[15px] font-semibold text-gray-900">{t.planPreview || '资源拓扑预览'}</h3>
           <span class="text-[13px] text-gray-500">— {planPreviewModal.caseName}</span>
+          {#if planPreviewModal.data?.isSpotInstance}
+            <span class="px-1.5 py-0.5 text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded">
+              {t.spotInstance || '抢占式'}
+            </span>
+          {/if}
         </div>
         <button class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors" onclick={() => planPreviewModal = { ...planPreviewModal, show: false }}>
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

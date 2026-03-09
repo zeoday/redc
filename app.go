@@ -223,13 +223,14 @@ func (a *App) createLogWriter(prefix string) io.Writer {
 
 // CaseInfo represents case information for frontend display
 type CaseInfo struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	Type       string `json:"type"`
-	State      string `json:"state"`
-	StateTime  string `json:"stateTime"`
-	CreateTime string `json:"createTime"`
-	Operator   string `json:"operator"`
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	Type           string `json:"type"`
+	State          string `json:"state"`
+	StateTime      string `json:"stateTime"`
+	CreateTime     string `json:"createTime"`
+	Operator       string `json:"operator"`
+	IsSpotInstance bool   `json:"isSpotInstance"`
 }
 
 // ConfigInfo represents the configuration for frontend display

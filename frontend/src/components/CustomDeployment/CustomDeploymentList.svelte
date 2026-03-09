@@ -58,7 +58,7 @@
   let aiAnalysisCompleted = $state<Record<string, boolean>>({});
 
   // Plan preview state
-  let planPreviewModal = $state({ show: false, deploymentName: '', deploymentId: '', loading: false, error: '', data: null as any });
+  let planPreviewModal = $state({ show: false, deploymentName: '', deploymentId: '', loading: false, error: '', data: null as any, isSpot: false });
   let elkNodes = $state<any[]>([]);
   let elkEdges = $state<any[]>([]);
   let svgViewBox = $state('0 0 800 600');
@@ -320,8 +320,8 @@
   }
 
   // Plan preview topology
-  async function handlePlanPreview(deploymentId: string, deploymentName: string) {
-    planPreviewModal = { show: true, deploymentName, deploymentId, loading: true, error: '', data: null };
+  async function handlePlanPreview(deploymentId: string, deploymentName: string, isSpot: boolean = false) {
+    planPreviewModal = { show: true, deploymentName, deploymentId, loading: true, error: '', data: null, isSpot };
     elkNodes = [];
     elkEdges = [];
     topoZoom = 1;
@@ -450,7 +450,7 @@
 
   function handleStartFromPreview() {
     const id = planPreviewModal.deploymentId;
-    planPreviewModal = { show: false, deploymentName: '', deploymentId: '', loading: false, error: '', data: null };
+    planPreviewModal = { show: false, deploymentName: '', deploymentId: '', loading: false, error: '', data: null, isSpot: false };
     handleStart(id);
   }
 
@@ -776,7 +776,7 @@
                     {#if deployment.state === 'stopped' || deployment.state === 'pending'}
                       <button 
                         class="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
-                        onclick={() => handlePlanPreview(deployment.id, deployment.name)}
+                        onclick={() => handlePlanPreview(deployment.id, deployment.name, !!(deployment.config as any)?.is_spot_instance)}
                         title={t.planPreviewBtn || '预览'}
                       >
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -1419,6 +1419,11 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
           <h3 class="text-[15px] font-semibold text-gray-900">{t.planPreview || '资源拓扑预览'}</h3>
+          {#if planPreviewModal.isSpot || planPreviewModal.data?.isSpotInstance}
+            <span class="px-1.5 py-0.5 text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded">
+              {t.spotInstance || '抢占式'}
+            </span>
+          {/if}
         </div>
         <span class="text-[12px] text-gray-400 truncate max-w-[200px]">{planPreviewModal.deploymentName}</span>
         <button

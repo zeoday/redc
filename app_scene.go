@@ -285,14 +285,15 @@ type PlanTypeSummary struct {
 
 // PlanPreview contains the full plan preview data for topology visualization
 type PlanPreview struct {
-	HasChanges  bool                 `json:"hasChanges"`
-	ToCreate    int                  `json:"toCreate"`
-	ToUpdate    int                  `json:"toUpdate"`
-	ToDelete    int                  `json:"toDelete"`
-	ToRecreate  int                  `json:"toRecreate"`
-	Resources   []PlanResourceChange `json:"resources"`
-	Edges       []PlanEdge           `json:"edges"`
-	TypeSummary []PlanTypeSummary    `json:"typeSummary"`
+	HasChanges     bool                 `json:"hasChanges"`
+	ToCreate       int                  `json:"toCreate"`
+	ToUpdate       int                  `json:"toUpdate"`
+	ToDelete       int                  `json:"toDelete"`
+	ToRecreate     int                  `json:"toRecreate"`
+	IsSpotInstance bool                 `json:"isSpotInstance"`
+	Resources      []PlanResourceChange `json:"resources"`
+	Edges          []PlanEdge           `json:"edges"`
+	TypeSummary    []PlanTypeSummary    `json:"typeSummary"`
 }
 
 // GetCasePlanPreview returns structured plan preview data for a case
@@ -391,6 +392,11 @@ func buildPlanPreview(workDir string) (*PlanPreview, error) {
 			Detail:       extractResourceDetail(rc.Type, rc.Change.After),
 		}
 		preview.Resources = append(preview.Resources, prc)
+
+		// Detect spot instance from plan values
+		if !preview.IsSpotInstance {
+			preview.IsSpotInstance = detectSpotInstance(rc.Change.After)
+		}
 
 		if len(actions) == 1 {
 			switch actions[0] {
@@ -498,7 +504,102 @@ func extractResourceDetail(resType string, after interface{}) map[string]string 
 	return detail
 }
 
-// formatSGRules formats AWS-style security group ingress/egress rules
+// detectSpotInstance checks plan after-values for spot/preemptible instance indicators
+// Supports: Alibaba Cloud (spot_strategy), AWS (market_type), Volcengine (spot_strategy), etc.
+func detectSpotInstance(after interface{}) bool {
+	m, ok := after.(map[string]interface{})
+	if !ok || m == nil {
+		return false
+	}
+	// Alibaba Cloud / Volcengine: spot_strategy != "" && != "NoSpot"
+	if v, ok := m["spot_strategy"]; ok && v != nil {
+		s := fmt.Sprintf("%v", v)
+		if s != "" && s != "NoSpot" {
+			return true
+		}
+	}
+	// AWS: instance_market_options.market_type = "spot"
+	if v, ok := m["instance_market_options"]; ok && v != nil {
+		if opts, ok := v.([]interface{}); ok {
+			for _, opt := range opts {
+				if om, ok := opt.(map[string]interface{}); ok {
+					if mt, ok := om["market_type"]; ok && fmt.Sprintf("%v", mt) == "spot" {
+						return true
+					}
+				}
+			}
+		} else if om, ok := v.(map[string]interface{}); ok {
+			if mt, ok := om["market_type"]; ok && fmt.Sprintf("%v", mt) == "spot" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// detectSpotFromTfFiles scans .tf files in the case directory for spot instance indicators
+// Covers: Alibaba Cloud (spot_strategy), AWS (market_type = "spot"), Volcengine (is_spot_instance)
+func detectSpotFromTfFiles(casePath string) bool {
+	if casePath == "" {
+		return false
+	}
+	files, err := filepath.Glob(filepath.Join(casePath, "*.tf"))
+	if err != nil || len(files) == 0 {
+		return false
+	}
+	spotPatterns := []string{
+		`spot_strategy`, `market_type`, `is_spot_instance`,
+	}
+	for _, f := range files {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		content := string(data)
+		for _, pattern := range spotPatterns {
+			idx := strings.Index(content, pattern)
+			if idx < 0 {
+				continue
+			}
+			// Extract the line containing the pattern
+			lineStart := strings.LastIndex(content[:idx], "\n") + 1
+			lineEnd := strings.Index(content[idx:], "\n")
+			if lineEnd < 0 {
+				lineEnd = len(content) - idx
+			}
+			line := strings.TrimSpace(content[lineStart : idx+lineEnd])
+			// Skip comments
+			if strings.HasPrefix(line, "#") || strings.HasPrefix(line, "//") {
+				continue
+			}
+			switch pattern {
+			case "spot_strategy":
+				// spot_strategy = "SpotWithPriceLimit" or "SpotAsPriceGo" (not "NoSpot" or "")
+				if strings.Contains(line, `"NoSpot"`) || strings.Contains(line, `""`) {
+					continue
+				}
+				if strings.Contains(line, `"Spot`) {
+					return true
+				}
+				// Conditional: spot_strategy = var.is_spot_instance ? "SpotAsPriceGo" : "NoSpot"
+				if strings.Contains(line, "is_spot_instance") && strings.Contains(line, "Spot") {
+					return true
+				}
+			case "market_type":
+				if strings.Contains(line, `"spot"`) {
+					return true
+				}
+			case "is_spot_instance":
+				// Variable definition with default = true, or direct usage
+				if strings.Contains(line, "= true") {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 func formatSGRules(rules interface{}) string {
 	ruleList, ok := rules.([]interface{})
 	if !ok || len(ruleList) == 0 {

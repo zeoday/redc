@@ -168,6 +168,7 @@ export namespace main {
 	    stateTime: string;
 	    createTime: string;
 	    operator: string;
+	    isSpotInstance: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new CaseInfo(source);
@@ -182,6 +183,7 @@ export namespace main {
 	        this.stateTime = source["stateTime"];
 	        this.createTime = source["createTime"];
 	        this.operator = source["operator"];
+	        this.isSpotInstance = source["isSpotInstance"];
 	    }
 	}
 	export class ComposeServiceSummary {
@@ -406,6 +408,7 @@ export namespace main {
 	    toUpdate: number;
 	    toDelete: number;
 	    toRecreate: number;
+	    isSpotInstance: boolean;
 	    resources: PlanResourceChange[];
 	    edges: PlanEdge[];
 	    typeSummary: PlanTypeSummary[];
@@ -421,6 +424,7 @@ export namespace main {
 	        this.toUpdate = source["toUpdate"];
 	        this.toDelete = source["toDelete"];
 	        this.toRecreate = source["toRecreate"];
+	        this.isSpotInstance = source["isSpotInstance"];
 	        this.resources = this.convertValues(source["resources"], PlanResourceChange);
 	        this.edges = this.convertValues(source["edges"], PlanEdge);
 	        this.typeSummary = this.convertValues(source["typeSummary"], PlanTypeSummary);
