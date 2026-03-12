@@ -598,12 +598,15 @@ func (a *App) CreateLocalTemplate(name string, scaffold string) error {
 func scaffoldFiles(scaffold string, name string) map[string]string {
 	baseName := filepath.Base(name)
 
-	caseJSON := fmt.Sprintf(`{
+	makeCaseJSON := func(tmplType string) string {
+		return fmt.Sprintf(`{
   "name": "%s",
   "description": "",
   "version": "1.0.0",
-  "user": ""
-}`, baseName)
+  "user": "",
+  "template": "%s"
+}`, baseName, tmplType)
+	}
 
 	mainTF := `# =============================================================================
 # Terraform Main Configuration
@@ -687,17 +690,81 @@ func scaffoldFiles(scaffold string, name string) map[string]string {
 `
 
 	switch scaffold {
-	case "with-userdata":
+	case "preset":
 		return map[string]string{
-			"case.json":    caseJSON,
+			"case.json":    makeCaseJSON("preset"),
+			"main.tf":      mainTF,
+			"variables.tf": variablesTF,
+			"outputs.tf":   outputsTF,
+		}
+	case "preset-userdata":
+		return map[string]string{
+			"case.json":    makeCaseJSON("preset"),
 			"main.tf":      mainTF,
 			"variables.tf": variablesTF,
 			"outputs.tf":   outputsTF,
 			"userdata":     "#!/bin/bash\n# Add your initialization script here\necho \"Hello from redc\"\n",
 		}
-	default: // "blank"
+	case "base":
 		return map[string]string{
-			"case.json":    caseJSON,
+			"case.json":    makeCaseJSON("base"),
+			"main.tf":      mainTF,
+			"variables.tf": variablesTF,
+			"outputs.tf":   outputsTF,
+		}
+	case "userdata":
+		userdataCaseJSON := fmt.Sprintf(`{
+  "name": "%s",
+  "description": "",
+  "version": "1.0.0",
+  "user": "",
+  "type": "bash",
+  "category": "custom",
+  "template": "userdata"
+}`, baseName)
+		return map[string]string{
+			"case.json": userdataCaseJSON,
+			"userdata":  "#!/bin/bash\n# Add your initialization script here\necho \"Hello from redc\"\n",
+		}
+	case "compose":
+		composeCaseJSON := fmt.Sprintf(`{
+  "name": "%s",
+  "description": "",
+  "version": "1.0.0",
+  "user": "",
+  "template": "compose"
+}`, baseName)
+		composeYAML := `version: "3.9"
+
+# =============================================================================
+# Redc Compose - 多云编排配置
+# =============================================================================
+#
+# 使用 redc compose up redc-compose.yaml 启动编排
+# 使用 redc compose down -f redc-compose.yaml 销毁环境
+# 使用 redc compose config redc-compose.yaml 预览配置
+#
+
+services:
+
+  # 示例服务 - 修改 image 为你的模板路径 (如 aliyun/ecs)
+  # my_server:
+  #   image: aliyun/ecs
+  #   container_name: my_ecs_instance
+  #   environment:
+  #     - instance_type=ecs.e-c1m2.large
+  #     - password=YourPassword123
+  #   command: |
+  #     echo "实例初始化完成"
+  #     uptime
+`
+		return map[string]string{
+			"case.json":          composeCaseJSON,
+			"redc-compose.yaml": composeYAML,
+		}
+	default: // backward compat — treat as preset
+		return map[string]string{
+			"case.json":    makeCaseJSON("preset"),
 			"main.tf":      mainTF,
 			"variables.tf": variablesTF,
 			"outputs.tf":   outputsTF,

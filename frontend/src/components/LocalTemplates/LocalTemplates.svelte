@@ -286,17 +286,19 @@
    * Determine template type based on path and properties
    */
   function getTemplateType(tmpl) {
+    // Prefer the template type field from case.json
+    if (tmpl.template) {
+      const t2 = tmpl.template;
+      if (t2 === 'base') return 'custom';
+      if (t2 === 'userdata') return 'userdata';
+      if (t2 === 'compose') return 'compose';
+      if (t2 === 'preset') return 'preset';
+    }
+    // Fallback: detect from path name
     const name = tmpl.name || '';
-    
-    if (name.includes('base-templates/')) {
-      return 'custom';
-    }
-    if (name.includes('userdata-templates/')) {
-      return 'userdata';
-    }
-    if (name.includes('compose-templates/')) {
-      return 'compose';
-    }
+    if (name.includes('base-templates/')) return 'custom';
+    if (name.includes('userdata-templates/')) return 'userdata';
+    if (name.includes('compose-templates/')) return 'compose';
     return 'preset';
   }
 
@@ -334,7 +336,7 @@
   let exportMessage = $state('');
 
   // Create template dialog state
-  let createTemplateDialog = $state({ show: false, name: '', scaffold: 'blank', loading: false, error: '' });
+  let createTemplateDialog = $state({ show: false, name: '', scaffold: 'preset', loading: false, error: '' });
 
   // File add inline input state (in templateEditor sidebar)
   let addingFile = $state({ show: false, name: '' });
@@ -410,11 +412,11 @@
   // ============================================================================
 
   function showCreateTemplateDialog() {
-    createTemplateDialog = { show: true, name: '', scaffold: 'blank', loading: false, error: '' };
+    createTemplateDialog = { show: true, name: '', scaffold: 'preset', loading: false, error: '' };
   }
 
   function cancelCreateTemplate() {
-    createTemplateDialog = { show: false, name: '', scaffold: 'blank', loading: false, error: '' };
+    createTemplateDialog = { show: false, name: '', scaffold: 'preset', loading: false, error: '' };
   }
 
   async function confirmCreateTemplate() {
@@ -435,7 +437,7 @@
     createTemplateDialog = { ...createTemplateDialog, loading: true, error: '' };
     try {
       await CreateLocalTemplate(name, createTemplateDialog.scaffold);
-      createTemplateDialog = { show: false, name: '', scaffold: 'blank', loading: false, error: '' };
+      createTemplateDialog = { show: false, name: '', scaffold: 'preset', loading: false, error: '' };
       await loadLocalTemplates();
       // Auto-open editor for the new template
       const newTmpl = localTemplates.find(t => t.name === name);
@@ -1157,21 +1159,42 @@
           onkeydown={(e) => { if (e.key === 'Enter') confirmCreateTemplate(); }}
         />
 
-        <label class="block text-[12px] font-medium text-gray-500 mb-2">{t.scaffoldType || '脚手架类型'}</label>
+        <label class="block text-[12px] font-medium text-gray-500 mb-2">{t.scaffoldType || '模板类型'}</label>
         <div class="grid grid-cols-2 gap-2">
           <button
-            class="px-3 py-2.5 text-left rounded-lg border transition-colors {createTemplateDialog.scaffold === 'blank' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}"
-            onclick={() => createTemplateDialog = { ...createTemplateDialog, scaffold: 'blank' }}
+            class="px-3 py-2.5 text-left rounded-lg border transition-colors {createTemplateDialog.scaffold === 'preset' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}"
+            onclick={() => createTemplateDialog = { ...createTemplateDialog, scaffold: 'preset' }}
           >
-            <div class="text-[13px] font-medium">{t.scaffoldBlank || '空白模板'}</div>
-            <div class="text-[11px] mt-0.5 opacity-70">{t.scaffoldBlankDesc || '基础注释，自由编写'}</div>
+            <div class="text-[13px] font-medium">{t.scaffoldPreset || '预定义模板'}</div>
+            <div class="text-[11px] mt-0.5 opacity-70">{t.scaffoldPresetDesc || 'Terraform 基础骨架'}</div>
           </button>
           <button
-            class="px-3 py-2.5 text-left rounded-lg border transition-colors {createTemplateDialog.scaffold === 'with-userdata' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}"
-            onclick={() => createTemplateDialog = { ...createTemplateDialog, scaffold: 'with-userdata' }}
+            class="px-3 py-2.5 text-left rounded-lg border transition-colors {createTemplateDialog.scaffold === 'preset-userdata' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}"
+            onclick={() => createTemplateDialog = { ...createTemplateDialog, scaffold: 'preset-userdata' }}
           >
-            <div class="text-[13px] font-medium">{t.scaffoldUserdata || '含 Userdata'}</div>
-            <div class="text-[11px] mt-0.5 opacity-70">{t.scaffoldUserdataDesc || '包含初始化脚本文件'}</div>
+            <div class="text-[13px] font-medium">{t.scaffoldPresetUserdata || '预定义 + Userdata'}</div>
+            <div class="text-[11px] mt-0.5 opacity-70">{t.scaffoldPresetUserdataDesc || '含初始化脚本文件'}</div>
+          </button>
+          <button
+            class="px-3 py-2.5 text-left rounded-lg border transition-colors {createTemplateDialog.scaffold === 'base' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}"
+            onclick={() => createTemplateDialog = { ...createTemplateDialog, scaffold: 'base' }}
+          >
+            <div class="text-[13px] font-medium">{t.scaffoldBase || '自定义模板'}</div>
+            <div class="text-[11px] mt-0.5 opacity-70">{t.scaffoldBaseDesc || '自定义部署场景'}</div>
+          </button>
+          <button
+            class="px-3 py-2.5 text-left rounded-lg border transition-colors {createTemplateDialog.scaffold === 'userdata' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}"
+            onclick={() => createTemplateDialog = { ...createTemplateDialog, scaffold: 'userdata' }}
+          >
+            <div class="text-[13px] font-medium">{t.scaffoldUserdata || 'Userdata 模板'}</div>
+            <div class="text-[11px] mt-0.5 opacity-70">{t.scaffoldUserdataDesc || '仅含初始化脚本'}</div>
+          </button>
+          <button
+            class="px-3 py-2.5 text-left rounded-lg border transition-colors col-span-2 {createTemplateDialog.scaffold === 'compose' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}"
+            onclick={() => createTemplateDialog = { ...createTemplateDialog, scaffold: 'compose' }}
+          >
+            <div class="text-[13px] font-medium">{t.scaffoldCompose || 'Compose 模板'}</div>
+            <div class="text-[11px] mt-0.5 opacity-70">{t.scaffoldComposeDesc || '多云编排部署'}</div>
           </button>
         </div>
 
