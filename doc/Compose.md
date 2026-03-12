@@ -110,6 +110,25 @@ redc compose down redc-compose.yaml
 
 ### 1. Use Profiles to Control Environments
 
+Profiles provide a **service grouping/environment filtering** mechanism that allows you to define multiple groups of services in a single compose file and selectively deploy them as needed.
+
+**How it works:**
+
+- Each service can be tagged with one or more groups via the `profiles` field (e.g., `prod`, `dev`, `attack`)
+- When running `compose up` with `-p <profile>`, **only services belonging to that profile will be deployed**
+- Services **without a `profiles` field** are considered default services and will be deployed when no profile is specified
+- When no `-p` argument is provided, all services without a `profiles` field are started
+
+**Example use cases:**
+
+| Scenario | Description |
+|----------|-------------|
+| Multi-environment isolation | Define prod and dev servers in the same file, deploy one group at a time |
+| On-demand scaling | Tag stress-test nodes with an `attack` profile, start them only when needed |
+| Progressive deployment | Deploy `base` infrastructure first, then `app` layer |
+
+> **Tip:** If all your services should be deployed together, you don't need to set the `profiles` field or specify `-p`. This feature can be safely ignored. In the GUI's Compose Management page, this option is located inside the "Advanced Options" panel.
+
 Modify the configuration file to add profiles to services:
 
 ```yaml
@@ -124,16 +143,23 @@ services:
     profiles:
       - prod
     # ... other configurations
+
+  monitor_server:
+    # No profiles field → deployed by default when no -p is specified
+    image: ./templates/monitor
 ```
 
 Start specific environments only:
 
 ```bash
-# Start only prod environment services
+# Start only prod environment services (aliyun_server + volcengine_server)
 redc compose up -f redc-compose.yaml -p prod
 
-# Start dev environment services
+# Start only dev environment services (aliyun_server)
 redc compose up -f redc-compose.yaml -p dev
+
+# No profile specified, deploy all services without profiles field (monitor_server)
+redc compose up -f redc-compose.yaml
 ```
 
 ### 2. File Upload

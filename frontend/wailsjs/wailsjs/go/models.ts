@@ -196,6 +196,7 @@ export namespace main {
 	    profiles: string[];
 	    dependsOn: string[];
 	    replicas: number;
+	    status: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ComposeServiceSummary(source);
@@ -210,6 +211,7 @@ export namespace main {
 	        this.profiles = source["profiles"];
 	        this.dependsOn = source["dependsOn"];
 	        this.replicas = source["replicas"];
+	        this.status = source["status"];
 	    }
 	}
 	export class ComposeSummary {

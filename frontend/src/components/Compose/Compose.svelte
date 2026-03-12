@@ -60,6 +60,7 @@
   });
 
   // State
+  let configSource = $state('template'); // 'template' | 'file'
   let composeFilePath = $state('');
   let composeProfiles = $state('');
   let composeSummary = $state(null);
@@ -67,6 +68,16 @@
   let composeError = $state('');
   let hasManuallyPreviewed = $state(false);
   let lastPreviewedPath = $state('');
+  let showAdvanced = $state(false);
+
+  function getStatusBadge(status) {
+    switch (status) {
+      case 'running': return { color: 'bg-emerald-500', text: t.composeStatusRunning || '运行中', ring: 'ring-emerald-200' };
+      case 'stopped': return { color: 'bg-red-500', text: t.composeStatusStopped || '已停止', ring: 'ring-red-200' };
+      case 'created': return { color: 'bg-blue-500', text: t.composeStatusCreated || '已创建', ring: 'ring-blue-200' };
+      default: return { color: 'bg-gray-300', text: t.composeStatusNotDeployed || '未部署', ring: 'ring-gray-200' };
+    }
+  }
 
   // Topology state
   let composeTopoModal = $state(false);
@@ -317,7 +328,8 @@
 
 </script>
 
-<div class="max-w-3xl lg:max-w-5xl xl:max-w-full space-y-5">
+<div class="space-y-4">
+  <!-- No templates hint -->
   {#if !templatesLoading && composeTemplates.length === 0}
     <div class="bg-blue-50 border border-blue-100 rounded-xl p-5">
       <div class="flex items-start gap-3">
@@ -326,7 +338,7 @@
         </svg>
         <div class="flex-1">
           <p class="text-[13px] text-blue-700">{t.noComposeTemplatesHint}</p>
-          <button 
+          <button
             class="mt-3 h-8 px-4 bg-blue-500 text-white text-[12px] font-medium rounded-lg hover:bg-blue-600 transition-colors cursor-pointer"
             onclick={() => onTabChange && onTabChange('registry')}
           >
@@ -336,214 +348,259 @@
       </div>
     </div>
   {/if}
-  {#if composeTemplates.length > 0}
-    <div class="bg-white rounded-xl border border-gray-100 p-5">
-      <div class="flex items-center gap-4">
-        <div class="flex-1">
-          <label for="templateSelect" class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.selectTemplate || '选择模板'}</label>
-          <select
-            id="templateSelect"
-            class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
-            bind:value={selectedTemplate}
-            onchange={handleSelectTemplate}
-          >
-            <option value={null}>{templatesLoading ? (t.loading || '加载中...') : (t.selectTemplate || '请选择模板')}</option>
-            {#each composeTemplates as tmpl}
-              <option value={tmpl.name}>{tmpl.nameZh || tmpl.name}</option>
-            {/each}
-          </select>
-        </div>
-        {#if selectedTemplate}
-          {@const currentTemplate = composeTemplates.find(t => t.name === selectedTemplate)}
-          {#if currentTemplate?.description}
-            <div class="flex-1 text-[12px] text-gray-500">
-              <span class="font-medium">{(t.description || '描述')}:</span> {currentTemplate.description}
+
+  <!-- Two-column layout -->
+  <div class="flex flex-col lg:flex-row gap-4">
+    <!-- LEFT COLUMN: Configuration -->
+    <div class="w-full lg:w-[340px] lg:flex-shrink-0 space-y-4">
+      <div class="bg-white rounded-xl border border-gray-100 p-5">
+        <div class="text-[13px] font-semibold text-gray-900 mb-4">{t.composeFile || '配置来源'}</div>
+
+        <!-- Radio: From Template -->
+        <label class="flex items-center gap-2.5 cursor-pointer group mb-3">
+          <input type="radio" name="configSource" value="template" bind:group={configSource}
+            class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer" />
+          <span class="text-[13px] text-gray-700 group-hover:text-gray-900 transition-colors">{t.composeSourceTemplate || '从模板选择'}</span>
+        </label>
+        {#if configSource === 'template'}
+          <div class="ml-6 mb-4">
+            <select
+              class="w-full h-9 px-3 text-[12px] bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
+              bind:value={selectedTemplate}
+              onchange={handleSelectTemplate}
+            >
+              <option value={null}>{templatesLoading ? (t.loading || '加载中...') : (t.selectTemplate || '请选择模板')}</option>
+              {#each composeTemplates as tmpl}
+                <option value={tmpl.name}>{tmpl.nameZh || tmpl.name}</option>
+              {/each}
+            </select>
+            {#if selectedTemplate}
+              {@const currentTemplate = composeTemplates.find(t => t.name === selectedTemplate)}
+              {#if currentTemplate?.description}
+                <p class="mt-2 text-[11px] text-gray-400 leading-relaxed">{currentTemplate.description}</p>
+              {/if}
+            {/if}
+          </div>
+        {/if}
+
+        <!-- Radio: Custom File -->
+        <label class="flex items-center gap-2.5 cursor-pointer group">
+          <input type="radio" name="configSource" value="file" bind:group={configSource}
+            class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer" />
+          <span class="text-[13px] text-gray-700 group-hover:text-gray-900 transition-colors">{t.composeSourceFile || '自定义文件路径'}</span>
+        </label>
+        {#if configSource === 'file'}
+          <div class="ml-6 mt-2">
+            <div class="flex gap-1.5">
+              <input
+                type="text"
+                placeholder="redc-compose.yaml"
+                class="flex-1 h-9 px-3 text-[12px] bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow font-mono"
+                bind:value={composeFilePath}
+              />
+              <button
+                class="h-9 px-3 bg-gray-100 text-gray-600 text-[11px] font-medium rounded-lg hover:bg-gray-200 transition-colors flex-shrink-0"
+                onclick={handleBrowseFile}
+              >
+                {t.browseFile}
+              </button>
             </div>
-          {/if}
-          {#if currentTemplate?.path}
-            <div class="flex-1 text-[12px] text-gray-400 font-mono mt-1">
-              <span class="font-medium">{(t.path || '路径')}:</span> {currentTemplate.path}
-            </div>
-          {/if}
+          </div>
         {/if}
       </div>
+
+      <!-- Advanced Options (collapsible) -->
+      <div class="bg-white rounded-xl border border-gray-100">
+        <button
+          class="w-full flex items-center justify-between px-5 py-3.5 text-[12px] font-medium text-gray-500 hover:text-gray-700 transition-colors"
+          onclick={() => showAdvanced = !showAdvanced}
+        >
+          <span>{t.composeAdvanced || '高级选项'}</span>
+          <svg class="w-4 h-4 transition-transform {showAdvanced ? 'rotate-180' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          </svg>
+        </button>
+        {#if showAdvanced}
+          <div class="px-5 pb-4 border-t border-gray-50">
+            <label class="block text-[11px] font-medium text-gray-500 mb-1.5 mt-3">{t.composeProfiles}</label>
+            <input
+              type="text"
+              placeholder="prod, dev"
+              class="w-full h-9 px-3 text-[12px] bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
+              bind:value={composeProfiles}
+            />
+          </div>
+        {/if}
+      </div>
+
+      {#if composeError}
+        <div class="bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-[12px] text-red-600">{composeError}</div>
+      {/if}
     </div>
-  {/if}
-  
-  <div class="bg-white rounded-xl border border-gray-100 p-5">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <label for="composeFile" class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.composeFile}</label>
-        <div class="flex gap-2">
-          <input
-            id="composeFile"
-            type="text"
-            placeholder="redc-compose.yaml"
-            class="flex-1 h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow font-mono"
-            bind:value={composeFilePath}
-          />
+
+    <!-- RIGHT COLUMN: Services + Actions + Logs -->
+    <div class="flex-1 min-w-0 space-y-4">
+      {#if composeLoading}
+        <!-- Loading -->
+        <div class="bg-white rounded-xl border border-gray-100 p-5">
+          <div class="flex items-center justify-center h-32">
+            <div class="flex flex-col items-center gap-3">
+              <div class="w-7 h-7 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin"></div>
+              <span class="text-[12px] text-gray-400">{t.loading || '加载中...'}</span>
+            </div>
+          </div>
+        </div>
+      {:else if composeSummary?.services?.length > 0}
+        <!-- Service list -->
+        <div class="bg-white rounded-xl border border-gray-100 p-5">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <span class="text-[14px] font-semibold text-gray-900">{t.composePreview}</span>
+              <span class="text-[11px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{composeSummary.total} {t.composeSvcCount || '个服务'}</span>
+            </div>
+            <button
+              class="flex items-center gap-1.5 h-7 px-3 text-[11px] font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors cursor-pointer"
+              onclick={openComposeTopology}
+            >
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+              </svg>
+              {t.composeTopology || '拓扑视图'}
+            </button>
+          </div>
+          <div class="border border-gray-100 rounded-lg overflow-hidden">
+            <table class="w-full text-[12px]">
+              <thead>
+                <tr class="bg-gray-50 border-b border-gray-100">
+                  <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.serviceName}</th>
+                  <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.serviceTemplate}</th>
+                  <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.serviceProvider}</th>
+                  <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.serviceStatus || '状态'}</th>
+                  <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.serviceDepends}</th>
+                  <th class="text-right px-4 py-2.5 font-semibold text-gray-600">{t.serviceReplicas}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each composeSummary.services as svc}
+                  {@const badge = getStatusBadge(svc.status)}
+                  <tr class="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                    <td class="px-4 py-3 text-gray-800 font-medium">{svc.name}</td>
+                    <td class="px-4 py-3 text-gray-600 font-mono text-[11px]">{svc.template}</td>
+                    <td class="px-4 py-3 text-gray-600">{svc.provider || '-'}</td>
+                    <td class="px-4 py-3">
+                      <span class="inline-flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full {badge.color} ring-2 {badge.ring}"></span>
+                        <span class="text-[11px] text-gray-600">{badge.text}</span>
+                      </span>
+                    </td>
+                    <td class="px-4 py-3 text-gray-600">{(svc.dependsOn?.length > 0) ? svc.dependsOn.join(', ') : '-'}</td>
+                    <td class="px-4 py-3 text-right text-gray-600">{svc.replicas || 1}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="flex items-center gap-3">
           <button
-            class="h-10 px-4 bg-gray-100 text-gray-700 text-[12px] font-medium rounded-lg hover:bg-gray-200 transition-colors"
-            onclick={handleBrowseFile}
+            class="h-10 px-6 bg-emerald-500 text-white text-[13px] font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 inline-flex items-center gap-2 shadow-sm cursor-pointer"
+            onclick={handleComposeUp}
+            disabled={composeStatus === 'running'}
           >
-            {t.browseFile}
+            {#if composeStatus === 'running' && composeAction === 'up'}
+              <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              {t.composeDeploying || '正在部署...'}
+            {:else}
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" /></svg>
+              {t.composeUp}
+            {/if}
+          </button>
+          <button
+            class="h-10 px-5 text-red-600 bg-white border border-red-200 text-[13px] font-medium rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 inline-flex items-center gap-2 cursor-pointer"
+            onclick={showDestroyConfirm}
+            disabled={composeStatus === 'running'}
+          >
+            {#if composeStatus === 'running' && composeAction === 'down'}
+              <div class="w-4 h-4 border-2 border-red-200 border-t-red-600 rounded-full animate-spin"></div>
+              {t.composeDestroying || '正在销毁...'}
+            {:else}
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9a2.25 2.25 0 01-2.25-2.25v-9z" /></svg>
+              {t.composeDown}
+            {/if}
           </button>
         </div>
-      </div>
-      <div>
-        <label for="composeProfiles" class="block text-[12px] font-medium text-gray-500 mb-1.5">{t.composeProfiles}</label>
-        <input
-          id="composeProfiles"
-          type="text"
-          placeholder="prod,dev"
-          class="w-full h-10 px-3 text-[13px] bg-gray-50 border-0 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition-shadow"
-          bind:value={composeProfiles}
-        />
-      </div>
-    </div>
-    <div class="mt-4 flex flex-wrap gap-2">
-      <button
-        class="h-9 px-4 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 text-[12px] font-medium rounded-lg transition-colors disabled:opacity-50"
-        onclick={previewCompose}
-        disabled={composeLoading || composeStatus === 'running'}
-      >
-        {composeLoading ? t.loading : t.previewCompose}
-      </button>
-      <button
-        class="h-9 px-4 bg-emerald-500 text-white text-[12px] font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
-        onclick={handleComposeUp}
-        disabled={composeStatus === 'running'}
-      >
-        {#if composeStatus === 'running' && composeAction === 'up'}
-          <div class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-          {t.processing || '处理中...'}
-        {:else}
-          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" /></svg>
-          {t.composeUp}
-        {/if}
-      </button>
-      <button
-        class="h-9 px-4 bg-red-500 text-white text-[12px] font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
-        onclick={showDestroyConfirm}
-        disabled={composeStatus === 'running'}
-      >
-        {#if composeStatus === 'running' && composeAction === 'down'}
-          <div class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-          {t.processing || '处理中...'}
-        {:else}
-          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9a2.25 2.25 0 01-2.25-2.25v-9z" /></svg>
-          {t.composeDown}
-        {/if}
-      </button>
-    </div>
-    {#if composeError}
-      <div class="mt-3 text-[12px] text-red-500">{composeError}</div>
-    {/if}
-  </div>
-
-  <!-- Compose operation status & log panel -->
-  {#if composeStatus !== 'idle'}
-    <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
-      <!-- Status header -->
-      <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between {composeStatus === 'running' ? 'bg-blue-50' : composeStatus === 'done' ? 'bg-emerald-50' : 'bg-red-50'}">
-        <div class="flex items-center gap-2.5">
-          {#if composeStatus === 'running'}
-            <div class="w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-            <span class="text-[13px] font-medium text-blue-700">
-              {composeAction === 'up' ? (t.composeDeploying || '正在部署编排...') : (t.composeDestroying || '正在销毁编排...')}
-            </span>
-          {:else if composeStatus === 'done'}
-            <svg class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-            <span class="text-[13px] font-medium text-emerald-700">
-              {composeAction === 'up' ? (t.composeUpDone || '编排部署完成') : (t.composeDownDone || '编排销毁完成')}
-            </span>
-          {:else if composeStatus === 'error'}
-            <svg class="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-            <span class="text-[13px] font-medium text-red-700">
-              {composeAction === 'up' ? (t.composeUpFailed || '编排部署失败') : (t.composeDownFailed || '编排销毁失败')}
-            </span>
-          {/if}
-        </div>
-        {#if composeStatus !== 'running'}
-          <button
-            class="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
-            onclick={dismissStatus}
-          >{t.dismiss || '关闭'}</button>
-        {/if}
-      </div>
-
-      <!-- Error message -->
-      {#if composeStatus === 'error' && composeStatusError}
-        <div class="px-5 py-3 bg-red-50 border-b border-red-100 text-[12px] text-red-600">{composeStatusError}</div>
-      {/if}
-
-      <!-- Log panel -->
-      {#if composeLogs.length > 0}
-        <div
-          class="bg-gray-900 px-4 py-3 max-h-48 overflow-y-auto font-mono text-[11px] leading-5"
-          bind:this={logContainerEl}
-        >
-          {#each composeLogs as log}
-            <div class="text-gray-300">
-              <span class="text-gray-500 select-none">{log.time}</span>
-              <span class="ml-2">{log.message}</span>
+      {:else}
+        <!-- Empty state guidance -->
+        <div class="bg-white rounded-xl border border-gray-100 p-5">
+          <div class="flex flex-col items-center justify-center py-16 text-center">
+            <div class="w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center mb-4">
+              <svg class="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6.429 9.75L2.25 12l4.179 2.25m0-4.5l5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L12 12.75 6.429 9.75m11.142 0l4.179 2.25-4.179 2.25m0 0L12 17.25l-5.571-3m11.142 0l4.179 2.25L12 21.75l-9.75-5.25 4.179-2.25" />
+              </svg>
             </div>
-          {/each}
-          {#if composeStatus === 'running'}
-            <div class="text-gray-500 animate-pulse">▍</div>
+            <p class="text-[13px] text-gray-400 max-w-xs">{t.composeGuideHint || '选择 Compose 模板或指定文件路径开始编排'}</p>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Compose operation status & log panel -->
+      {#if composeStatus !== 'idle'}
+        <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <!-- Status header -->
+          <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between {composeStatus === 'running' ? 'bg-blue-50' : composeStatus === 'done' ? 'bg-emerald-50' : 'bg-red-50'}">
+            <div class="flex items-center gap-2.5">
+              {#if composeStatus === 'running'}
+                <div class="w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                <span class="text-[13px] font-medium text-blue-700">
+                  {composeAction === 'up' ? (t.composeDeploying || '正在部署编排...') : (t.composeDestroying || '正在销毁编排...')}
+                </span>
+              {:else if composeStatus === 'done'}
+                <svg class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                <span class="text-[13px] font-medium text-emerald-700">
+                  {composeAction === 'up' ? (t.composeUpDone || '编排部署完成') : (t.composeDownDone || '编排销毁完成')}
+                </span>
+              {:else if composeStatus === 'error'}
+                <svg class="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                <span class="text-[13px] font-medium text-red-700">
+                  {composeAction === 'up' ? (t.composeUpFailed || '编排部署失败') : (t.composeDownFailed || '编排销毁失败')}
+                </span>
+              {/if}
+            </div>
+            {#if composeStatus !== 'running'}
+              <button
+                class="text-[11px] text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                onclick={dismissStatus}
+              >{t.dismiss || '关闭'}</button>
+            {/if}
+          </div>
+
+          <!-- Error message -->
+          {#if composeStatus === 'error' && composeStatusError}
+            <div class="px-5 py-3 bg-red-50 border-b border-red-100 text-[12px] text-red-600">{composeStatusError}</div>
+          {/if}
+
+          <!-- Log panel -->
+          {#if composeLogs.length > 0}
+            <div
+              class="bg-gray-900 px-4 py-3 max-h-56 overflow-y-auto font-mono text-[11px] leading-5"
+              bind:this={logContainerEl}
+            >
+              {#each composeLogs as log}
+                <div class="text-gray-300">
+                  <span class="text-gray-500 select-none">{log.time}</span>
+                  <span class="ml-2">{log.message}</span>
+                </div>
+              {/each}
+              {#if composeStatus === 'running'}
+                <div class="text-gray-500 animate-pulse">▍</div>
+              {/if}
+            </div>
           {/if}
         </div>
       {/if}
     </div>
-  {/if}
-
-  <div class="bg-white rounded-xl border border-gray-100 p-5">
-    <div class="flex items-center justify-between mb-4">
-      <div class="text-[14px] font-semibold text-gray-900">{t.composePreview}</div>
-      {#if composeSummary?.services?.length > 0}
-        <button
-          class="flex items-center gap-1.5 h-7 px-3 text-[11px] font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors cursor-pointer"
-          onclick={openComposeTopology}
-        >
-          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
-          </svg>
-          {t.composeTopology || '拓扑视图'}
-        </button>
-      {/if}
-    </div>
-    {#if composeLoading}
-      <div class="flex items-center justify-center h-24">
-        <div class="w-6 h-6 border-2 border-gray-100 border-t-gray-900 rounded-full animate-spin"></div>
-      </div>
-    {:else if composeSummary && composeSummary.services && composeSummary.services.length > 0}
-      <div class="border border-gray-100 rounded-lg overflow-hidden">
-        <table class="w-full text-[12px]">
-          <thead>
-            <tr class="bg-gray-50 border-b border-gray-100">
-              <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.serviceName}</th>
-              <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.serviceTemplate}</th>
-              <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.serviceProvider}</th>
-              <th class="text-left px-4 py-2.5 font-semibold text-gray-600">{t.serviceDepends}</th>
-              <th class="text-right px-4 py-2.5 font-semibold text-gray-600">{t.serviceReplicas}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each composeSummary.services as svc}
-              <tr class="border-b border-gray-50">
-                <td class="px-4 py-3 text-gray-700">{svc.name}</td>
-                <td class="px-4 py-3 text-gray-700">{svc.template}</td>
-                <td class="px-4 py-3 text-gray-700">{svc.provider || '-'}</td>
-                <td class="px-4 py-3 text-gray-700">{(svc.dependsOn && svc.dependsOn.length > 0) ? svc.dependsOn.join(', ') : '-'}</td>
-                <td class="px-4 py-3 text-right text-gray-700">{svc.replicas || 1}</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
-    {:else}
-      <div class="py-12 text-center text-[12px] text-gray-400">{t.noScene}</div>
-    {/if}
   </div>
 </div>
 

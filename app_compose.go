@@ -39,6 +39,10 @@ func (a *App) ComposePreview(filePath string, profiles []string) (ComposeSummary
 	services := make([]ComposeServiceSummary, 0, len(ctx.SortedSvcKeys))
 	for _, name := range ctx.SortedSvcKeys {
 		svc := ctx.RuntimeSvcs[name]
+		status := "not_deployed"
+		if c, err := project.GetCase(svc.Name); err == nil {
+			status = c.State
+		}
 		services = append(services, ComposeServiceSummary{
 			Name:      svc.Name,
 			RawName:   svc.RawName,
@@ -47,6 +51,7 @@ func (a *App) ComposePreview(filePath string, profiles []string) (ComposeSummary
 			Profiles:  svc.Spec.Profiles,
 			DependsOn: svc.Spec.DependsOn,
 			Replicas:  svc.Spec.Deploy.Replicas,
+			Status:    status,
 		})
 	}
 

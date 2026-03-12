@@ -110,6 +110,25 @@ redc compose down -f redc-compose.yaml
 
 ### 1. 使用 Profile 控制环境
 
+Profile 是一种**服务分组/环境过滤**机制，允许你在同一个 compose 文件中定义多组服务，按需选择性部署。
+
+**工作原理：**
+
+- 每个服务可以通过 `profiles` 字段标记属于哪些分组（如 `prod`、`dev`、`attack`）
+- 执行 `compose up` 时指定 `-p <profile>` 参数，**只有属于该 profile 的服务会被部署**
+- **没有 `profiles` 字段的服务**视为默认服务，在不指定任何 profile 时会被部署
+- 不指定 `-p` 参数时，所有没有 `profiles` 字段的服务都会启动
+
+**适用场景举例：**
+
+| 场景 | 说明 |
+|------|------|
+| 多环境隔离 | 同一文件定义 prod 和 dev 环境的服务器，按需部署其中一组 |
+| 按需扩展 | 将压测节点标记为 `attack` profile，仅在需要压测时启动 |
+| 渐进部署 | 先部署 `base` 基础设施，再部署 `app` 应用层 |
+
+> **提示：** 如果你的所有服务都需要一起部署，不需要设置 `profiles` 字段，也不需要指定 `-p` 参数，此时该功能可以忽略。在 GUI 的编排管理页面中，该选项位于"高级选项"面板内。
+
 修改配置文件，为服务添加 profile：
 
 ```yaml
@@ -124,16 +143,23 @@ services:
     profiles:
       - prod
     # ... 其他配置
+
+  monitor_server:
+    # 没有 profiles 字段 → 不指定 -p 时默认部署
+    image: ./templates/monitor
 ```
 
 只启动特定环境：
 
 ```bash
-# 只启动 prod 环境的服务
+# 只启动 prod 环境的服务（aliyun_server + volcengine_server）
 redc compose up -f redc-compose.yaml -p prod
 
-# 启动 dev 环境的服务
+# 只启动 dev 环境的服务（aliyun_server）
 redc compose up -f redc-compose.yaml -p dev
+
+# 不指定 profile，部署所有无 profiles 字段的服务（monitor_server）
+redc compose up -f redc-compose.yaml
 ```
 
 ### 2. 文件上传

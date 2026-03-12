@@ -373,6 +373,7 @@ type ComposeServiceSummary struct {
 	Profiles  []string `json:"profiles"`
 	DependsOn []string `json:"dependsOn"`
 	Replicas  int      `json:"replicas"`
+	Status    string   `json:"status"` // "applied" / "destroyed" / "not_deployed"
 }
 
 // ComposeSummary represents a compose file preview
