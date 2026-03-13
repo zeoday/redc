@@ -607,7 +607,7 @@
 {#if composeTopoModal}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onclick={() => composeTopoModal = false}>
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onclick={() => composeTopoModal = false}>
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-[1100px] mx-4 max-h-[90vh] flex flex-col overflow-hidden" onclick={e => e.stopPropagation()}>
       <!-- Header -->
       <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -618,7 +618,7 @@
           <span class="text-[15px] font-semibold text-gray-900">{t.composeTopology || '编排服务拓扑'}</span>
           <span class="text-[13px] text-gray-400">— {composeFilePath || 'redc-compose.yaml'}</span>
         </div>
-        <button class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors" onclick={() => composeTopoModal = false}>
+        <button class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors cursor-pointer" onclick={() => composeTopoModal = false}>
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
       </div>
@@ -735,7 +735,7 @@
 
       <!-- Footer -->
       <div class="px-6 py-4 border-t border-gray-100 flex justify-end">
-        <button class="h-9 px-5 bg-gray-100 text-gray-700 text-[12px] font-medium rounded-lg hover:bg-gray-200 transition-colors" onclick={() => composeTopoModal = false}>
+        <button class="h-9 px-5 bg-gray-100 text-gray-700 text-[12px] font-medium rounded-lg hover:bg-gray-200 transition-colors cursor-pointer" onclick={() => composeTopoModal = false}>
           {t.close || '关闭'}
         </button>
       </div>
@@ -746,7 +746,7 @@
 {#if destroyConfirm.show}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onclick={cancelDestroy}>
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onclick={cancelDestroy}>
     <div class="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 overflow-hidden" onclick={e => e.stopPropagation()}>
       <div class="px-6 py-5">
         <div class="flex items-center gap-3 mb-3">

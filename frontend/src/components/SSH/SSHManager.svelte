@@ -874,7 +874,7 @@
 {#if showNewSessionDialog}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+    class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
     onclick={(e) => { if (e.target === e.currentTarget) showNewSessionDialog = false; }}
     onkeydown={(e) => { if (e.key === 'Escape') showNewSessionDialog = false; }}
   >
@@ -1134,7 +1134,7 @@
 {#if showCloseAllConfirm}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+    class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
     onclick={(e) => { if (e.target === e.currentTarget) showCloseAllConfirm = false; }}
     onkeydown={(e) => { if (e.key === 'Escape') showCloseAllConfirm = false; }}
   >

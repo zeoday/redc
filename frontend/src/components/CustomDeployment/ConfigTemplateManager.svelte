@@ -170,8 +170,8 @@
 <!-- Delete Confirmation Modal -->
 {#if showDeleteConfirm}
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onclick={cancelDelete}>
-    <div class="bg-white rounded-lg border border-gray-200 max-w-md w-full mx-4" onclick={(e) => e.stopPropagation()}>
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onclick={cancelDelete}>
+    <div class="bg-white rounded-xl border border-gray-200 shadow-xl max-w-md w-full mx-4" onclick={(e) => e.stopPropagation()}>
       <div class="p-6">
         <div class="flex items-start gap-4">
           <div class="flex-shrink-0">

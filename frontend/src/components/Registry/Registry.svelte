@@ -381,7 +381,7 @@ let { t } = $props();
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
       </svg>
       <span class="text-[13px] text-red-700 flex-1">{registryError}</span>
-      <button class="text-red-400 hover:text-red-600" onclick={() => registryError = ''} aria-label="关闭错误">
+      <button class="text-red-400 hover:text-red-600 cursor-pointer" onclick={() => registryError = ''} aria-label="关闭错误">
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
@@ -537,7 +537,7 @@ let { t } = $props();
 {#if batchPullConfirm.show}
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-visible" onclick={cancelBatchPull}>
-    <div class="bg-white rounded-xl border border-gray-200 max-w-sm w-full mx-4 overflow-hidden" onclick={(e) => e.stopPropagation()}>
+    <div class="bg-white rounded-xl border border-gray-200 shadow-xl max-w-sm w-full mx-4 overflow-hidden" onclick={(e) => e.stopPropagation()}>
       <div class="px-6 py-5">
         <div class="flex items-center gap-3 mb-3">
           <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
@@ -572,7 +572,7 @@ let { t } = $props();
 {#if batchUpdateConfirm.show}
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-visible" onclick={cancelBatchUpdate}>
-    <div class="bg-white rounded-xl border border-gray-200 max-w-sm w-full mx-4 overflow-hidden" onclick={(e) => e.stopPropagation()}>
+    <div class="bg-white rounded-xl border border-gray-200 shadow-xl max-w-sm w-full mx-4 overflow-hidden" onclick={(e) => e.stopPropagation()}>
       <div class="px-6 py-5">
         <div class="flex items-center gap-3 mb-3">
           <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
@@ -607,13 +607,13 @@ let { t } = $props();
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-visible" onclick={closeReadmeModal} role="dialog" aria-modal="true" aria-labelledby="readme-modal-title" tabindex="-1">
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-    <div class="bg-white rounded-xl border border-gray-200 max-w-3xl w-full mx-4 max-h-[80vh] flex flex-col" onclick={(e) => e.stopPropagation()}>
+    <div class="bg-white rounded-xl border border-gray-200 shadow-xl max-w-3xl w-full mx-4 max-h-[80vh] flex flex-col" onclick={(e) => e.stopPropagation()}>
       <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
         <div>
           <h2 id="readme-modal-title" class="text-[15px] font-medium text-gray-900">{t.readme || 'README'}</h2>
           <p class="text-[12px] text-gray-500">{readmeModal.templateName}</p>
         </div>
-        <button class="text-gray-400 hover:text-gray-600 transition-colors" onclick={closeReadmeModal} aria-label={t.close || '关闭'}>
+        <button class="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer" onclick={closeReadmeModal} aria-label={t.close || '关闭'}>
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>

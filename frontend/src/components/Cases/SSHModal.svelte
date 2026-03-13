@@ -154,7 +154,7 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onclick={handleBackdropClick}>
-  <div class="bg-white rounded-xl border border-gray-200 w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col" onclick={(e) => e.stopPropagation()}>
+  <div class="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col" onclick={(e) => e.stopPropagation()}>
     <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
       <div>
         <h3 class="text-[15px] font-semibold text-gray-900">{t.sshOperations || 'SSH 运维'}</h3>

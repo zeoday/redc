@@ -193,8 +193,8 @@
     switch (action) {
       case 'start': return { cls: 'text-emerald-700 bg-emerald-50', icon: '▶' };
       case 'stop': return { cls: 'text-amber-700 bg-amber-50', icon: '⏹' };
-      case 'ssh_command': return { cls: 'text-cyan-700 bg-cyan-50', icon: '⌨' };
-      case 'auto_stop': return { cls: 'text-orange-700 bg-orange-50', icon: '⏱' };
+      case 'ssh_command': return { cls: 'text-gray-700 bg-gray-100', icon: '⌨' };
+      case 'auto_stop': return { cls: 'text-gray-700 bg-gray-100', icon: '⏱' };
       default: return { cls: 'text-gray-600 bg-gray-100', icon: '?' };
     }
   }
@@ -310,12 +310,12 @@
                     {getActionBadge(task.action).icon} {getActionLabel(task.action)}
                   </span>
                   {#if task.repeatType && task.repeatType !== 'once'}
-                    <span class="px-1.5 py-0.5 text-[10px] font-medium text-purple-700 bg-purple-50 rounded">
+                    <span class="px-1.5 py-0.5 text-[10px] font-medium text-blue-700 bg-blue-50 rounded">
                       🔄 {getRepeatLabel(task)}
                     </span>
                   {/if}
                   {#if task.notifyEnabled}
-                    <span class="px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 bg-indigo-50 rounded" title={t.notifyOnComplete || '完成通知'}>🔔</span>
+                    <span class="px-1.5 py-0.5 text-[10px] font-medium text-blue-700 bg-blue-50 rounded" title={t.notifyOnComplete || '完成通知'}>🔔</span>
                   {/if}
                   {#if task.status === 'executing'}
                     <span class="px-1.5 py-0.5 text-[10px] font-medium text-amber-700 bg-amber-50 rounded flex items-center gap-1">
@@ -445,10 +445,10 @@
         <div>
           <label class="block text-[12px] font-medium text-gray-700 mb-1.5">{t.action || '操作'}</label>
           <div class="grid grid-cols-4 gap-2">
-            <button class="px-3 py-2 text-[12px] font-medium rounded-lg transition-colors cursor-pointer {formAction === 'start' ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-700'}" onclick={() => formAction = 'start'}>▶ {t.start || '启动'}</button>
-            <button class="px-3 py-2 text-[12px] font-medium rounded-lg transition-colors cursor-pointer {formAction === 'stop' ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-700'}" onclick={() => formAction = 'stop'}>⏹ {t.stop || '停止'}</button>
-            <button class="px-3 py-2 text-[12px] font-medium rounded-lg transition-colors cursor-pointer {formAction === 'ssh_command' ? 'bg-cyan-500 text-white' : 'bg-gray-100 text-gray-700'}" onclick={() => formAction = 'ssh_command'}>⌨ {t.sshCommand || 'SSH'}</button>
-            <button class="px-3 py-2 text-[12px] font-medium rounded-lg transition-colors cursor-pointer {formAction === 'auto_stop' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-700'}" onclick={() => formAction = 'auto_stop'}>⏱ {t.autoStop || '自动停机'}</button>
+            <button class="px-3 py-2 text-[12px] font-medium rounded-lg transition-colors cursor-pointer {formAction === 'start' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}" onclick={() => formAction = 'start'}>▶ {t.start || '启动'}</button>
+            <button class="px-3 py-2 text-[12px] font-medium rounded-lg transition-colors cursor-pointer {formAction === 'stop' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}" onclick={() => formAction = 'stop'}>⏹ {t.stop || '停止'}</button>
+            <button class="px-3 py-2 text-[12px] font-medium rounded-lg transition-colors cursor-pointer {formAction === 'ssh_command' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}" onclick={() => formAction = 'ssh_command'}>⌨ {t.sshCommand || 'SSH'}</button>
+            <button class="px-3 py-2 text-[12px] font-medium rounded-lg transition-colors cursor-pointer {formAction === 'auto_stop' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}" onclick={() => formAction = 'auto_stop'}>⏱ {t.autoStop || '自动停机'}</button>
           </div>
         </div>
 
@@ -483,8 +483,8 @@
         <div>
           <label class="block text-[12px] font-medium text-gray-700 mb-1.5">{t.scheduleType || '时间设置'}</label>
           <div class="flex gap-2 mb-3">
-            <button class="flex-1 px-4 py-2 text-[13px] font-medium rounded-lg transition-colors cursor-pointer {formScheduleType === 'relative' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}" onclick={() => formScheduleType = 'relative'}>{t.relativeTime || '相对时间'}</button>
-            <button class="flex-1 px-4 py-2 text-[13px] font-medium rounded-lg transition-colors cursor-pointer {formScheduleType === 'absolute' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}" onclick={() => formScheduleType = 'absolute'}>{t.absoluteTime || '绝对时间'}</button>
+            <button class="flex-1 px-4 py-2 text-[13px] font-medium rounded-lg transition-colors cursor-pointer {formScheduleType === 'relative' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}" onclick={() => formScheduleType = 'relative'}>{t.relativeTime || '相对时间'}</button>
+            <button class="flex-1 px-4 py-2 text-[13px] font-medium rounded-lg transition-colors cursor-pointer {formScheduleType === 'absolute' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}" onclick={() => formScheduleType = 'absolute'}>{t.absoluteTime || '绝对时间'}</button>
           </div>
           {#if formScheduleType === 'relative'}
             <div class="grid grid-cols-2 gap-3">
@@ -516,7 +516,7 @@
           <label class="block text-[12px] font-medium text-gray-700 mb-1.5">{t.taskRepeatMode || '重复模式'}</label>
           <div class="flex gap-2 flex-wrap">
             {#each [['once', t.repeatOnce || '单次'], ['daily', t.repeatDaily || '每天'], ['weekly', t.repeatWeekly || '每周'], ['interval', t.repeatInterval || '自定义间隔']] as [val, label]}
-              <button class="px-3 py-1.5 text-[12px] font-medium rounded-lg transition-colors cursor-pointer {formRepeatType === val ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-700'}" onclick={() => formRepeatType = val}>{label}</button>
+              <button class="px-3 py-1.5 text-[12px] font-medium rounded-lg transition-colors cursor-pointer {formRepeatType === val ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}" onclick={() => formRepeatType = val}>{label}</button>
             {/each}
           </div>
           {#if formRepeatType === 'interval'}
@@ -536,7 +536,7 @@
             <p class="text-[11px] text-gray-400">{t.notifyOnCompleteHint || '任务完成/失败时发送系统通知和 Webhook'}</p>
           </div>
           <button
-            class="relative w-10 h-5 rounded-full transition-colors cursor-pointer {formNotifyEnabled ? 'bg-indigo-500' : 'bg-gray-300'}"
+            class="relative w-10 h-5 rounded-full transition-colors cursor-pointer {formNotifyEnabled ? 'bg-emerald-500' : 'bg-gray-300'}"
             onclick={() => formNotifyEnabled = !formNotifyEnabled}
           >
             <span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform {formNotifyEnabled ? 'translate-x-5' : ''}"></span>
@@ -545,7 +545,7 @@
       </div>
 
       <div class="px-5 py-4 bg-gray-50 flex justify-end gap-2">
-        <button class="px-4 py-2 text-[13px] font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer" onclick={() => showCreateForm = false}>{t.cancel || '取消'}</button>
+        <button class="px-4 py-2 text-[13px] font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer" onclick={() => showCreateForm = false}>{t.cancel || '取消'}</button>
         <button class="px-4 py-2 text-[13px] font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer" onclick={handleCreate} disabled={formLoading}>
           {#if formLoading}
             <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>

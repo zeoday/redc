@@ -205,7 +205,7 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onclick={handleBackdropClick}>
-  <div class="bg-white rounded-xl border border-gray-200 w-full max-w-6xl h-[85vh] overflow-hidden flex flex-col" onclick={(e) => e.stopPropagation()}>
+  <div class="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-6xl h-[85vh] overflow-hidden flex flex-col" onclick={(e) => e.stopPropagation()}>
     <!-- Header -->
     <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
       <div class="flex items-center gap-3">
@@ -286,7 +286,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
         <span class="text-[12px] text-red-700 flex-1">{error}</span>
-        <button class="text-red-400 hover:text-red-600" onclick={() => error = ''} aria-label="关闭错误">
+        <button class="text-red-400 hover:text-red-600 cursor-pointer" onclick={() => error = ''} aria-label="关闭错误">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -433,7 +433,7 @@
 {#if showNewFolderDialog}
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]" onclick={() => showNewFolderDialog = false}>
-    <div class="bg-white rounded-xl border border-gray-200 w-full max-w-md p-5" onclick={(e) => e.stopPropagation()}>
+    <div class="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-md p-5" onclick={(e) => e.stopPropagation()}>
       <h3 class="text-[14px] font-semibold text-gray-900 mb-4">{t.newFolder || '新建文件夹'}</h3>
       <!-- svelte-ignore a11y_autofocus -->
       <input
@@ -467,7 +467,7 @@
 {#if showRenameDialog}
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]" onclick={() => showRenameDialog = false}>
-    <div class="bg-white rounded-xl border border-gray-200 w-full max-w-md p-5" onclick={(e) => e.stopPropagation()}>
+    <div class="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-md p-5" onclick={(e) => e.stopPropagation()}>
       <h3 class="text-[14px] font-semibold text-gray-900 mb-4">{t.rename || '重命名'}</h3>
       <!-- svelte-ignore a11y_autofocus -->
       <input
@@ -501,7 +501,7 @@
 {#if showDeleteConfirm}
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]" onclick={() => showDeleteConfirm = false}>
-    <div class="bg-white rounded-xl border border-gray-200 w-full max-w-md p-5" onclick={(e) => e.stopPropagation()}>
+    <div class="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-md p-5" onclick={(e) => e.stopPropagation()}>
       <h3 class="text-[14px] font-semibold text-gray-900 mb-2">{t.confirmDelete || '确认删除'}</h3>
       <p class="text-[12px] text-gray-600 mb-4">
         {t.deleteConfirmMessage || '确定要删除'} <span class="font-medium text-gray-900">{deleteTarget?.name}</span> {t.questionMark || '吗？'}
