@@ -135,6 +135,16 @@ func (a *App) AIChatStream(conversationId, mode string, messages []AIChatMessage
 
 // AgentChatStream runs the agentic loop: AI + MCP tool calling + streaming final answer
 func (a *App) AgentChatStream(conversationId string, messages []AIChatMessage) error {
+	return a.runAgentLoop(conversationId, messages, ai.AgentSystemPrompt, 20, 5*time.Minute)
+}
+
+// DeployAgentChatStream runs the deploy agent loop with specialized system prompt
+func (a *App) DeployAgentChatStream(conversationId string, messages []AIChatMessage) error {
+	return a.runAgentLoop(conversationId, messages, ai.DeployAgentSystemPrompt, 30, 10*time.Minute)
+}
+
+// runAgentLoop is the shared agentic loop used by AgentChatStream and DeployAgentChatStream
+func (a *App) runAgentLoop(conversationId string, messages []AIChatMessage, promptTemplate string, defaultMaxRounds int, timeout time.Duration) error {
 	profile, err := redc.GetActiveProfile()
 	if err != nil || profile.AIConfig == nil {
 		return fmt.Errorf("%s", i18n.T("app_ai_not_configured"))
@@ -142,6 +152,12 @@ func (a *App) AgentChatStream(conversationId string, messages []AIChatMessage) e
 	aiConfig := profile.AIConfig
 	if aiConfig.APIKey == "" || aiConfig.BaseURL == "" || aiConfig.Model == "" {
 		return fmt.Errorf("%s", i18n.T("app_ai_config_incomplete"))
+	}
+
+	// Use user-configured max rounds if set, otherwise use default
+	maxRounds := defaultMaxRounds
+	if aiConfig.MaxToolRounds > 0 {
+		maxRounds = aiConfig.MaxToolRounds
 	}
 
 	a.mu.Lock()
@@ -156,7 +172,7 @@ func (a *App) AgentChatStream(conversationId string, messages []AIChatMessage) e
 	if uiLang == "en" {
 		langPrompt = "Please reply in English"
 	}
-	systemPrompt := fmt.Sprintf(ai.AgentSystemPrompt, langPrompt)
+	systemPrompt := fmt.Sprintf(promptTemplate, langPrompt)
 
 	// Build tool definitions from MCP server
 	mcpServer := mcp.NewMCPServer(project, a)
@@ -188,11 +204,10 @@ func (a *App) AgentChatStream(conversationId string, messages []AIChatMessage) e
 	}
 
 	client := ai.NewClient(aiConfig.Provider, aiConfig.APIKey, aiConfig.BaseURL, aiConfig.Model)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	// Agentic loop: max 10 rounds of tool use
-	const maxRounds = 10
+	// Agentic loop
 	for round := 0; round < maxRounds; round++ {
 		resp, err := client.ChatWithTools(ctx, aiMessages, toolDefs)
 		if err != nil {
@@ -205,10 +220,8 @@ func (a *App) AgentChatStream(conversationId string, messages []AIChatMessage) e
 
 		// No tool calls → stream the final answer
 		if len(resp.ToolCalls) == 0 {
-			// Append assistant message to history first
 			aiMessages = append(aiMessages, ai.Message{Role: "assistant", Content: resp.Content})
 
-			// Stream the final text word-by-word to give a streaming feel
 			words := strings.Split(resp.Content, "")
 			chunkSize := 8
 			for i := 0; i < len(words); i += chunkSize {
@@ -237,7 +250,6 @@ func (a *App) AgentChatStream(conversationId string, messages []AIChatMessage) e
 
 		// Execute each tool call
 		for _, tc := range resp.ToolCalls {
-			// Parse tool arguments
 			var args map[string]interface{}
 			if tc.Function.Arguments != "" {
 				if jsonErr := json.Unmarshal([]byte(tc.Function.Arguments), &args); jsonErr != nil {
@@ -245,7 +257,6 @@ func (a *App) AgentChatStream(conversationId string, messages []AIChatMessage) e
 				}
 			}
 
-			// Emit tool-call event to frontend
 			a.emitEvent( "ai-agent-tool-call", map[string]interface{}{
 				"conversationId": conversationId,
 				"toolCallId":     tc.ID,
@@ -253,7 +264,6 @@ func (a *App) AgentChatStream(conversationId string, messages []AIChatMessage) e
 				"toolArgs":       args,
 			})
 
-			// Execute via MCP
 			result, execErr := mcpServer.ExecuteTool(tc.Function.Name, args)
 			var resultContent string
 			success := execErr == nil
@@ -267,7 +277,6 @@ func (a *App) AgentChatStream(conversationId string, messages []AIChatMessage) e
 				resultContent = strings.Join(parts, "\n")
 			}
 
-			// Emit result event to frontend
 			a.emitEvent( "ai-agent-tool-result", map[string]interface{}{
 				"conversationId": conversationId,
 				"toolCallId":     tc.ID,
@@ -276,7 +285,6 @@ func (a *App) AgentChatStream(conversationId string, messages []AIChatMessage) e
 				"content":        resultContent,
 			})
 
-			// Add tool result to message history
 			aiMessages = append(aiMessages, ai.Message{
 				Role:       "tool",
 				Content:    resultContent,
@@ -289,7 +297,7 @@ func (a *App) AgentChatStream(conversationId string, messages []AIChatMessage) e
 	// Exceeded max rounds
 	a.emitEvent( "ai-chat-chunk", map[string]string{
 		"conversationId": conversationId,
-		"chunk":          "\n\n⚠️ 已达到最大工具调用轮次（10轮），操作结束。",
+		"chunk":          fmt.Sprintf("\n\n⚠️ 已达到最大工具调用轮次（%d轮），操作结束。", maxRounds),
 	})
 	a.emitEvent( "ai-chat-complete", map[string]interface{}{
 		"conversationId": conversationId,

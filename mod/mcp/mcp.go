@@ -585,6 +585,24 @@ func (s *MCPServer) getTools() []Tool {
 		tools = append(tools, deploymentToolSchemas()...)
 		tools = append(tools, projectToolSchemas()...)
 		tools = append(tools, schedulerToolSchemas()...)
+		tools = append(tools, Tool{
+			Name:        "save_template_files",
+			Description: "Save/create a new template by writing template files (case.json, main.tf, variables.tf, outputs.tf, terraform.tfvars). Used to programmatically create templates for deployment. Template name must start with 'ai-' prefix.",
+			InputSchema: ToolSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"template_name": {
+						Type:        "string",
+						Description: "Template name (must start with 'ai-' prefix, e.g. 'ai-nginx-deploy')",
+					},
+					"files": {
+						Type:        "object",
+						Description: "Map of filename to file content. Keys: 'case.json', 'main.tf', 'variables.tf', 'outputs.tf', 'terraform.tfvars', etc.",
+					},
+				},
+				Required: []string{"template_name", "files"},
+			},
+		})
 	}
 
 	return tools
@@ -815,6 +833,21 @@ func (s *MCPServer) executeTool(name string, args map[string]interface{}) (ToolR
 			return ToolResult{}, fmt.Errorf("missing or invalid 'template_name' parameter")
 		}
 		return s.toolGetTemplateFiles(templateName)
+
+	case "save_template_files":
+		templateName, ok := args["template_name"].(string)
+		if !ok {
+			return ToolResult{}, fmt.Errorf("missing or invalid 'template_name' parameter")
+		}
+		filesRaw, ok := args["files"].(map[string]interface{})
+		if !ok {
+			return ToolResult{}, fmt.Errorf("missing or invalid 'files' parameter")
+		}
+		files := make(map[string]string)
+		for k, v := range filesRaw {
+			files[k] = fmt.Sprintf("%v", v)
+		}
+		return s.toolSaveTemplateFiles(templateName, files)
 
 	case "get_case_outputs":
 		caseID, ok := args["case_id"].(string)
@@ -1465,6 +1498,23 @@ func (s *MCPServer) toolGetTemplateFiles(templateName string) (ToolResult, error
 			Type: "text",
 			Text: output,
 		}},
+	}, nil
+}
+
+func (s *MCPServer) toolSaveTemplateFiles(templateName string, files map[string]string) (ToolResult, error) {
+	if s.app == nil {
+		return ToolResult{}, fmt.Errorf("save_template_files requires GUI mode (AppBridge not available)")
+	}
+	if !strings.HasPrefix(strings.ToLower(templateName), "ai-") && !strings.HasPrefix(strings.ToLower(templateName), "ai_") {
+		templateName = "ai-" + templateName
+	}
+	savedPath, err := s.app.MCPSaveTemplateFiles(templateName, files)
+	if err != nil {
+		return ToolResult{}, fmt.Errorf("failed to save template: %v", err)
+	}
+	output := fmt.Sprintf("Template '%s' saved successfully!\nPath: %s\nFiles saved: %d\n\nYou can now use plan_case with template '%s' to create a case.", templateName, savedPath, len(files), templateName)
+	return ToolResult{
+		Content: []ContentItem{{Type: "text", Text: output}},
 	}, nil
 }
 

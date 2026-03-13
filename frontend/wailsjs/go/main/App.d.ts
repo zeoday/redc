@@ -12,6 +12,8 @@ export function AICostOptimization():Promise<void>;
 export function AIGenerateTemplate(arg1:string):Promise<void>;
 export function AIRecommendTemplates(arg1:string):Promise<void>;
 export function AgentChatStream(arg1:string,arg2:Array<main.AIChatMessage>):Promise<void>;
+
+export function DeployAgentChatStream(arg1:string,arg2:Array<main.AIChatMessage>):Promise<void>;
 export function AnalyzeCaseError(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 export function AnalyzeDeploymentError(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 export function BatchDeleteCustomDeployments(arg1:Array<string>):Promise<Array<mod.BatchOperationResult>>;
@@ -142,7 +144,7 @@ export function StopPortForward(arg1:string):Promise<void>;
 export function SwitchProject(arg1:string):Promise<void>;
 export function TestTerraformEndpoints():Promise<Array<main.EndpointCheck>>;
 export function UpdateProfile(arg1:string,arg2:string,arg3:string,arg4:string):Promise<mod.ProfileInfo>;
-export function UpdateProfileAIConfig(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<void>;
+export function UpdateProfileAIConfig(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:number):Promise<void>;
 export function UploadFile(arg1:string,arg2:string,arg3:string):Promise<main.FileTransferResult>;
 export function UploadUserdataScript(arg1:string,arg2:string,arg3:string):Promise<main.FileTransferResult>;
 export function ValidateDeploymentConfig(arg1:mod.DeploymentConfig):Promise<mod.ValidationResult>;

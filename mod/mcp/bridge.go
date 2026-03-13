@@ -35,4 +35,7 @@ type AppBridge interface {
 	MCPScheduleTask(caseID string, caseName string, action string, scheduledAt time.Time) (interface{}, error)
 	MCPListScheduledTasks() interface{}
 	MCPCancelScheduledTask(taskID string) error
+
+	// Template write
+	MCPSaveTemplateFiles(templateName string, files map[string]string) (string, error)
 }

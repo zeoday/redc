@@ -70,6 +70,8 @@ export function DeleteRemoteFile(arg1:string,arg2:string):Promise<void>;
 
 export function DeleteTemplateFile(arg1:string,arg2:string):Promise<void>;
 
+export function DeployAgentChatStream(arg1:string,arg2:Array<main.AIChatMessage>):Promise<void>;
+
 export function DeployCase(arg1:string,arg2:string,arg3:Record<string, string>):Promise<void>;
 
 export function DownloadFile(arg1:string,arg2:string,arg3:string):Promise<main.FileTransferResult>;
@@ -226,6 +228,8 @@ export function MCPListProjects():Promise<any>;
 
 export function MCPListScheduledTasks():Promise<any>;
 
+export function MCPSaveTemplateFiles(arg1:string,arg2:Record<string, string>):Promise<string>;
+
 export function MCPScheduleTask(arg1:string,arg2:string,arg3:string,arg4:time.Time):Promise<any>;
 
 export function MCPSetActiveProfile(arg1:string):Promise<any>;
@@ -324,7 +328,7 @@ export function TestWebhook(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function UpdateProfile(arg1:string,arg2:string,arg3:string,arg4:string):Promise<mod.ProfileInfo>;
 
-export function UpdateProfileAIConfig(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<void>;
+export function UpdateProfileAIConfig(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:number):Promise<void>;
 
 export function UploadFile(arg1:string,arg2:string,arg3:string):Promise<main.FileTransferResult>;
 

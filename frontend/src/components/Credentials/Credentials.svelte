@@ -27,7 +27,8 @@ let { t } = $props();
     provider: 'openai',
     apiKey: '',
     baseUrl: '',
-    model: ''
+    model: '',
+    maxToolRounds: 0
   });
   let aiConfigSaving = $state(false);
   let aiConfigSaved = $state(false);
@@ -83,7 +84,8 @@ let { t } = $props();
             provider: active.aiConfig.provider || 'openai',
             apiKey: active.aiConfig.apiKey || '',
             baseUrl: active.aiConfig.baseUrl || aiProviderPresets[active.aiConfig.provider || 'openai'].baseUrl,
-            model: active.aiConfig.model || aiProviderPresets[active.aiConfig.provider || 'openai'].defaultModel
+            model: active.aiConfig.model || aiProviderPresets[active.aiConfig.provider || 'openai'].defaultModel,
+            maxToolRounds: active.aiConfig.maxToolRounds || 0
           };
         } else {
           const preset = aiProviderPresets['openai'];
@@ -91,7 +93,8 @@ let { t } = $props();
             provider: 'openai',
             apiKey: '',
             baseUrl: preset.baseUrl,
-            model: preset.defaultModel
+            model: preset.defaultModel,
+            maxToolRounds: 0
           };
         }
         customConfigPath = profileForm.configPath;
@@ -197,7 +200,7 @@ let { t } = $props();
     aiConfigSaving = true;
     aiConfigSaved = false;
     try {
-      await UpdateProfileAIConfig(activeProfileId, aiConfig.provider, aiConfig.apiKey, aiConfig.baseUrl, aiConfig.model);
+      await UpdateProfileAIConfig(activeProfileId, aiConfig.provider, aiConfig.apiKey, aiConfig.baseUrl, aiConfig.model, aiConfig.maxToolRounds || 0);
       aiConfigSaved = true;
       setTimeout(() => { aiConfigSaved = false; }, 2000);
     } catch (e) {
@@ -586,6 +589,23 @@ let { t } = $props();
             bind:value={aiConfig.baseUrl}
           />
           <p class="text-[10px] text-gray-500 mt-1">{t.aiBaseUrlHint || 'Optional: Override the default API endpoint'}</p>
+        </div>
+        <div>
+          <label for="aiMaxRounds" class="block text-[11px] font-medium text-gray-500 mb-1">{t.aiMaxToolRounds || 'Agent 最大工具调用轮次'}</label>
+          <div class="flex items-center gap-3">
+            <input 
+              id="aiMaxRounds"
+              type="range"
+              min="5"
+              max="50"
+              step="5"
+              class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-500"
+              bind:value={aiConfig.maxToolRounds}
+              oninput={(e) => { aiConfig.maxToolRounds = parseInt(e.target.value); }}
+            />
+            <span class="text-[12px] font-mono text-gray-700 w-8 text-center">{aiConfig.maxToolRounds || 20}</span>
+          </div>
+          <p class="text-[10px] text-gray-500 mt-1">{t.aiMaxToolRoundsHint || 'Agent/开源部署模式下的最大工具调用轮次，0 为使用默认值'}</p>
         </div>
       </div>
       {#if !activeProfileId}

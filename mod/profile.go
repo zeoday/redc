@@ -24,10 +24,11 @@ type ProfileInfo struct {
 
 // AIConfig represents AI provider configuration
 type AIConfig struct {
-	Provider string `json:"provider"`
-	APIKey   string `json:"apiKey,omitempty"`
-	BaseURL  string `json:"baseUrl"`
-	Model    string `json:"model"`
+	Provider      string `json:"provider"`
+	APIKey        string `json:"apiKey,omitempty"`
+	BaseURL       string `json:"baseUrl"`
+	Model         string `json:"model"`
+	MaxToolRounds int    `json:"maxToolRounds,omitempty"`
 }
 
 type profilePayload struct {

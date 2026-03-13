@@ -101,3 +101,8 @@ func (a *App) MCPListScheduledTasks() interface{} {
 func (a *App) MCPCancelScheduledTask(taskID string) error {
 	return a.CancelScheduledTask(taskID)
 }
+
+// MCPSaveTemplateFiles implements AppBridge
+func (a *App) MCPSaveTemplateFiles(templateName string, files map[string]string) (string, error) {
+	return a.SaveTemplateFiles(templateName, files)
+}

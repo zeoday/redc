@@ -130,6 +130,10 @@ export function DeleteTemplateFile(arg1, arg2) {
   return window['go']['main']['App']['DeleteTemplateFile'](arg1, arg2);
 }
 
+export function DeployAgentChatStream(arg1, arg2) {
+  return window['go']['main']['App']['DeployAgentChatStream'](arg1, arg2);
+}
+
 export function DeployCase(arg1, arg2, arg3) {
   return window['go']['main']['App']['DeployCase'](arg1, arg2, arg3);
 }
@@ -442,6 +446,10 @@ export function MCPListScheduledTasks() {
   return window['go']['main']['App']['MCPListScheduledTasks']();
 }
 
+export function MCPSaveTemplateFiles(arg1, arg2) {
+  return window['go']['main']['App']['MCPSaveTemplateFiles'](arg1, arg2);
+}
+
 export function MCPScheduleTask(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['MCPScheduleTask'](arg1, arg2, arg3, arg4);
 }
@@ -638,8 +646,8 @@ export function UpdateProfile(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['UpdateProfile'](arg1, arg2, arg3, arg4);
 }
 
-export function UpdateProfileAIConfig(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['UpdateProfileAIConfig'](arg1, arg2, arg3, arg4, arg5);
+export function UpdateProfileAIConfig(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['UpdateProfileAIConfig'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function UploadFile(arg1, arg2, arg3) {

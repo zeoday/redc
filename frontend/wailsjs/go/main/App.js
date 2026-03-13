@@ -10,6 +10,10 @@ export function AIChatStream(arg1, arg2, arg3) {
   return window['go']['main']['App']['AIChatStream'](arg1, arg2, arg3);
 }
 
+export function DeployAgentChatStream(arg1, arg2) {
+  return window['go']['main']['App']['DeployAgentChatStream'](arg1, arg2);
+}
+
 export function AICostOptimization() {
   return window['go']['main']['App']['AICostOptimization']();
 }
@@ -538,8 +542,8 @@ export function UpdateProfile(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['UpdateProfile'](arg1, arg2, arg3, arg4);
 }
 
-export function UpdateProfileAIConfig(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['UpdateProfileAIConfig'](arg1, arg2, arg3, arg4, arg5);
+export function UpdateProfileAIConfig(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['UpdateProfileAIConfig'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function UploadFile(arg1, arg2, arg3) {

@@ -782,6 +782,7 @@ export namespace mod {
 	    apiKey?: string;
 	    baseUrl: string;
 	    model: string;
+	    maxToolRounds?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new AIConfig(source);
@@ -793,6 +794,7 @@ export namespace mod {
 	        this.apiKey = source["apiKey"];
 	        this.baseUrl = source["baseUrl"];
 	        this.model = source["model"];
+	        this.maxToolRounds = source["maxToolRounds"];
 	    }
 	}
 	export class VariableValidation {
